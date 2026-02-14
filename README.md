@@ -62,12 +62,25 @@ git clone <repository-url>
 cd Commodity-Lab
 ```
 
-2. **Install the project with dependencies**:
+2. **Create a virtual environment** (recommended):
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. **Install dependencies**:
+
+**Option A (Common and Simple):**
+```bash
+pip install -r requirements.txt
+```
+
+**Option B (Development mode with editable install):**
 ```bash
 pip install -e .
 ```
 
-The `-e` flag installs the project in editable mode, allowing changes to be reflected immediately without reinstalling.
+We recommend **Option A** for most users. Option B is useful if you're developing the `core` module and want changes reflected immediately without reinstalling.
 
 ## Usage
 
@@ -102,7 +115,14 @@ This will start a local web server (typically at `http://localhost:8501`) where 
 To work with the project:
 
 ```bash
-# Install in development mode
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Or for editable development mode
 pip install -e .
 
 # Run the app
