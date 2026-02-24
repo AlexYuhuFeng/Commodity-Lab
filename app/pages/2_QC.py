@@ -1,6 +1,12 @@
+import sys
+from pathlib import Path
+
+# Add the workspace root to the Python path so core module can be imported
+workspace_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(workspace_root))
+
 import streamlit as st
 import pandas as pd
-from pathlib import Path
 from datetime import datetime
 
 from core.db import (

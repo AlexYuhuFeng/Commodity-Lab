@@ -1,8 +1,14 @@
 # app/pages/0_Catalog.py
 from __future__ import annotations
 
-from datetime import timedelta, date
+import sys
 from pathlib import Path
+
+# Add the workspace root to the Python path so core module can be imported
+workspace_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(workspace_root))
+
+from datetime import timedelta, date
 
 import pandas as pd
 import streamlit as st

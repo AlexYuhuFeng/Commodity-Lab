@@ -1,7 +1,13 @@
 # app/pages/2_Transforms.py
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+# Add the workspace root to the Python path so core module can be imported
+workspace_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(workspace_root))
+
 import re
 import pandas as pd
 import streamlit as st
