@@ -1,0 +1,158 @@
+# .github/workflows/build-and-release.yml
+# Commodity Lab 自动化构建和发布工作流
+# 触发条件：标签创建 (v*.*.*)
+
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # 如: v1.0.0, v1.1.0
+  workflow_dispatch:    # 允许手动触发
+
+env:
+  PYTHON_VERSION: '3.12'
+  APP_NAME: 'Commodity-Lab'
+
+jobs:
+  build:
+    name: Build Executable
+    runs-on: windows-latest  # Windows环境，生成.exe
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史用于生成changelog
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed --name "${{ env.APP_NAME }}" `
+            --icon=app/assets/icon.ico `
+            --add-data "app:app" `
+            --add-data "core:core" `
+            --add-data "data:data" `
+            --hidden-import=streamlit `
+            --hidden-import=duckdb `
+            --hidden-import=pandas `
+            --hidden-import=plotly `
+            --hidden-import=yfinance `
+            --collect-all streamlit `
+            --distpath dist `
+            app/main.py
+        shell: pwsh
+
+      - name: Create dist package
+        run: |
+          cd dist
+          Compress-Archive -Path "${{ env.APP_NAME }}.exe" `
+            -DestinationPath "${{ env.APP_NAME }}-${{ github.ref_name }}-win64.zip"
+          cd ..
+        shell: pwsh
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          $version = "${{ github.ref_name }}"
+          $changelog = @"
+          ## Commodity Lab $version
+          
+          ### 📦 Version Information
+          - **Version**: $version
+          - **Release Date**: $(Get-Date -Format 'yyyy-MM-dd')
+          - **Platform**: Windows 64-bit
+          
+          ### 📥 Installation
+          1. Download: \`Commodity-Lab-$version-win64.zip\`
+          2. Extract the ZIP file
+          3. Run \`Commodity-Lab.exe\`
+          
+          ### 🆕 What's New
+          - See commit history for detailed changes
+          
+          ### 🔧 System Requirements
+          - Windows 7 or later (64-bit)
+          - 500MB free disk space
+          - Internet connection (for data download)
+          
+          ### 📝 Release Notes
+          This release includes all features from the main branch.
+          
+          **Build Date**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+          **Build Number**: ${{ github.run_number }}
+          "@
+
+          Write-Output $changelog | Out-File -FilePath RELEASE_NOTES.md -Encoding UTF8
+          Write-Output "release_body<<EOF" >> $env:GITHUB_OUTPUT
+          Get-Content RELEASE_NOTES.md >> $env:GITHUB_OUTPUT
+          Write-Output "EOF" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/${{ env.APP_NAME }}-${{ github.ref_name }}-win64.zip
+            RELEASE_NOTES.md
+          body: ${{ steps.release_notes.outputs.release_body }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.APP_NAME }}-${{ github.ref_name }}-win64
+          path: dist/${{ env.APP_NAME }}.exe
+          retention-days: 30
+
+  test:
+    name: Test Build
+    runs-on: windows-latest
+    needs: build
+    
+    steps:
+      - name: Download executable
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.APP_NAME }}-${{ github.ref_name }}-win64
+
+      - name: Verify executable
+        run: |
+          $exePath = "${{ env.APP_NAME }}.exe"
+          if (Test-Path $exePath) {
+            Write-Output "✅ Executable file exists: $exePath"
+            $fileInfo = Get-Item $exePath
+            Write-Output "📦 File size: $($fileInfo.Length / 1MB) MB"
+          } else {
+            Write-Error "❌ Executable file not found!"
+            exit 1
+          }
+        shell: pwsh
+
+  notify:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: success()
+    
+    steps:
+      - name: Create success message
+        run: |
+          echo "✅ Build and Release Successful!"
+          echo "📦 Release: ${{ github.ref_name }}"
+          echo "🔗 URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}"

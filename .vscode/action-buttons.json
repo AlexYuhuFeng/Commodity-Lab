@@ -1,0 +1,44 @@
+{
+  "buttons": [
+    {
+      "name": "🔨 Build EXE (Windows)",
+      "color": "#2196F3",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -Command \"cd '${workspaceRoot}'; .\\build.ps1\"",
+      "singleInstance": true,
+      "showInStatusBar": true,
+      "tooltip": "使用PyInstaller构建Windows EXE应用"
+    },
+    {
+      "name": "🔨 Build (Linux/Mac)",
+      "color": "#2196F3",
+      "command": "cd '${workspaceRoot}' && bash build.sh",
+      "singleInstance": true,
+      "showInStatusBar": true,
+      "tooltip": "使用PyInstaller构建应用"
+    },
+    {
+      "name": "🧹 Clean Build",
+      "color": "#FFC107",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -Command \"cd '${workspaceRoot}'; .\\build.ps1 -Clean\"",
+      "singleInstance": true,
+      "showInStatusBar": true,
+      "tooltip": "清理旧构建文件并重新构建"
+    },
+    {
+      "name": "🚀 Run App",
+      "color": "#4CAF50",
+      "command": "pwsh -Command \"& '${workspaceRoot}\\dist\\Commodity-Lab.exe'\"",
+      "singleInstance": true,
+      "showInStatusBar": true,
+      "tooltip": "运行已构建的应用"
+    },
+    {
+      "name": "📖 Building Guide",
+      "color": "#9C27B0",
+      "command": "code ${workspaceRoot}/BUILD_AND_RELEASE.md",
+      "singleInstance": true,
+      "showInStatusBar": false,
+      "tooltip": "打开构建和发布指南"
+    }
+  ]
+}

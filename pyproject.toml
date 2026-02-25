@@ -1,6 +1,6 @@
 [project]
 name = "commodity-lab"
-version = "0.1.0"
+version = "1.0.0"
 description = "A comprehensive data analytics platform for commodity trading and analysis"
 requires-python = ">=3.12"
 
