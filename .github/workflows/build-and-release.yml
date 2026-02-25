@@ -14,6 +14,9 @@ env:
   PYTHON_VERSION: '3.12'
   APP_NAME: 'Commodity-Lab'
 
+permissions:
+  contents: write
+
 jobs:
   test:
     name: Run Tests
