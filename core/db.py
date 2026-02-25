@@ -9,6 +9,16 @@ import duckdb
 import pandas as pd
 
 
+ALLOWED_PRICE_FIELDS = {
+    "open",
+    "high",
+    "low",
+    "close",
+    "adj_close",
+    "volume",
+}
+
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -195,6 +205,24 @@ def init_db(con: duckdb.DuckDBPyConnection) -> None:
         """
     )
 
+
+
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS strategy_runs (
+            run_id          VARCHAR PRIMARY KEY,
+            ticker          VARCHAR NOT NULL,
+            strategy_name   VARCHAR NOT NULL,
+            params_json     VARCHAR,
+            score           DOUBLE,
+            total_return_pct DOUBLE,
+            max_drawdown_pct DOUBLE,
+            sharpe_ratio    DOUBLE,
+            win_rate        DOUBLE,
+            created_at      TIMESTAMPTZ
+        );
+        """
+    )
     con.execute(
         """
         CREATE TABLE IF NOT EXISTS scheduler_settings (
@@ -432,6 +460,11 @@ def upsert_prices_daily(con: duckdb.DuckDBPyConnection, ticker: str, df_prices: 
 def query_prices_long(con: duckdb.DuckDBPyConnection, tickers: list[str], start=None, end=None, field: str = "close") -> pd.DataFrame:
     if not tickers:
         return pd.DataFrame(columns=["date", "ticker", "value"])
+
+    if field not in ALLOWED_PRICE_FIELDS:
+        raise ValueError(
+            f"Unsupported field '{field}'. Allowed values: {sorted(ALLOWED_PRICE_FIELDS)}"
+        )
 
     where = "WHERE ticker IN (SELECT * FROM UNNEST(?))"
     params = [tickers]

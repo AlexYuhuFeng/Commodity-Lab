@@ -1,14 +1,10 @@
-# .github/workflows/build-and-release.yml
-# Commodity Lab 自动化构建和发布工作流
-# 触发条件：标签创建 (仅限 v0.*.*，避免 v1.0.0+ 用于生产版)
-
 name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v0.*.*'  # 如: v0.1.0，仅测试版本触发；避免使用 v1.0.0+
-  workflow_dispatch:    # 允许手动触发
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.12'
@@ -19,44 +15,40 @@ permissions:
 
 jobs:
   test:
-    name: Run Tests
+    name: Tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
+          cache: pip
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
+          pip install -r requirements.txt
           pip install pytest
-
-      - name: Run pytest
-        run: |
-          python -m pytest -q
+      - name: Run tests
+        run: pytest -q
 
   build:
-    name: Build Executable
-    runs-on: windows-latest  # Windows环境，生成.exe
+    name: Build (${{ matrix.os }})
     needs: test
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # 获取完整历史用于生成changelog
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+          cache: pip
 
       - name: Install dependencies
         run: |
@@ -64,71 +56,42 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build with PyInstaller
+      - name: Build executable (Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
-          if (Test-Path "*.spec") { Remove-Item -Force "*.spec" }
-          pyinstaller --onefile --windowed --name "${{ env.APP_NAME }}" `
-            --add-data "app:app" `
-            --add-data "core:core" `
-            --add-data "data:data" `
-            --hidden-import=streamlit `
-            --hidden-import=duckdb `
-            --hidden-import=pandas `
-            --hidden-import=plotly `
-            --hidden-import=yfinance `
-            --collect-all streamlit `
-            --distpath dist `
+          pyinstaller --onefile --name "${{ env.APP_NAME }}" \
+            --add-data "app:app" \
+            --add-data "core:core" \
+            --collect-all streamlit \
             app/main.py
-        shell: pwsh
 
-      - name: Create dist package
+      - name: Build executable (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          cd dist
-          Compress-Archive -Path "${{ env.APP_NAME }}.exe" `
-            -DestinationPath "${{ env.APP_NAME }}-${{ github.ref_name }}-win64.zip"
-          cd ..
-        shell: pwsh
+          pyinstaller --onefile --name "${{ env.APP_NAME }}" `
+            --add-data "app;app" `
+            --add-data "core;core" `
+            --collect-all streamlit `
+            app/main.py
 
-      - name: Generate Release Notes
-        id: release_notes
+      - name: Package artifact (Linux)
+        if: runner.os == 'Linux'
         run: |
-          $version = "${{ github.ref_name }}"
-          $changelog = @"
-          ## Commodity Lab $version
-          
-          ### 📦 Version Information
-          - **Version**: $version
-          - **Release Date**: $(Get-Date -Format 'yyyy-MM-dd')
-          - **Platform**: Windows 64-bit
-          
-          ### 📥 Installation
-          1. Download: \`Commodity-Lab-$version-win64.zip\`
-          2. Extract the ZIP file
-          3. Run \`Commodity-Lab.exe\`
-          
-          ### 🆕 What's New
-          - See commit history for detailed changes
-          
-          ### 🔧 System Requirements
-          - Windows 7 or later (64-bit)
-          - 500MB free disk space
-          - Internet connection (for data download)
-          
-          ### 📝 Release Notes
-          This release includes all features from the main branch.
-          
-          **Build Date**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-          **Build Number**: ${{ github.run_number }}
-          "@
+          mkdir -p release
+          cp "dist/${{ env.APP_NAME }}" "release/${{ env.APP_NAME }}-linux-x64"
+          tar -czf "release/${{ env.APP_NAME }}-${{ github.sha }}-linux-x64.tar.gz" -C release "${{ env.APP_NAME }}-linux-x64"
 
-          Write-Output $changelog | Out-File -FilePath RELEASE_NOTES.md -Encoding UTF8
-          Write-Output "release_body<<EOF" >> $env:GITHUB_OUTPUT
-          Get-Content RELEASE_NOTES.md >> $env:GITHUB_OUTPUT
-          Write-Output "EOF" >> $env:GITHUB_OUTPUT
+      - name: Package artifact (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p release
+          cp "dist/${{ env.APP_NAME }}" "release/${{ env.APP_NAME }}-macos-x64"
+          tar -czf "release/${{ env.APP_NAME }}-${{ github.sha }}-macos-x64.tar.gz" -C release "${{ env.APP_NAME }}-macos-x64"
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
-
-      - name: Create GitHub Release and upload assets (no external actions)
-        id: create_release
         run: |
           $ownerRepo = "${{ github.repository }}"
           $token = $env:RELEASE_TOKEN
@@ -188,17 +151,55 @@ jobs:
         env:
           RELEASE_TOKEN: ${{ secrets.PAT_RELEASE || secrets.GITHUB_TOKEN }}
 
-  # tests run in `test` job; build depends on tests to pass before packaging
+      - name: Upload packaged artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-artifact
+          path: release/*
 
-  notify:
-    name: Notify Release
+  release:
+    name: Publish release
+    needs: build
     runs-on: ubuntu-latest
-    needs: [build]
-    if: success()
-    
+    permissions:
+      contents: write
     steps:
-      - name: Create success message
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Generate release notes
+        id: notes
         run: |
-          echo "✅ Build and Release Successful!"
-          echo "📦 Release: ${{ github.ref_name }}"
-          echo "🔗 URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          echo "## Commodity Lab Release" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### Version" >> RELEASE_NOTES.md
+          echo "- Commit: \\`${GITHUB_SHA}\\`" >> RELEASE_NOTES.md
+          echo "- Trigger: ${GITHUB_EVENT_NAME}" >> RELEASE_NOTES.md
+          echo "- Date: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### Recent changes" >> RELEASE_NOTES.md
+          git log --pretty='- %h %s' -n 20 >> RELEASE_NOTES.md
+
+      - name: Create/Update release (tag build)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG_NAME" ./artifacts/**/* --title "$TAG_NAME" --notes-file RELEASE_NOTES.md || \
+          gh release upload "$TAG_NAME" ./artifacts/**/* --clobber
+
+      - name: Create/Update rolling prerelease (main)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="nightly-latest"
+          gh release create "$TAG_NAME" ./artifacts/**/* --title "nightly-latest" --notes-file RELEASE_NOTES.md --prerelease || \
+          gh release upload "$TAG_NAME" ./artifacts/**/* --clobber
+          gh release edit "$TAG_NAME" --notes-file RELEASE_NOTES.md --prerelease

@@ -537,3 +537,21 @@ if __name__ == "__main__":
     print(f"条件评估结果: {result}")
     print(f"表达式: {final_group.to_expression()}")
     print(f"JSON: {json.dumps(final_group.to_dict(), indent=2)}")
+
+
+
+class ConditionEvaluator:
+    """Simple expression evaluator for scheduler/backward compatibility."""
+
+    @staticmethod
+    def evaluate(expression: str, context: dict[str, Any]) -> Any:
+        if not expression:
+            return False
+        safe_locals = {
+            "price": context.get("price"),
+            "threshold": context.get("threshold"),
+            "mean": context.get("mean"),
+            "std": context.get("std"),
+            **{k: v for k, v in context.items() if isinstance(k, str)},
+        }
+        return eval(expression, {"__builtins__": {}}, safe_locals)
