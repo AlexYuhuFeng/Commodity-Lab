@@ -60,14 +60,14 @@ class SimpleBacktester:
         
         # Initialize tracking
         trades = []
-        equity_curve = [self.capital]
+        equity_curve = [float(self.capital)]
         dates = [df["date"].iloc[0]]
-        
-        position = 0  # Current position (shares)
-        entry_price = 0
+
+        position = 0.0  # Current position (signed shares)
+        entry_price = 0.0
         entry_date = None
         entry_signal = None
-        cash = self.capital
+        cash = float(self.capital)
         
         for idx, row in df.iterrows():
             signal = int(row["signal"])
@@ -78,90 +78,109 @@ class SimpleBacktester:
             if position != 0 and signal != np.sign(position):
                 # Exit trade
                 exit_price = price
-                pnl = (exit_price - entry_price) * position * (1 - cost_per_trade)
-                pnl_pct = (pnl / (entry_price * position)) * 100 if entry_price != 0 else 0
-                
+                shares = abs(position)
+                # apply exit transaction cost on proceeds
+                proceeds = exit_price * shares * (1 - cost_per_trade)
+                entry_value = entry_price * shares
+                pnl = proceeds - entry_value
+                pnl_pct = (pnl / entry_value) * 100 if entry_value != 0 else 0
+
                 trade = Trade(
                     entry_date=entry_date,
                     exit_date=current_date,
                     entry_price=entry_price,
                     exit_price=exit_price,
-                    direction=np.sign(position),
-                    shares=abs(position),
+                    direction=int(np.sign(position)),
+                    shares=shares,
                     entry_signal=entry_signal,
                     exit_signal=f"signal_{signal}",
-                    pnl=pnl,
-                    pnl_pct=pnl_pct
+                    pnl=float(pnl),
+                    pnl_pct=float(pnl_pct)
                 )
                 trades.append(trade)
-                
-                cash += exit_price * position
-                position = 0
+
+                cash += proceeds
+                position = 0.0
             
             # Open new position
             if position == 0 and signal != 0:
-                position_size = (cash * position_size_pct) / (price + 0.001)
-                position = position_size * signal
+                # position sizing by value: allocate a fraction of current equity
+                position_value = cash * position_size_pct
+                shares = position_value / price if price > 0 else 0.0
+                position = float(shares * signal)
                 entry_price = price
                 entry_date = current_date
                 entry_signal = f"signal_{signal}"
-                cash -= price * abs(position) * (1 + cost_per_trade)
+                # subtract cost on entry
+                cost_amount = shares * price * cost_per_trade
+                cash -= shares * price + cost_amount
             
             # Update equity
-            current_equity = cash + position * price
+            current_equity = float(cash + position * price)
             equity_curve.append(current_equity)
             dates.append(current_date)
         
         # Close final position
         if position != 0:
             exit_price = df["close"].iloc[-1]
-            pnl = (exit_price - entry_price) * position * (1 - cost_per_trade)
-            pnl_pct = (pnl / (entry_price * position)) * 100 if entry_price != 0 else 0
-            
+            shares = abs(position)
+            proceeds = exit_price * shares * (1 - cost_per_trade)
+            entry_value = entry_price * shares
+            pnl = proceeds - entry_value
+            pnl_pct = (pnl / entry_value) * 100 if entry_value != 0 else 0
+
             trade = Trade(
                 entry_date=entry_date,
                 exit_date=df["date"].iloc[-1],
                 entry_price=entry_price,
                 exit_price=exit_price,
-                direction=np.sign(position),
-                shares=abs(position),
+                direction=int(np.sign(position)),
+                shares=shares,
                 entry_signal=entry_signal,
                 exit_signal="exit_final",
-                pnl=pnl,
-                pnl_pct=pnl_pct
+                pnl=float(pnl),
+                pnl_pct=float(pnl_pct)
             )
             trades.append(trade)
+            cash += proceeds
         
         # Generate results
+        equity_df = pd.DataFrame({
+            "date": dates,
+            "equity": equity_curve
+        })
+
         return {
-            "equity_curve": pd.DataFrame({
-                "date": dates,
-                "equity": equity_curve
-            }),
+            "equity_curve": equity_df,
             "trades": trades,
             "metrics": self._calculate_metrics(trades, equity_curve)
         }
     
     def _calculate_metrics(self, trades: list, equity_curve: list) -> dict:
         """Calculate performance metrics"""
-        equity = np.array(equity_curve)
-        returns = np.diff(equity) / equity[:-1]
-        
-        total_return_pct = ((equity[-1] - self.capital) / self.capital) * 100
+        # ensure numeric numpy array
+        try:
+            equity = np.array(equity_curve, dtype=float)
+        except Exception:
+            equity = np.array([float(x) for x in equity_curve], dtype=float)
+        returns = np.diff(equity) / np.where(equity[:-1] == 0, 1e-8, equity[:-1])
+
+        total_return_pct = ((equity[-1] - self.capital) / self.capital) * 100 if len(equity) > 0 else 0
         
         # Drawdown
         cummax = np.maximum.accumulate(equity)
-        drawdown = (equity - cummax) / cummax
-        max_drawdown_pct = np.min(drawdown) * 100
+        drawdown = (equity - cummax) / np.where(cummax == 0, 1e-8, cummax)
+        max_drawdown_pct = float(np.min(drawdown) * 100)
         
         # Win rate
         if trades:
-            winning_trades = sum(1 for t in trades if t.pnl and t.pnl > 0)
+            winning_trades = sum(1 for t in trades if getattr(t, "pnl", 0) and t.pnl > 0)
             win_rate = (winning_trades / len(trades)) * 100 if trades else 0
-            avg_win = np.mean([t.pnl for t in trades if t.pnl and t.pnl > 0]) if winning_trades > 0 else 0
-            avg_loss = np.mean([t.pnl for t in trades if t.pnl and t.pnl < 0]) if (len(trades) - winning_trades) > 0 else 0
-            profit_factor = abs(sum(t.pnl for t in trades if t.pnl and t.pnl > 0) / 
-                             sum(t.pnl for t in trades if t.pnl and t.pnl < 0)) if sum(t.pnl for t in trades if t.pnl and t.pnl < 0) != 0 else 0
+            avg_win = np.mean([t.pnl for t in trades if getattr(t, "pnl", 0) and t.pnl > 0]) if winning_trades > 0 else 0
+            avg_loss = np.mean([t.pnl for t in trades if getattr(t, "pnl", 0) and t.pnl < 0]) if (len(trades) - winning_trades) > 0 else 0
+            sum_wins = sum(t.pnl for t in trades if getattr(t, "pnl", 0) and t.pnl > 0)
+            sum_losses = sum(t.pnl for t in trades if getattr(t, "pnl", 0) and t.pnl < 0)
+            profit_factor = abs(sum_wins / sum_losses) if sum_losses != 0 else float('inf')
         else:
             win_rate = 0
             avg_win = 0
