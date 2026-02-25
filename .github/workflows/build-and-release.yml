@@ -1,13 +1,13 @@
 # .github/workflows/build-and-release.yml
 # Commodity Lab 自动化构建和发布工作流
-# 触发条件：标签创建 (v*.*.*)
+# 触发条件：标签创建 (仅限 v0.*.*，避免 v1.0.0+ 用于生产版)
 
 name: Build and Release
 
 on:
   push:
     tags:
-      - 'v*.*.*'  # 如: v1.0.0, v1.1.0
+      - 'v0.*.*'  # 如: v0.1.0，仅测试版本触发；避免使用 v1.0.0+
   workflow_dispatch:    # 允许手动触发
 
 env:
@@ -15,9 +15,33 @@ env:
   APP_NAME: 'Commodity-Lab'
 
 jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install pytest
+
+      - name: Run pytest
+        run: |
+          python -m pytest -q
+
   build:
     name: Build Executable
     runs-on: windows-latest  # Windows环境，生成.exe
+    needs: test
     
     steps:
       - name: Checkout code
@@ -131,7 +155,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # test job removed because release assets are uploaded directly via REST API
+  # tests run in `test` job; build depends on tests to pass before packaging
 
   notify:
     name: Notify Release
