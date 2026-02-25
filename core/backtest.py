@@ -42,7 +42,14 @@ class SimpleBacktester:
         self.df = pd.merge(self.prices_df, self.signals_df[["date", "signal"]], on="date", how="left")
         self.df["signal"] = self.df["signal"].fillna(0)
     
-    def run(self, position_size_pct: float = 0.95, cost_per_trade: float = 0.0) -> dict:
+    def run(
+        self,
+        position_size_pct: float = 0.95,
+        cost_per_trade: float = 0.0,
+        slippage: float = 0.0,
+        fixed_fee: float = 0.0,
+        max_position_value: float | None = None,
+    ) -> dict:
         """
         Run backtest.
         
@@ -77,10 +84,11 @@ class SimpleBacktester:
             # Close position if signal changes
             if position != 0 and signal != np.sign(position):
                 # Exit trade
-                exit_price = price
+                # apply slippage on exit: adverse move
+                exit_price = price * (1 - slippage * np.sign(position)) if slippage else price
                 shares = abs(position)
                 # apply exit transaction cost on proceeds
-                proceeds = exit_price * shares * (1 - cost_per_trade)
+                proceeds = exit_price * shares * (1 - cost_per_trade) - fixed_fee
                 entry_value = entry_price * shares
                 pnl = proceeds - entry_value
                 pnl_pct = (pnl / entry_value) * 100 if entry_value != 0 else 0
@@ -106,14 +114,17 @@ class SimpleBacktester:
             if position == 0 and signal != 0:
                 # position sizing by value: allocate a fraction of current equity
                 position_value = cash * position_size_pct
+                if max_position_value is not None:
+                    position_value = min(position_value, max_position_value)
                 shares = position_value / price if price > 0 else 0.0
+                # apply slippage on entry: worse price
+                entry_price = price * (1 + slippage * signal) if slippage else price
                 position = float(shares * signal)
-                entry_price = price
                 entry_date = current_date
                 entry_signal = f"signal_{signal}"
-                # subtract cost on entry
-                cost_amount = shares * price * cost_per_trade
-                cash -= shares * price + cost_amount
+                # subtract cost on entry plus fixed fee
+                cost_amount = shares * entry_price * cost_per_trade
+                cash -= shares * entry_price + cost_amount + fixed_fee
             
             # Update equity
             current_equity = float(cash + position * price)
@@ -122,9 +133,10 @@ class SimpleBacktester:
         
         # Close final position
         if position != 0:
-            exit_price = df["close"].iloc[-1]
+            raw_exit_price = df["close"].iloc[-1]
+            exit_price = raw_exit_price * (1 - slippage * np.sign(position)) if slippage else raw_exit_price
             shares = abs(position)
-            proceeds = exit_price * shares * (1 - cost_per_trade)
+            proceeds = exit_price * shares * (1 - cost_per_trade) - fixed_fee
             entry_value = entry_price * shares
             pnl = proceeds - entry_value
             pnl_pct = (pnl / entry_value) * 100 if entry_value != 0 else 0
