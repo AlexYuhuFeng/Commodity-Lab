@@ -10,3 +10,7 @@ build/
 *.egg-info/
 *.sqlite
 commodity_lab.duckdb
+# Local diagnostics/temp outputs
+py_files_list.txt
+py_compile_output.txt
+tmp_pycache_dirs.txt
