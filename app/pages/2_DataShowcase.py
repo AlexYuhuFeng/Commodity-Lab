@@ -228,7 +228,7 @@ with tabs[1]:
             height=500,
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # Statistics for selected period
         st.subheader("选定期间统计")
@@ -370,7 +370,7 @@ with tabs[3]:
         )
     
     with col4:
-        if st.button("💾 保存属性", use_container_width=True):
+        if st.button("💾 保存属性", width='stretch'):
             from core.db import update_instrument_meta
             
             try:
@@ -429,7 +429,7 @@ with tabs[4]:
                             title=f"{derived_ticker} 走势",
                             labels={"value": "值", "date": "日期"},
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                     
                     # Actions
                     col1, col2, col3 = st.columns(3)
@@ -484,7 +484,7 @@ with tabs[4]:
     with col4:
         multiplier = st.number_input("乘数", value=1.0, step=0.1)
     
-    if st.button("➕ 创建派生序列", use_container_width=True):
+    if st.button("➕ 创建派生序列", width='stretch'):
         if not derived_name:
             st.error("请输入派生序列名称")
         else:
@@ -518,7 +518,7 @@ with tabs[5]:
     with col1:
         st.markdown("**数据操作**")
         
-        if st.button("🔄 立即刷新", use_container_width=True):
+        if st.button("🔄 立即刷新", width='stretch'):
             from core.refresh import refresh_many
             try:
                 with st.spinner(f"刷新 {selected_ticker} 中..."):
@@ -531,7 +531,7 @@ with tabs[5]:
             except Exception as e:
                 st.error(f"❌ 错误: {str(e)}")
         
-        if st.button("📥 导出数据", use_container_width=True):
+        if st.button("📥 导出数据", width='stretch'):
             csv = prices.to_csv(index=False)
             st.download_button(
                 label="下载 CSV",
@@ -548,12 +548,12 @@ with tabs[5]:
         is_watched = ticker_info.get("is_watched", False)
         
         if is_watched:
-            if st.button("⭐ 取消关注", use_container_width=True):
+            if st.button("⭐ 取消关注", width='stretch'):
                 set_watch(con, [selected_ticker], False)
                 st.success(f"已取消关注 {selected_ticker}")
                 st.rerun()
         else:
-            if st.button("⭐ 加入关注", use_container_width=True):
+            if st.button("⭐ 加入关注", width='stretch'):
                 set_watch(con, [selected_ticker], True)
                 st.success(f"已关注 {selected_ticker}")
                 st.rerun()

@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from datetime import datetime, timedelta
-import ast
+from datetime import datetime, timedelta, timezone
 import uuid
 import pandas as pd
 import streamlit as st
@@ -243,7 +242,7 @@ def test_alert_rule(rule: dict):
 with st.sidebar:
     st.header("⚙️ 快速操作")
     
-    if st.button("🔄 检测所有规则", type="primary", use_container_width=True):
+    if st.button("🔄 检测所有规则", type="primary", width='stretch'):
         st.session_state["check_all_rules"] = True
     
     st.divider()
@@ -253,7 +252,7 @@ with st.sidebar:
         st.write(f"**已关注产品**: {len(inst)}")
         selected_ticker = st.selectbox("快速检测", inst["ticker"].tolist(), key="quick_check_ticker")
         
-        if st.button("🔍 检测此产品的所有规则", use_container_width=True):
+        if st.button("🔍 检测此产品的所有规则", width='stretch'):
             st.session_state["quick_check_ticker"] = selected_ticker
 
 
@@ -389,7 +388,7 @@ with tabs[0]:
         
         notes = st.text_area("备注", height=60)
         
-        submit_button = st.form_submit_button("➕ 创建规则", use_container_width=True)
+        submit_button = st.form_submit_button("➕ 创建规则", width='stretch')
         
         if submit_button:
             if not rule_name:
@@ -490,7 +489,7 @@ with tabs[1]:
                     )
                 
                 with col2:
-                    if st.button("✅ 确认告警", key=f"ack_{alert['event_id']}", use_container_width=True):
+                    if st.button("✅ 确认告警", key=f"ack_{alert['event_id']}", width='stretch'):
                         acknowledge_alert_event(con, alert["event_id"], ack_notes)
                         st.success("告警已确认")
                         st.rerun()
@@ -516,10 +515,8 @@ with tabs[2]:
     history = list_alert_events(con, limit=500, acknowledged=show_acknowledged if show_acknowledged else False)
     
     # Filter by date
-    cutoff_date = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days_back)
-    if "triggered_at" in history.columns:
-        history["triggered_at"] = pd.to_datetime(history["triggered_at"], utc=True, errors="coerce")
-        history = history[history["triggered_at"] >= cutoff_date]
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+    history = history[history["triggered_at"] >= cutoff_date]
     
     # Filter by severity
     if severity_filter != "all":
@@ -556,7 +553,7 @@ with tabs[2]:
         
         st.dataframe(
             df_display,
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
         )
         

@@ -101,7 +101,7 @@ with st.sidebar:
     inst = list_instruments(con, only_watched=False)
     watched = inst[inst["is_watched"] == True]["ticker"].tolist() if not inst.empty else []
     
-    if st.button(f"🔄 {t('refresh_all')}", type="primary", use_container_width=True):
+    if st.button(f"🔄 {t('refresh_all')}", type="primary", width='stretch'):
         if not watched:
             st.warning("暂无已关注的产品。请先在下方搜索并关注。")
         else:
@@ -150,11 +150,11 @@ with tab_search:
         # Display in dataframe format with pagination
         df_results = pd.DataFrame([
             {
-                "产品名称": r.get("shortname", r.get("symbol", "")),
-                "代码": r.get("symbol", ""),
-                "类型": r.get("quoteType", ""),
-                "交易所": r.get("exchange", ""),
-                "货币": r.get("currency", ""),
+                "产品名称": r.get("name") or r.get("ticker") or "",
+                "代码": r.get("ticker") or r.get("symbol") or "",
+                "类型": r.get("quote_type") or r.get("quoteType") or "",
+                "交易所": r.get("exchange") or "",
+                "货币": r.get("currency") or "",
                 "操作": "view"
             }
             for r in search_results[:max_results]
@@ -162,7 +162,7 @@ with tab_search:
         
         st.dataframe(
             df_results,
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             column_config={
                 "操作": st.column_config.SelectboxColumn(
@@ -179,9 +179,9 @@ with tab_search:
         for idx, result in enumerate(search_results[:max_results]):
             with cols[idx % len(cols)]:
                 with st.container(border=True):
-                    ticker = result.get("symbol", "N/A")
-                    name = result.get("shortname", ticker)
-                    quote_type = result.get("quoteType", "")
+                    ticker = result.get("ticker", "N/A")
+                    name = result.get("name", ticker)
+                    quote_type = result.get("quote_type", "")
                     exchange = result.get("exchange", "")
                     currency = result.get("currency", "")
                     
@@ -197,7 +197,7 @@ with tab_search:
                     if is_watched:
                         st.success("✅ 已关注")
                     else:
-                        if st.button("➕ 添加关注", key=f"add_{ticker}", use_container_width=True):
+                        if st.button("➕ 添加关注", key=f"add_{ticker}_{idx}", width='stretch'):
                             # Add to instruments and optionally download
                             try:
                                 upsert_instruments(
@@ -251,7 +251,7 @@ with tab_local:
             
             st.dataframe(
                 df_display,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 column_config={
                     "ticker": st.column_config.TextColumn("代码"),
@@ -292,7 +292,7 @@ with tab_local:
             if stats_rows:
                 st.dataframe(
                     pd.DataFrame(stats_rows),
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True
                 )
 
@@ -315,6 +315,6 @@ with tab_logs:
         
         st.dataframe(
             df_display,
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
