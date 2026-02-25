@@ -5,21 +5,20 @@ Strategies & Backtest Page
 """
 
 import sys
+from datetime import timedelta
 from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import streamlit as st
 
 workspace_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(workspace_root))
 
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-from datetime import timedelta
-
 from app.i18n import t, render_language_switcher, init_language
-from core.strategy_examples import sma_crossover_signals, rsi_mean_reversion_signals
 from core.backtest import SimpleBacktester
-from core.db import get_conn, default_db_path, list_instruments, query_prices_long
-from pathlib import Path
+from core.db import default_db_path, get_conn, list_instruments, query_prices_long
+from core.strategy_examples import rsi_mean_reversion_signals, sma_crossover_signals
 
 init_language()
 
@@ -28,24 +27,41 @@ render_language_switcher()
 
 st.title(f"🎯 {t('strategies')}")
 
-con = get_conn(default_db_path(Path(workspace_root)))
+con = get_conn(default_db_path(workspace_root))
 instruments_df = list_instruments(con)
 available_tickers = instruments_df["ticker"].tolist() if not instruments_df.empty else []
 
 with st.sidebar:
-	st.header(t("backtest_controls") if t("backtest_controls") else "Backtest Controls")
-	strategy = st.selectbox("Strategy", ["SMA Crossover", "RSI Mean Reversion"])
-	capital = st.number_input("Initial Capital", value=100000.0, step=1000.0)
-	position_size_pct = st.slider("Position Size (% of equity)", 0.01, 1.0, 0.95)
-	cost_per_trade = st.number_input("Transaction Cost (pct)", value=0.001)
-	slippage = st.number_input("Slippage (fraction)", value=0.0)
-	fixed_fee = st.number_input("Fixed fee per trade", value=0.0)
-	max_position_value = st.number_input("Max position value (0 = no limit)", value=0.0)
-	selected_tickers = st.multiselect("Tickers (from DB)", options=available_tickers, default=(available_tickers[:1] if available_tickers else []))
-	start = st.date_input("Start date", value=pd.Timestamp.today().date() - timedelta(days=365))
-	end = st.date_input("End date", value=pd.Timestamp.today().date())
+    st.header("Backtest Controls")
+    strategy = st.selectbox("Strategy", ["SMA Crossover", "RSI Mean Reversion"])
+    capital = st.number_input("Initial Capital", value=100000.0, step=1000.0)
+    position_size_pct = st.slider("Position Size (% of equity)", 0.01, 1.0, 0.95)
+    cost_per_trade = st.number_input("Transaction Cost (pct)", value=0.001)
+    slippage = st.number_input("Slippage (fraction)", value=0.0)
+    fixed_fee = st.number_input("Fixed fee per trade", value=0.0)
+    max_position_value = st.number_input("Max position value (0 = no limit)", value=0.0)
+    selected_tickers = st.multiselect(
+        "Tickers (from DB)",
+        options=available_tickers,
+        default=(available_tickers[:1] if available_tickers else []),
+    )
+    start = st.date_input("Start date", value=pd.Timestamp.today().date() - timedelta(days=365))
+    end = st.date_input("End date", value=pd.Timestamp.today().date())
 
-st.info(t("backtest_info") if t("backtest_info") else "Configure strategy parameters and run backtest")
+with st.expander("🧭 Backtest Guide / 回测说明", expanded=False):
+    st.markdown(
+        """
+- 先选 1~3 个标的测试流程，再扩展到组合回测。
+- 建议开启交易成本与滑点，避免过度乐观结果。
+- 如果权益曲线为空，请检查日期范围和本地数据是否已刷新。
+        """
+    )
+
+st.info("Configure strategy parameters and run backtest")
+
+eq = None
+metrics = {}
+trades: list[dict] = []
 
 if st.button("Run Backtest"):
 	# For demo use synthetic prices; in production allow ticker selection

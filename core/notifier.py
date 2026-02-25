@@ -352,3 +352,8 @@ class NotificationHistory:
             results[record['timestamp']] = 'pending_retry'
             
         return results
+
+
+class Notifier(AlertNotifier):
+    """Backward-compatible alias for older imports."""
+    pass

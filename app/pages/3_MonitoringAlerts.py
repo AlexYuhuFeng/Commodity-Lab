@@ -41,6 +41,15 @@ render_language_switcher()
 
 st.title(f"🚨 {t('monitoring')}")
 
+with st.expander("🧭 Monitoring Guide / 监控说明", expanded=False):
+    st.markdown(
+        """
+- 先创建规则，再逐条点击测试，确认阈值和提示语。
+- 建议先启用价格阈值和数据陈旧规则，后续再加波动率/相关性规则。
+- 对于自定义表达式，可使用变量 `value` 与 `threshold`（例如：`value > threshold * 1.05`）。
+        """
+    )
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = default_db_path(PROJECT_ROOT)
 
@@ -49,6 +58,56 @@ init_db(con)
 
 
 # ===== HELPER FUNCTIONS =====
+
+
+def safe_eval_custom_expression(expr: str, value: float, threshold: float | None) -> bool:
+    """Safely evaluate simple boolean expressions for custom rules."""
+    if not expr:
+        return False
+
+    allowed_nodes = (
+        ast.Expression,
+        ast.BoolOp,
+        ast.BinOp,
+        ast.UnaryOp,
+        ast.Compare,
+        ast.Name,
+        ast.Load,
+        ast.Constant,
+        ast.And,
+        ast.Or,
+        ast.Not,
+        ast.Add,
+        ast.Sub,
+        ast.Mult,
+        ast.Div,
+        ast.Mod,
+        ast.Pow,
+        ast.USub,
+        ast.UAdd,
+        ast.Eq,
+        ast.NotEq,
+        ast.Lt,
+        ast.LtE,
+        ast.Gt,
+        ast.GtE,
+    )
+
+    tree = ast.parse(expr, mode="eval")
+    for node in ast.walk(tree):
+        if not isinstance(node, allowed_nodes):
+            raise ValueError("Expression contains unsupported syntax")
+        if isinstance(node, ast.Name) and node.id not in {"value", "threshold"}:
+            raise ValueError(f"Unsupported variable: {node.id}")
+
+    return bool(
+        eval(
+            compile(tree, "<alert_expr>", "eval"),
+            {"__builtins__": {}},
+            {"value": float(value), "threshold": float(threshold) if threshold is not None else None},
+        )
+    )
+
 def evaluate_alert_condition(ticker: str, con, rule: dict) -> dict | None:
     """
     Evaluate if alert condition is met
@@ -126,13 +185,39 @@ def evaluate_alert_condition(ticker: str, con, rule: dict) -> dict | None:
     
     # Correlation Break rule
     elif rule_type == "correlation_break":
-        # Placeholder for correlation break detection
-        result["message"] = f"相关性断裂检测（暂未实现）"
-    
+        peer_ticker = (rule.get("condition_expr") or "").strip()
+        if peer_ticker and threshold is not None and len(prices) >= 60:
+            peer = query_prices_long(con, [peer_ticker], field="close")
+            if not peer.empty:
+                merged = pd.merge(
+                    prices[["date", "value"]].rename(columns={"value": "v1"}),
+                    peer[["date", "value"]].rename(columns={"value": "v2"}),
+                    on="date",
+                    how="inner",
+                ).dropna()
+                if len(merged) >= 60:
+                    long_corr = merged["v1"].tail(60).corr(merged["v2"].tail(60))
+                    short_corr = merged["v1"].tail(20).corr(merged["v2"].tail(20))
+                    corr_diff = abs(float(short_corr) - float(long_corr))
+                    if corr_diff > float(threshold):
+                        result["triggered"] = True
+                        result["value"] = corr_diff
+                        result["message"] = (
+                            f"{ticker} vs {peer_ticker} 相关性变化 {corr_diff:.3f} 超过阈值 {float(threshold):.3f}"
+                        )
+
     # Custom Expression rule
     elif rule_type == "custom":
-        # Placeholder for custom expression evaluation
-        result["message"] = "自定义表达式（用户可在规则创建时定义）"
+        expr = (rule.get("condition_expr") or "").strip()
+        if expr:
+            try:
+                if safe_eval_custom_expression(expr, latest_price, threshold):
+                    result["triggered"] = True
+                    result["message"] = f"表达式触发: {expr} (value={latest_price:.4f})"
+                else:
+                    result["message"] = "表达式未触发"
+            except Exception as exc:
+                result["message"] = f"表达式错误: {exc}"
     
     return result
 

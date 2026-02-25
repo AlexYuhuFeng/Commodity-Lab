@@ -47,6 +47,8 @@
   - Data Showcase — product detail (multi-tab view)
   - Monitoring & Alerts — create and test rules
   - Analytics & Backtest — advanced features (internal)
+- Getting Started Guide — onboarding for new users
+- Auto Strategy Lab — automated strategy generation, search, and ranking
 
   ## Documentation
 
@@ -87,3 +89,18 @@
   ## Changelog
 
   - v1.0 — Internal release; UI refactor and core features (2026-02-25)
+
+## CI/CD & Release
+
+- CI executes tests on each push/PR to `main`.
+- Build & Release workflow creates cross-platform executables for Linux/macOS/Windows.
+- On `main` updates, a rolling prerelease (`nightly-latest`) is updated with latest artifacts and release notes.
+- On version tags (`v*.*.*`), a versioned release is created automatically.
+
+
+## Automated Strategy Operations
+
+- `Auto Strategy Lab` provides automated parameter search across strategy families and stores each run in DB (`strategy_runs`).
+- Includes candidate leaderboard with risk-adjusted scoring (return, Sharpe, win-rate, drawdown penalty).
+- Intended as continuous idea generation for trader workflows; combine with Monitoring rules before deployment.
+- Hardware acceleration readiness is surfaced in-app (Numba/CuPy detection) for heavy workloads.

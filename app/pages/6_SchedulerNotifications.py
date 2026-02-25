@@ -36,6 +36,8 @@ init_scheduler_state()
 
 st.title("⏱️ 任务调度与通知")
 
+conn = get_db_connection()
+
 # 主选项卡
 tab1, tab2, tab3, tab4 = st.tabs([
     "📅 调度器设置",
@@ -244,9 +246,9 @@ with tab3:
     st.header("技术指标计算与展示")
     
     # 选择商品
-    rules = list_alert_rules()
-    if rules:
-        tickers = list(set([r['ticker'] for r in rules]))
+    rules_df = list_alert_rules(conn, enabled_only=False)
+    if rules_df is not None and not rules_df.empty:
+        tickers = sorted(set(rules_df["ticker"].dropna().tolist()))
     else:
         tickers = []
         
@@ -262,14 +264,12 @@ with tab3:
             rsi_period = st.slider("RSI周期", min_value=5, max_value=30, value=14)
         
         # 获取数据
-        conn = get_db_connection()
         query = f"""
             SELECT date, close, volume FROM prices_daily 
             WHERE ticker = '{ticker}' 
             ORDER BY date DESC LIMIT 252
         """
         df = pd.read_sql(query, conn)
-        conn.close()
         
         if not df.empty:
             df = df.sort_values('date')
@@ -371,10 +371,9 @@ with tab4:
     st.header("告警检测统计")
     
     # 获取最近的告警事件
-    events = list_alert_events(limit=100, acknowledged=None)
+    events_df = list_alert_events(conn, limit=100, acknowledged=None)
     
-    if events:
-        events_df = pd.DataFrame(events)
+    if events_df is not None and not events_df.empty:
         events_df['triggered_at'] = pd.to_datetime(events_df['triggered_at'])
         
         # 时间序列图
@@ -421,3 +420,9 @@ with tab4:
         )
     else:
         st.info("暂无告警事件")
+
+
+try:
+    conn.close()
+except Exception:
+    pass
