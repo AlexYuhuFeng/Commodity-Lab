@@ -38,19 +38,10 @@ jobs:
       - name: Run tests
         run: pytest -q
 
-  build:
-    name: Build artifacts (${{ matrix.os }})
+  build_windows:
+    name: Build Windows artifacts
     needs: test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            artifact_name: Commodity-Lab-windows
-          - os: macos-latest
-            artifact_name: Commodity-Lab-macos
-
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -116,7 +107,6 @@ jobs:
           df -h
 
       - name: Package Windows artifacts (.exe + .zip)
-        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release | Out-Null
@@ -148,7 +138,7 @@ jobs:
       - name: Upload packaged artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
+          name: Commodity-Lab-windows
           path: release/*
 
   release:
