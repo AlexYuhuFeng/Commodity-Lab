@@ -35,17 +35,17 @@ with st.sidebar:
     template_col1, template_col2 = st.columns(2)
     
     with template_col1:
-        if st.button("💰 价格监控", use_container_width=True):
+        if st.button("💰 价格监控", width='stretch'):
             st.session_state.current_template = "price_monitoring"
     
     with template_col2:
-        if st.button("📊 波动率监控", use_container_width=True):
+        if st.button("📊 波动率监控", width='stretch'):
             st.session_state.current_template = "volatility_monitoring"
     
-    if st.button("⚠️  数据质量", use_container_width=True):
+    if st.button("⚠️  数据质量", width='stretch'):
         st.session_state.current_template = "data_quality"
     
-    if st.button("🔗 相关性检测", use_container_width=True):
+    if st.button("🔗 相关性检测", width='stretch'):
         st.session_state.current_template = "correlation_detection"
     
     st.divider()
@@ -162,7 +162,7 @@ with tab1:
             )
     
     with add_col4:
-        if st.button("✅ 添加", use_container_width=True):
+        if st.button("✅ 添加", width='stretch'):
             try:
                 # 解析操作符
                 op = OperatorType(operator)
@@ -324,7 +324,7 @@ with tab3:
         st.divider()
         
         # 评估
-        if st.button("🧪 测试评估", type="primary", use_container_width=True):
+        if st.button("🧪 测试评估", type="primary", width='stretch'):
             result = st.session_state.condition_group.evaluate(test_data)
             
             st.markdown("### 📊 评估结果")
@@ -392,7 +392,7 @@ print(f"条件满足: {result}")
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("📥 下载为JSON", use_container_width=True):
+        if st.button("📥 下载为JSON", width='stretch'):
             st.download_button(
                 label="条件.json",
                 data=json_str,
@@ -401,7 +401,7 @@ print(f"条件满足: {result}")
             )
     
     with col2:
-        if st.button("📥 下载为Python", use_container_width=True):
+        if st.button("📥 下载为Python", width='stretch'):
             st.download_button(
                 label="条件.py",
                 data=python_code,

@@ -972,67 +972,15 @@ def update_scheduler_stats(con: duckdb.DuckDBPyConnection, check_count: int = No
         con.execute(query, params)
 
 
-
-def insert_strategy_run(con: duckdb.DuckDBPyConnection, row: dict) -> None:
-    run_id = (row.get("run_id") or "").strip()
-    ticker = (row.get("ticker") or "").strip()
-    strategy_name = (row.get("strategy_name") or "").strip()
-    if not run_id or not ticker or not strategy_name:
-        raise ValueError("run_id, ticker, strategy_name are required")
-
-    con.execute(
-        """
-        INSERT INTO strategy_runs
-          (run_id, ticker, strategy_name, params_json, score, total_return_pct,
-           max_drawdown_pct, sharpe_ratio, win_rate, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (run_id) DO UPDATE SET
-          ticker = excluded.ticker,
-          strategy_name = excluded.strategy_name,
-          params_json = excluded.params_json,
-          score = excluded.score,
-          total_return_pct = excluded.total_return_pct,
-          max_drawdown_pct = excluded.max_drawdown_pct,
-          sharpe_ratio = excluded.sharpe_ratio,
-          win_rate = excluded.win_rate,
-          created_at = excluded.created_at
-        """,
-        [
-            run_id,
-            ticker,
-            strategy_name,
-            row.get("params_json"),
-            row.get("score"),
-            row.get("total_return_pct"),
-            row.get("max_drawdown_pct"),
-            row.get("sharpe_ratio"),
-            row.get("win_rate"),
-            row.get("created_at") or utc_now(),
-        ],
-    )
-
-
-def list_strategy_runs(con: duckdb.DuckDBPyConnection, ticker: str | None = None, limit: int = 200) -> pd.DataFrame:
-    q = "SELECT * FROM strategy_runs"
-    params: list = []
-    if ticker:
-        q += " WHERE ticker = ?"
-        params.append(ticker)
-    q += " ORDER BY created_at DESC LIMIT ?"
-    params.append(limit)
-    return con.execute(q, params).df()
-
-
-
+# Convenience helpers for other modules that expect simple helpers
 def get_db_connection(db_path: Path | None = None) -> duckdb.DuckDBPyConnection:
-    """Compatibility wrapper for modules expecting get_db_connection()."""
-    project_root = Path(__file__).resolve().parent.parent
-    target = db_path or default_db_path(project_root)
-    con = get_conn(target)
-    init_db(con)
-    return con
+    """Return a duckdb connection using the default project DB path when not provided."""
+    if db_path is None:
+        project_root = Path(__file__).resolve().parents[1]
+        db_path = default_db_path(project_root)
+    return get_conn(db_path)
 
 
 def get_db(db_path: Path | None = None) -> duckdb.DuckDBPyConnection:
-    """Compatibility wrapper for older pages importing get_db()."""
+    """Alias for get_db_connection (keeps older import names working)."""
     return get_db_connection(db_path)
