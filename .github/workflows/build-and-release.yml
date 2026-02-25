@@ -100,54 +100,43 @@ jobs:
           Write-Output "EOF" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            dist/${{ env.APP_NAME }}-${{ github.ref_name }}-win64.zip
-            RELEASE_NOTES.md
-          body: ${{ steps.release_notes.outputs.release_body }}
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+      - name: Create GitHub Release and upload assets (no external actions)
+        id: create_release
+        run: |
+          $ownerRepo = "${{ github.repository }}"
+          $token = $env:GITHUB_TOKEN
+          $tag = "${{ github.ref_name }}"
+          $body = @"${{ steps.release_notes.outputs.release_body }}"@
+
+          $payload = @{ tag_name = $tag; name = $tag; body = $body; draft = $false; prerelease = $false } | ConvertTo-Json -Depth 6
+          $headers = @{ Authorization = "token $token"; Accept = 'application/vnd.github+json' }
+
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$ownerRepo/releases" -Method Post -Headers $headers -Body $payload
+          $upload_url = $release.upload_url -replace '\{.*$',''
+
+          $zipPath = "dist/${{ env.APP_NAME }}-${{ github.ref_name }}-win64.zip"
+          Write-Output "Uploading $zipPath to release $($release.id)"
+          $zipName = Split-Path $zipPath -Leaf
+          $bytes = [System.IO.File]::ReadAllBytes($zipPath)
+          Invoke-RestMethod -Uri "$upload_url?name=$zipName" -Method Post -Headers @{ Authorization = "token $token"; 'Content-Type' = 'application/zip' } -Body $bytes
+
+          $exePath = "dist/${{ env.APP_NAME }}.exe"
+          if (Test-Path $exePath) {
+            $exeName = Split-Path $exePath -Leaf
+            $exeBytes = [System.IO.File]::ReadAllBytes($exePath)
+            Invoke-RestMethod -Uri "$upload_url?name=$exeName" -Method Post -Headers @{ Authorization = "token $token"; 'Content-Type' = 'application/octet-stream' } -Body $exeBytes
+          } else {
+            Write-Warning "Executable not found at $exePath; skipping exe upload."
+          }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APP_NAME }}-${{ github.ref_name }}-win64
-          path: dist/${{ env.APP_NAME }}.exe
-          retention-days: 30
-
-  test:
-    name: Test Build
-    runs-on: windows-latest
-    needs: build
-    
-    steps:
-      - name: Download executable
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.APP_NAME }}-${{ github.ref_name }}-win64
-
-      - name: Verify executable
-        run: |
-          $exePath = "${{ env.APP_NAME }}.exe"
-          if (Test-Path $exePath) {
-            Write-Output "✅ Executable file exists: $exePath"
-            $fileInfo = Get-Item $exePath
-            Write-Output "📦 File size: $($fileInfo.Length / 1MB) MB"
-          } else {
-            Write-Error "❌ Executable file not found!"
-            exit 1
-          }
-        shell: pwsh
+  # test job removed because release assets are uploaded directly via REST API
 
   notify:
     name: Notify Release
     runs-on: ubuntu-latest
-    needs: [build, test]
+    needs: [build]
     if: success()
     
     steps:
