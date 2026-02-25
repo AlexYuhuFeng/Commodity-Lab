@@ -2,20 +2,22 @@ name: Build and Release
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*.*.*' ]
+    tags:
+      - 'v*.*.*'
+    branches:
+      - main
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 env:
   PYTHON_VERSION: '3.12'
   APP_NAME: 'Commodity-Lab'
 
-permissions:
-  contents: write
-
 jobs:
   test:
-    name: Tests
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,42 +33,27 @@ jobs:
       - name: Run tests
         run: pytest -q
 
-  build:
-    name: Build (${{ matrix.os }})
+  build_windows:
+    name: Build artifacts (Windows)
     needs: test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
-      - name: Install dependencies
+      - name: Install build dependencies
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build executable (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: |
-          pyinstaller --onefile --name "${{ env.APP_NAME }}" \
-            --add-data "app:app" \
-            --add-data "core:core" \
-            --collect-all streamlit \
-            app/main.py
-
       - name: Build executable (Windows)
-        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           pyinstaller --onefile --name "${{ env.APP_NAME }}" `
@@ -75,94 +62,23 @@ jobs:
             --collect-all streamlit `
             app/main.py
 
-      - name: Package artifact (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p release
-          cp "dist/${{ env.APP_NAME }}" "release/${{ env.APP_NAME }}-linux-x64"
-          tar -czf "release/${{ env.APP_NAME }}-${{ github.sha }}-linux-x64.tar.gz" -C release "${{ env.APP_NAME }}-linux-x64"
-
-      - name: Package artifact (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          mkdir -p release
-          cp "dist/${{ env.APP_NAME }}" "release/${{ env.APP_NAME }}-macos-x64"
-          tar -czf "release/${{ env.APP_NAME }}-${{ github.sha }}-macos-x64.tar.gz" -C release "${{ env.APP_NAME }}-macos-x64"
-
-      - name: Package artifact (Windows)
-        if: runner.os == 'Windows'
+      - name: Package Windows artifacts (.exe + .zip)
         shell: pwsh
         run: |
-          $ownerRepo = "${{ github.repository }}"
-          $token = $env:RELEASE_TOKEN
-          $tag = "${{ github.ref_name }}"
-          $body = Get-Content -Raw RELEASE_NOTES.md
-          Write-Output "--- Release diagnostics ---"
-          Write-Output "Event: $env:GITHUB_EVENT_NAME"
-          Write-Output "Actor: $env:GITHUB_ACTOR"
-          Write-Output "Repository: $ownerRepo"
-          Write-Output "Ref: $env:GITHUB_REF"
-          if (Test-Path $env:GITHUB_EVENT_PATH) {
-            try {
-              $evt = Get-Content -Raw $env:GITHUB_EVENT_PATH | ConvertFrom-Json
-              if ($evt.pull_request) {
-                Write-Output "This run was triggered by a pull_request." 
-                Write-Output "PR head repo: $($evt.pull_request.head.repo.full_name)"
-                Write-Output "PR head owner: $($evt.pull_request.head.repo.owner.login)"
-              }
-            } catch { Write-Output "Could not parse GITHUB_EVENT_PATH: $_" }
-          }
-
-          if ([string]::IsNullOrEmpty($token)) {
-            Write-Warning "No token found in RELEASE_TOKEN/GITHUB_TOKEN — GitHub API calls will fail."
-          } else {
-            $len = $token.Length
-            Write-Output "Token length: $len (first/last 4 chars masked)"
-            if ($len -ge 8) { Write-Output "$($token.Substring(0,4))****$($token.Substring($len-4,4))" }
-          }
-
-          $payload = @{ tag_name = $tag; name = $tag; body = $body; draft = $false; prerelease = $false } | ConvertTo-Json -Depth 6
-          $headers = @{ Authorization = "token $token"; Accept = 'application/vnd.github+json' }
-
-          try {
-            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$ownerRepo/releases" -Method Post -Headers $headers -Body $payload -ErrorAction Stop
-            $upload_url = $release.upload_url -replace '\{.*$',''
-
-            $zipPath = "dist/${{ env.APP_NAME }}-${{ github.ref_name }}-win64.zip"
-            Write-Output "Uploading $zipPath to release $($release.id)"
-            $zipName = Split-Path $zipPath -Leaf
-            $bytes = [System.IO.File]::ReadAllBytes($zipPath)
-            Invoke-RestMethod -Uri "$upload_url?name=$zipName" -Method Post -Headers @{ Authorization = "token $token"; 'Content-Type' = 'application/zip' } -Body $bytes -ErrorAction Stop
-
-            $exePath = "dist/${{ env.APP_NAME }}.exe"
-            if (Test-Path $exePath) {
-              $exeName = Split-Path $exePath -Leaf
-              $exeBytes = [System.IO.File]::ReadAllBytes($exePath)
-              Invoke-RestMethod -Uri "$upload_url?name=$exeName" -Method Post -Headers @{ Authorization = "token $token"; 'Content-Type' = 'application/octet-stream' } -Body $exeBytes -ErrorAction Stop
-            } else {
-              Write-Warning "Executable not found at $exePath; skipping exe upload."
-            }
-          } catch {
-            Write-Error "Failed creating release or uploading assets: $_"
-            Write-Error "Common causes: running for a forked PR (GITHUB_TOKEN restricted), or token lacks repo/release permissions."
-            Write-Error "If you see 'Resource not accessible by integration', consider adding a Personal Access Token (PAT) with 'repo' scope and store it as the secret 'PAT_RELEASE'."
-            exit 1
-          }
-        env:
-          RELEASE_TOKEN: ${{ secrets.PAT_RELEASE || secrets.GITHUB_TOKEN }}
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Copy-Item "dist/${{ env.APP_NAME }}.exe" "release/${{ env.APP_NAME }}.exe"
+          Compress-Archive -Path "dist/${{ env.APP_NAME }}.exe" -DestinationPath "release/${{ env.APP_NAME }}-windows-x64.zip" -Force
 
       - name: Upload packaged artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-artifact
+          name: Commodity-Lab-windows
           path: release/*
 
   release:
     name: Publish release
-    needs: build
+    needs: build_windows
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -170,36 +86,39 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          path: ./artifacts
+          path: artifacts
 
       - name: Generate release notes
-        id: notes
         run: |
           echo "## Commodity Lab Release" > RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
-          echo "### Version" >> RELEASE_NOTES.md
-          echo "- Commit: \\`${GITHUB_SHA}\\`" >> RELEASE_NOTES.md
+          echo "- Commit: ${GITHUB_SHA}" >> RELEASE_NOTES.md
           echo "- Trigger: ${GITHUB_EVENT_NAME}" >> RELEASE_NOTES.md
-          echo "- Date: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> RELEASE_NOTES.md
+          echo "- Date (UTC): $(date -u +'%Y-%m-%d %H:%M:%S')" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "### Recent changes" >> RELEASE_NOTES.md
           git log --pretty='- %h %s' -n 20 >> RELEASE_NOTES.md
 
-      - name: Create/Update release (tag build)
+      - name: Collect release assets
+        run: |
+          find artifacts -type f > release_assets.txt
+          test -s release_assets.txt
+
+      - name: Publish tagged release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
-          gh release create "$TAG_NAME" ./artifacts/**/* --title "$TAG_NAME" --notes-file RELEASE_NOTES.md || \
-          gh release upload "$TAG_NAME" ./artifacts/**/* --clobber
+          xargs -a release_assets.txt gh release create "$TAG_NAME" --title "$TAG_NAME" --notes-file RELEASE_NOTES.md || \
+          xargs -a release_assets.txt gh release upload "$TAG_NAME" --clobber
 
-      - name: Create/Update rolling prerelease (main)
+      - name: Publish nightly release from main
         if: github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="nightly-latest"
-          gh release create "$TAG_NAME" ./artifacts/**/* --title "nightly-latest" --notes-file RELEASE_NOTES.md --prerelease || \
-          gh release upload "$TAG_NAME" ./artifacts/**/* --clobber
+          xargs -a release_assets.txt gh release create "$TAG_NAME" --title "nightly-latest" --notes-file RELEASE_NOTES.md --prerelease || \
+          xargs -a release_assets.txt gh release upload "$TAG_NAME" --clobber
           gh release edit "$TAG_NAME" --notes-file RELEASE_NOTES.md --prerelease
