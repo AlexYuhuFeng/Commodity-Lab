@@ -113,7 +113,7 @@ if st.button("Run Backtest"):
 	st.subheader("Equity Curve")
 	if eq is not None:
 		fig = px.line(eq, x="date", y="equity", title="Equity Curve")
-		st.plotly_chart(fig, use_container_width=True)
+		st.plotly_chart(fig, width='stretch')
 
 	st.subheader("Performance Metrics")
 	if metrics:

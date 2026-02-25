@@ -68,7 +68,7 @@ with tab1:
         )
         
     with col3:
-        manual_check = st.button("🔍 立即检测", use_container_width=True)
+        manual_check = st.button("🔍 立即检测", width='stretch')
         
     # 更新调度器状态
     if check_enabled != st.session_state.scheduler_running:
@@ -122,7 +122,7 @@ with tab1:
         alerts_df = pd.DataFrame(status['latest_alerts'])
         st.dataframe(
             alerts_df[['ticker', 'severity', 'message', 'created_at']],
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
     else:
@@ -327,7 +327,7 @@ with tab3:
                 height=500
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # RSI指标单独显示
             fig_rsi = go.Figure()
@@ -346,7 +346,7 @@ with tab3:
                 height=300
             )
             
-            st.plotly_chart(fig_rsi, use_container_width=True)
+            st.plotly_chart(fig_rsi, width='stretch')
             
             # 显示计算结果
             st.subheader("最新指标值")
