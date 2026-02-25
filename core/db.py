@@ -937,3 +937,17 @@ def update_scheduler_stats(con: duckdb.DuckDBPyConnection, check_count: int = No
         
         query = f"UPDATE scheduler_settings SET {', '.join(updates)}"
         con.execute(query, params)
+
+
+# Convenience helpers for other modules that expect simple helpers
+def get_db_connection(db_path: Path | None = None) -> duckdb.DuckDBPyConnection:
+    """Return a duckdb connection using the default project DB path when not provided."""
+    if db_path is None:
+        project_root = Path(__file__).resolve().parents[1]
+        db_path = default_db_path(project_root)
+    return get_conn(db_path)
+
+
+def get_db(db_path: Path | None = None) -> duckdb.DuckDBPyConnection:
+    """Alias for get_db_connection (keeps older import names working)."""
+    return get_db_connection(db_path)
