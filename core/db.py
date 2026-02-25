@@ -143,6 +143,42 @@ def init_db(con: duckdb.DuckDBPyConnection) -> None:
         """
     )
 
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS alert_rules (
+            rule_id         VARCHAR PRIMARY KEY,
+            rule_name       VARCHAR NOT NULL,
+            rule_type       VARCHAR NOT NULL,
+            ticker          VARCHAR,
+            condition_expr  VARCHAR,
+            threshold       DOUBLE,
+            severity        VARCHAR DEFAULT 'medium',
+            enabled         BOOLEAN DEFAULT TRUE,
+            notes           VARCHAR,
+            created_at      TIMESTAMPTZ,
+            updated_at      TIMESTAMPTZ
+        );
+        """
+    )
+
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS alert_events (
+            event_id        VARCHAR PRIMARY KEY,
+            rule_id         VARCHAR,
+            ticker          VARCHAR,
+            severity        VARCHAR,
+            message         VARCHAR,
+            value           DOUBLE,
+            triggered_at    TIMESTAMPTZ,
+            acknowledged    BOOLEAN DEFAULT FALSE,
+            acknowledged_at TIMESTAMPTZ,
+            notes           VARCHAR,
+            created_at      TIMESTAMPTZ
+        );
+        """
+    )
+
 
 # ---------- Instruments ----------
 def upsert_instruments(con: duckdb.DuckDBPyConnection, rows: pd.DataFrame) -> None:
@@ -552,3 +588,187 @@ def log_refresh(con: duckdb.DuckDBPyConnection, ticker: str, status: str, messag
 
 def list_refresh_log(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     return con.execute("SELECT * FROM refresh_log ORDER BY last_attempt_at DESC").df()
+
+
+# ---------- Alert Rules ----------
+def upsert_alert_rule(con: duckdb.DuckDBPyConnection, row: dict) -> None:
+    """
+    Insert or update an alert rule.
+    
+    Expected keys in row:
+      rule_id, rule_name, rule_type, ticker(opt), condition_expr(opt), threshold(opt),
+      severity(opt, default='medium'), enabled(opt, default=True), notes(opt)
+    """
+    now = utc_now()
+    rule_id = (row.get("rule_id") or "").strip()
+    if not rule_id:
+        raise ValueError("rule_id is required")
+    
+    rule_name = (row.get("rule_name") or "").strip()
+    if not rule_name:
+        raise ValueError("rule_name is required")
+    
+    rule_type = (row.get("rule_type") or "").strip().lower()
+    if not rule_type:
+        raise ValueError("rule_type is required")
+    
+    ticker = (row.get("ticker") or "").strip() or None
+    condition_expr = (row.get("condition_expr") or "").strip() or None
+    threshold = row.get("threshold")
+    if threshold is not None:
+        try:
+            threshold = float(threshold)
+        except (ValueError, TypeError):
+            threshold = None
+    
+    severity = (row.get("severity") or "medium").strip().lower()
+    if severity not in ("low", "medium", "high", "critical"):
+        severity = "medium"
+    
+    enabled = bool(row.get("enabled") if row.get("enabled") is not None else True)
+    notes = (row.get("notes") or "").strip()
+    
+    con.execute(
+        """
+        INSERT INTO alert_rules
+          (rule_id, rule_name, rule_type, ticker, condition_expr, threshold, severity, enabled, notes, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (rule_id) DO UPDATE SET
+          rule_name = excluded.rule_name,
+          rule_type = excluded.rule_type,
+          ticker = excluded.ticker,
+          condition_expr = excluded.condition_expr,
+          threshold = excluded.threshold,
+          severity = excluded.severity,
+          enabled = excluded.enabled,
+          notes = excluded.notes,
+          updated_at = excluded.updated_at
+        """,
+        [
+            rule_id,
+            rule_name,
+            rule_type,
+            ticker,
+            condition_expr,
+            threshold,
+            severity,
+            enabled,
+            notes,
+            now,
+            now,
+        ],
+    )
+
+
+def list_alert_rules(con: duckdb.DuckDBPyConnection, enabled_only: bool = False) -> pd.DataFrame:
+    q = "SELECT * FROM alert_rules"
+    if enabled_only:
+        q += " WHERE enabled = TRUE"
+    q += " ORDER BY updated_at DESC"
+    return con.execute(q).df()
+
+
+def get_alert_rule(con: duckdb.DuckDBPyConnection, rule_id: str) -> dict | None:
+    row = con.execute(
+        "SELECT * FROM alert_rules WHERE rule_id = ?",
+        [rule_id],
+    ).fetchone()
+    if not row:
+        return None
+    cols = [d[0] for d in con.description]
+    return dict(zip(cols, row))
+
+
+def delete_alert_rule(con: duckdb.DuckDBPyConnection, rule_id: str) -> None:
+    con.execute("DELETE FROM alert_rules WHERE rule_id = ?", [rule_id])
+
+
+# ---------- Alert Events ----------
+def create_alert_event(con: duckdb.DuckDBPyConnection, row: dict) -> str:
+    """
+    Create an alert event.
+    
+    Expected keys:
+      event_id, rule_id, ticker, severity, message, value(opt), notes(opt)
+    
+    Returns event_id
+    """
+    now = utc_now()
+    event_id = (row.get("event_id") or "").strip()
+    if not event_id:
+        # Generate event_id if not provided
+        import uuid
+        event_id = str(uuid.uuid4())
+    
+    rule_id = (row.get("rule_id") or "").strip()
+    ticker = (row.get("ticker") or "").strip()
+    severity = (row.get("severity") or "medium").strip().lower()
+    if severity not in ("low", "medium", "high", "critical"):
+        severity = "medium"
+    
+    message = (row.get("message") or "").strip()
+    value = row.get("value")
+    if value is not None:
+        try:
+            value = float(value)
+        except (ValueError, TypeError):
+            value = None
+    
+    notes = (row.get("notes") or "").strip()
+    
+    con.execute(
+        """
+        INSERT INTO alert_events
+          (event_id, rule_id, ticker, severity, message, value, triggered_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            event_id,
+            rule_id if rule_id else None,
+            ticker if ticker else None,
+            severity,
+            message,
+            value,
+            now,
+            now,
+        ],
+    )
+    
+    return event_id
+
+
+def list_alert_events(con: duckdb.DuckDBPyConnection, limit: int = 100, acknowledged: bool | None = None) -> pd.DataFrame:
+    where = ""
+    params = []
+    if acknowledged is not None:
+        where = "WHERE acknowledged = ?"
+        params.append(acknowledged)
+    
+    sql = f"""
+        SELECT * FROM alert_events
+        {where}
+        ORDER BY triggered_at DESC
+        LIMIT ?
+    """
+    params.append(limit)
+    
+    df = con.execute(sql, params).df()
+    if not df.empty:
+        df["triggered_at"] = pd.to_datetime(df["triggered_at"])
+        df["created_at"] = pd.to_datetime(df["created_at"])
+        if "acknowledged_at" in df.columns:
+            df["acknowledged_at"] = pd.to_datetime(df["acknowledged_at"])
+    
+    return df
+
+
+def acknowledge_alert_event(con: duckdb.DuckDBPyConnection, event_id: str, notes: str = "") -> None:
+    now = utc_now()
+    con.execute(
+        """
+        UPDATE alert_events
+        SET acknowledged = TRUE, acknowledged_at = ?, notes = ?
+        WHERE event_id = ?
+        """,
+        [now, notes.strip(), event_id],
+    )
