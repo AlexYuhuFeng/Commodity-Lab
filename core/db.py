@@ -179,6 +179,37 @@ def init_db(con: duckdb.DuckDBPyConnection) -> None:
         """
     )
 
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS notification_config (
+            config_id       VARCHAR PRIMARY KEY,
+            channel_type    VARCHAR NOT NULL,
+            channel_name    VARCHAR,
+            config_json     VARCHAR,
+            is_enabled      BOOLEAN DEFAULT TRUE,
+            test_status     VARCHAR,
+            last_test_at    TIMESTAMPTZ,
+            created_at      TIMESTAMPTZ,
+            updated_at      TIMESTAMPTZ
+        );
+        """
+    )
+
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS scheduler_settings (
+            setting_id      VARCHAR PRIMARY KEY,
+            is_enabled      BOOLEAN DEFAULT FALSE,
+            check_interval  INTEGER DEFAULT 300,
+            last_check_at   TIMESTAMPTZ,
+            check_count     INTEGER DEFAULT 0,
+            error_count     INTEGER DEFAULT 0,
+            created_at      TIMESTAMPTZ,
+            updated_at      TIMESTAMPTZ
+        );
+        """
+    )
+
 
 # ---------- Instruments ----------
 def upsert_instruments(con: duckdb.DuckDBPyConnection, rows: pd.DataFrame) -> None:
@@ -772,3 +803,137 @@ def acknowledge_alert_event(con: duckdb.DuckDBPyConnection, event_id: str, notes
         """,
         [now, notes.strip(), event_id],
     )
+
+
+# ---------- Notification Config ----------
+def upsert_notification_config(con: duckdb.DuckDBPyConnection, channel_type: str, 
+                               config_json: str, channel_name: str = "", is_enabled: bool = True) -> str:
+    """添加或更新通知配置"""
+    import uuid
+    config_id = f"nc_{channel_type}_{uuid.uuid4().hex[:8]}"
+    now = utc_now()
+    
+    con.execute(
+        """
+        INSERT INTO notification_config 
+          (config_id, channel_type, channel_name, config_json, is_enabled, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (config_id) DO UPDATE SET 
+          config_json = excluded.config_json,
+          is_enabled = excluded.is_enabled,
+          updated_at = excluded.updated_at
+        """,
+        [config_id, channel_type, channel_name, config_json, is_enabled, now, now]
+    )
+    return config_id
+
+
+def list_notification_configs(con: duckdb.DuckDBPyConnection, enabled_only: bool = False) -> pd.DataFrame:
+    """获取所有通知配置"""
+    where = ""
+    if enabled_only:
+        where = "WHERE is_enabled = TRUE"
+    
+    df = con.execute(
+        f"""
+        SELECT * FROM notification_config {where}
+        ORDER BY updated_at DESC
+        """
+    ).fetch_df()
+    
+    if not df.empty and "created_at" in df.columns:
+        df["created_at"] = pd.to_datetime(df["created_at"])
+        df["updated_at"] = pd.to_datetime(df["updated_at"])
+        if "last_test_at" in df.columns:
+            df["last_test_at"] = pd.to_datetime(df["last_test_at"])
+    
+    return df
+
+
+def delete_notification_config(con: duckdb.DuckDBPyConnection, config_id: str) -> None:
+    """删除通知配置"""
+    con.execute("DELETE FROM notification_config WHERE config_id = ?", [config_id])
+
+
+def update_notification_test_status(con: duckdb.DuckDBPyConnection, config_id: str, 
+                                    status: str, timestamp: datetime | None = None) -> None:
+    """更新通知配置的测试状态"""
+    if timestamp is None:
+        timestamp = utc_now()
+    
+    con.execute(
+        """
+        UPDATE notification_config
+        SET test_status = ?, last_test_at = ?
+        WHERE config_id = ?
+        """,
+        [status, timestamp, config_id]
+    )
+
+
+# ---------- Scheduler Settings ----------
+def upsert_scheduler_settings(con: duckdb.DuckDBPyConnection, is_enabled: bool = False,
+                             check_interval: int = 300) -> None:
+    """更新或创建调度器设置"""
+    now = utc_now()
+    
+    # 检查是否存在设置
+    existing = con.execute("SELECT setting_id FROM scheduler_settings LIMIT 1").fetchall()
+    
+    if existing:
+        con.execute(
+            """
+            UPDATE scheduler_settings
+            SET is_enabled = ?, check_interval = ?, updated_at = ?
+            WHERE setting_id = ?
+            """,
+            [is_enabled, check_interval, now, existing[0][0]]
+        )
+    else:
+        con.execute(
+            """
+            INSERT INTO scheduler_settings 
+              (setting_id, is_enabled, check_interval, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            ["scheduler_main", is_enabled, check_interval, now, now]
+        )
+
+
+def get_scheduler_settings(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    """获取调度器设置"""
+    df = con.execute("SELECT * FROM scheduler_settings LIMIT 1").fetch_df()
+    
+    if not df.empty:
+        if "created_at" in df.columns:
+            df["created_at"] = pd.to_datetime(df["created_at"])
+        if "updated_at" in df.columns:
+            df["updated_at"] = pd.to_datetime(df["updated_at"])
+        if "last_check_at" in df.columns:
+            df["last_check_at"] = pd.to_datetime(df["last_check_at"])
+    
+    return df
+
+
+def update_scheduler_stats(con: duckdb.DuckDBPyConnection, check_count: int = None,
+                          error_count: int = None, last_check_at: datetime | None = None) -> None:
+    """更新调度器统计信息"""
+    updates = []
+    params = []
+    
+    if check_count is not None:
+        updates.append("check_count = ?")
+        params.append(check_count)
+    if error_count is not None:
+        updates.append("error_count = ?")
+        params.append(error_count)
+    if last_check_at is not None:
+        updates.append("last_check_at = ?")
+        params.append(last_check_at)
+    
+    if updates:
+        updates.append("updated_at = ?")
+        params.append(utc_now())
+        
+        query = f"UPDATE scheduler_settings SET {', '.join(updates)}"
+        con.execute(query, params)
