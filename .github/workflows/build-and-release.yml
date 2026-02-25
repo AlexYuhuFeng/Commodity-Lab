@@ -90,18 +90,10 @@ jobs:
       - name: Package macOS artifact (.dmg)
         if: runner.os == 'macOS'
         run: |
-          mkdir -p release
-          chmod +x "dist/${{ env.APP_NAME }}"
-          rm -rf build
-          rm -rf ~/Library/Caches/pip ~/.cache/pip || true
-          df -h
-          hdiutil create \
-            -volname "${{ env.APP_NAME }}" \
-            -srcfolder dist \
-            -ov \
-            -format UDZO \
-            -imagekey zlib-level=9 \
-            "release/${{ env.APP_NAME }}-macos.dmg"
+          mkdir -p release/dmg-root
+          cp "dist/${{ env.APP_NAME }}" "release/dmg-root/${{ env.APP_NAME }}"
+          chmod +x "release/dmg-root/${{ env.APP_NAME }}"
+          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder release/dmg-root -ov -format UDZO "release/${{ env.APP_NAME }}-macos.dmg"
 
       - name: Upload packaged artifacts
         uses: actions/upload-artifact@v4
