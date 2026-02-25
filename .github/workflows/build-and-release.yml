@@ -105,6 +105,16 @@ jobs:
           echo "Disk usage after cleanup"
           df -h
 
+      - name: Cleanup disk space for macOS packaging
+        if: runner.os == 'macOS'
+        run: |
+          df -h
+          pip cache purge || true
+          rm -rf ~/Library/Caches/pip || true
+          rm -rf release/dmg-root || true
+          rm -f "release/${{ env.APP_NAME }}-macos.dmg" || true
+          df -h
+
       - name: Package Windows artifacts (.exe + .zip)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -124,9 +134,7 @@ jobs:
           sudo pkill -9 XProtect || true
 
           for attempt in 1 2 3; do
-            hdiutil detach "/Volumes/${{ env.APP_NAME }}" -force || true
-            rm -f "release/${{ env.APP_NAME }}-macos.dmg" || true
-            if hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder release/dmg-root -ov -format UDBZ "release/${{ env.APP_NAME }}-macos.dmg"; then
+            if hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder release/dmg-root -ov -format UDZO "release/${{ env.APP_NAME }}-macos.dmg"; then
               break
             fi
             if [ "${attempt}" -eq 3 ]; then
