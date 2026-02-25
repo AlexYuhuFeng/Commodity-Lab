@@ -40,7 +40,6 @@ jobs:
       - name: Build with PyInstaller
         run: |
           pyinstaller --onefile --windowed --name "${{ env.APP_NAME }}" `
-            --icon=app/assets/icon.ico `
             --add-data "app:app" `
             --add-data "core:core" `
             --add-data "data:data" `
