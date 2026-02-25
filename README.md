@@ -92,9 +92,12 @@
 
 ## CI/CD & Release
 
-- CI executes tests on each push/PR to `main`.
-- Build & Release workflow creates cross-platform executables for Linux/macOS/Windows.
-- On `main` updates, a rolling prerelease (`nightly-latest`) is updated with latest artifacts and release notes.
+- CI workflow (`.github/workflows/ci.yml`) runs tests on pushes/PRs to `main`.
+- Build & Release workflow (`.github/workflows/build-and-release.yml`) runs on GitHub (not local) and performs test → build → release.
+- Release artifacts are currently:
+  - Windows: `Commodity-Lab.exe`, `Commodity-Lab-windows-x64.zip`
+  - macOS: `Commodity-Lab-macos.dmg`
+- On `main` updates, a rolling prerelease (`nightly-latest`) is updated automatically.
 - On version tags (`v*.*.*`), a versioned release is created automatically.
 
 
@@ -104,3 +107,13 @@
 - Includes candidate leaderboard with risk-adjusted scoring (return, Sharpe, win-rate, drawdown penalty).
 - Intended as continuous idea generation for trader workflows; combine with Monitoring rules before deployment.
 - Hardware acceleration readiness is surfaced in-app (Numba/CuPy detection) for heavy workloads.
+
+
+## Project Structure
+
+- `app/` — Streamlit UI entry (`app/main.py`) and page modules under `app/pages/`.
+- `core/` — data access, indicator/strategy logic, backtest, scheduler/monitoring utilities.
+- `tests/` — pytest test cases for core behaviors.
+- `.github/workflows/` — GitHub CI/CD pipelines.
+- `scripts/` — utility/demo scripts.
+- `reports/` — generated demo outputs.
