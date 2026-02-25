@@ -205,6 +205,24 @@ def init_db(con: duckdb.DuckDBPyConnection) -> None:
         """
     )
 
+
+
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS strategy_runs (
+            run_id          VARCHAR PRIMARY KEY,
+            ticker          VARCHAR NOT NULL,
+            strategy_name   VARCHAR NOT NULL,
+            params_json     VARCHAR,
+            score           DOUBLE,
+            total_return_pct DOUBLE,
+            max_drawdown_pct DOUBLE,
+            sharpe_ratio    DOUBLE,
+            win_rate        DOUBLE,
+            created_at      TIMESTAMPTZ
+        );
+        """
+    )
     con.execute(
         """
         CREATE TABLE IF NOT EXISTS scheduler_settings (
@@ -952,3 +970,54 @@ def update_scheduler_stats(con: duckdb.DuckDBPyConnection, check_count: int = No
         
         query = f"UPDATE scheduler_settings SET {', '.join(updates)}"
         con.execute(query, params)
+
+
+
+def insert_strategy_run(con: duckdb.DuckDBPyConnection, row: dict) -> None:
+    run_id = (row.get("run_id") or "").strip()
+    ticker = (row.get("ticker") or "").strip()
+    strategy_name = (row.get("strategy_name") or "").strip()
+    if not run_id or not ticker or not strategy_name:
+        raise ValueError("run_id, ticker, strategy_name are required")
+
+    con.execute(
+        """
+        INSERT INTO strategy_runs
+          (run_id, ticker, strategy_name, params_json, score, total_return_pct,
+           max_drawdown_pct, sharpe_ratio, win_rate, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (run_id) DO UPDATE SET
+          ticker = excluded.ticker,
+          strategy_name = excluded.strategy_name,
+          params_json = excluded.params_json,
+          score = excluded.score,
+          total_return_pct = excluded.total_return_pct,
+          max_drawdown_pct = excluded.max_drawdown_pct,
+          sharpe_ratio = excluded.sharpe_ratio,
+          win_rate = excluded.win_rate,
+          created_at = excluded.created_at
+        """,
+        [
+            run_id,
+            ticker,
+            strategy_name,
+            row.get("params_json"),
+            row.get("score"),
+            row.get("total_return_pct"),
+            row.get("max_drawdown_pct"),
+            row.get("sharpe_ratio"),
+            row.get("win_rate"),
+            row.get("created_at") or utc_now(),
+        ],
+    )
+
+
+def list_strategy_runs(con: duckdb.DuckDBPyConnection, ticker: str | None = None, limit: int = 200) -> pd.DataFrame:
+    q = "SELECT * FROM strategy_runs"
+    params: list = []
+    if ticker:
+        q += " WHERE ticker = ?"
+        params.append(ticker)
+    q += " ORDER BY created_at DESC LIMIT ?"
+    params.append(limit)
+    return con.execute(q, params).df()
