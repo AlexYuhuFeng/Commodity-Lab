@@ -516,8 +516,10 @@ with tabs[2]:
     history = list_alert_events(con, limit=500, acknowledged=show_acknowledged if show_acknowledged else False)
     
     # Filter by date
-    cutoff_date = datetime.now() - timedelta(days=days_back)
-    history = history[history["triggered_at"] >= cutoff_date]
+    cutoff_date = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days_back)
+    if "triggered_at" in history.columns:
+        history["triggered_at"] = pd.to_datetime(history["triggered_at"], utc=True, errors="coerce")
+        history = history[history["triggered_at"] >= cutoff_date]
     
     # Filter by severity
     if severity_filter != "all":

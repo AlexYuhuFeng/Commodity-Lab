@@ -1021,3 +1021,18 @@ def list_strategy_runs(con: duckdb.DuckDBPyConnection, ticker: str | None = None
     q += " ORDER BY created_at DESC LIMIT ?"
     params.append(limit)
     return con.execute(q, params).df()
+
+
+
+def get_db_connection(db_path: Path | None = None) -> duckdb.DuckDBPyConnection:
+    """Compatibility wrapper for modules expecting get_db_connection()."""
+    project_root = Path(__file__).resolve().parent.parent
+    target = db_path or default_db_path(project_root)
+    con = get_conn(target)
+    init_db(con)
+    return con
+
+
+def get_db(db_path: Path | None = None) -> duckdb.DuckDBPyConnection:
+    """Compatibility wrapper for older pages importing get_db()."""
+    return get_db_connection(db_path)
