@@ -99,6 +99,12 @@ def _resolve_path(data: dict[str, Any], key: str) -> str | None:
             result = result[part]
         else:
             return None
+
+    # Only leaf-like scalar values should be translated into text.
+    # Returning stringified dict/list causes UI corruption like
+    # "{'title': '...'}" when callers pass section keys.
+    if isinstance(result, (dict, list, tuple, set)):
+        return None
     return str(result)
 
 
