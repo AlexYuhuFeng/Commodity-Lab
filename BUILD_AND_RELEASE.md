@@ -6,9 +6,12 @@ Workflow file: `.github/workflows/build-and-release.yml`
 
 ### What it does
 1. Runs tests (`pytest -q`) on Ubuntu.
-2. Builds with PyInstaller on Windows (macOS build temporarily disabled).
+2. Builds with PyInstaller on:
+   - Windows → `Commodity-Lab.exe`
+   - macOS → `Commodity-Lab` binary
 3. Packages release artifacts:
    - Windows: `.exe` + `.zip`
+   - macOS: `.dmg`
 4. Publishes to GitHub Releases:
    - tag `v*.*.*` → versioned release
    - push to `main` → rolling prerelease `nightly-latest`
@@ -41,3 +44,4 @@ git push origin main
 ## Expected release assets
 - `Commodity-Lab.exe`
 - `Commodity-Lab-windows-x64.zip`
+- `Commodity-Lab-macos.dmg`
