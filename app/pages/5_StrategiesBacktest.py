@@ -48,6 +48,15 @@ with st.sidebar:
     start = st.date_input("Start date", value=pd.Timestamp.today().date() - timedelta(days=365))
     end = st.date_input("End date", value=pd.Timestamp.today().date())
 
+with st.expander("🧭 Backtest Guide / 回测说明", expanded=False):
+    st.markdown(
+        """
+- 先选 1~3 个标的测试流程，再扩展到组合回测。
+- 建议开启交易成本与滑点，避免过度乐观结果。
+- 如果权益曲线为空，请检查日期范围和本地数据是否已刷新。
+        """
+    )
+
 st.info("Configure strategy parameters and run backtest")
 
 eq = None
@@ -116,18 +125,29 @@ if st.button("Run Backtest"):
                         trade_dict["ticker"] = tk
                         trades.append(trade_dict)
 
-st.subheader("Equity Curve")
-if eq is not None:
-    fig = px.line(eq, x="date", y="equity", title="Equity Curve")
-    st.plotly_chart(fig, use_container_width=True)
+tab_eq, tab_metrics, tab_trades = st.tabs(["📈 Equity", "📊 Metrics", "🧾 Trades"])
 
-st.subheader("Performance Metrics")
-if metrics:
-    st.json(metrics)
+with tab_eq:
+    st.subheader("Equity Curve")
+    if eq is not None:
+        fig = px.line(eq, x="date", y="equity", title="Equity Curve")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.caption("Run a backtest to display the portfolio equity curve.")
 
-st.subheader("Trades")
-if trades:
-    st.dataframe(pd.DataFrame(trades))
+with tab_metrics:
+    st.subheader("Performance Metrics")
+    if metrics:
+        st.json(metrics)
+    else:
+        st.caption("Metrics will appear after a successful backtest run.")
+
+with tab_trades:
+    st.subheader("Trades")
+    if trades:
+        st.dataframe(pd.DataFrame(trades), use_container_width=True)
+    else:
+        st.caption("No trades to display yet.")
 
 try:
     con.close()
