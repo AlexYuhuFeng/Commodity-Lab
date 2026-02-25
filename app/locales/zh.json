@@ -72,14 +72,27 @@
   "data_showcase": {
     "title": "数据展示",
     "subtitle": "查看、分析与管理您的数据",
-    "tabs": "数据项",
+    "tabs": {
+      "overview": "概览",
+      "price_chart": "价格图表",
+      "qc_report": "质量报告",
+      "properties": "属性",
+      "derived": "衍生序列",
+      "operations": "操作"
+    },
     "raw_data": "原始数据",
     "summary": "摘要",
     "qc_report": "质量检查报告",
     "attributes": "属性",
     "price_chart": "价格图表",
     "derived_series": "衍生序列",
-    "operations": "操作",
+    "operations": {
+      "transform": "转换",
+      "create_derived": "创建衍生序列",
+      "refresh": "刷新",
+      "delete": "删除",
+      "export": "导出"
+    },
     "columns": {
       "ticker": "代码",
       "name": "品种名称",
@@ -105,13 +118,7 @@
       "missing_business_days": "缺失业务日",
       "data_staleness": "数据陈旧度"
     },
-    "operations": {
-      "transform": "转换",
-      "create_derived": "创建衍生序列",
-      "refresh": "刷新",
-      "delete": "删除",
-      "export": "导出"
-    }
+    "tabs_label": "数据项"
   },
   "analytics": {
     "title": "分析",
@@ -205,5 +212,13 @@
     "delete_success": "删除成功",
     "error_occurred": "出现错误",
     "confirm_delete": "确定要删除此项吗？"
+  },
+  "tabs": {
+    "overview": "概览",
+    "price_chart": "价格图表",
+    "qc_report": "质量报告",
+    "properties": "属性",
+    "derived": "衍生序列",
+    "operations": "操作"
   }
 }

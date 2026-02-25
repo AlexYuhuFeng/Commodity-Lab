@@ -72,14 +72,27 @@
   "data_showcase": {
     "title": "Data Showcase",
     "subtitle": "View, Analyze & Manage Your Data",
-    "tabs": "Data Items",
+    "tabs": {
+      "overview": "Overview",
+      "price_chart": "Price Chart",
+      "qc_report": "QC Report",
+      "properties": "Properties",
+      "derived": "Derived",
+      "operations": "Operations"
+    },
     "raw_data": "Raw Data",
     "summary": "Summary",
     "qc_report": "QC Report",
     "attributes": "Attributes",
     "price_chart": "Price Chart",
     "derived_series": "Derived Series",
-    "operations": "Operations",
+    "operations": {
+      "transform": "Transform",
+      "create_derived": "Create Derived",
+      "refresh": "Refresh",
+      "delete": "Delete",
+      "export": "Export"
+    },
     "columns": {
       "ticker": "Ticker",
       "name": "Name",
@@ -105,13 +118,7 @@
       "missing_business_days": "Missing Business Days",
       "data_staleness": "Data Staleness"
     },
-    "operations": {
-      "transform": "Transform",
-      "create_derived": "Create Derived",
-      "refresh": "Refresh",
-      "delete": "Delete",
-      "export": "Export"
-    }
+    "tabs_label": "Data Items"
   },
   "analytics": {
     "title": "Analytics",
@@ -205,5 +212,13 @@
     "delete_success": "Deleted successfully",
     "error_occurred": "An error occurred",
     "confirm_delete": "Are you sure you want to delete this item?"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "price_chart": "Price Chart",
+    "qc_report": "QC Report",
+    "properties": "Properties",
+    "derived": "Derived",
+    "operations": "Operations"
   }
 }
