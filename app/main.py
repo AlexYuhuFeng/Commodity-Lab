@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 # Add the workspace root to the Python path so core module can be imported
@@ -37,29 +39,63 @@ k4.metric("Languages", "EN / 中文")
 
 st.divider()
 
-left, right = st.columns([1.4, 1])
+left, right = st.columns([1.15, 1])
 with left:
-    st.subheader("Recommended workflow")
-    st.markdown(
-        f"""
-1. **{t('data_management')}**: search + import watched instruments.
-2. **{t('data_showcase')}**: verify QC, metadata, and derived series.
-3. **{t('monitoring')}**: define alert rules and validate behavior.
-4. **{t('strategies')}**: run parameterized backtests with realistic costs.
-        """
+    st.subheader("Workflow Maturity Overview")
+    maturity_df = pd.DataFrame(
+        {
+            "module": [
+                "Data Management",
+                "Data Showcase",
+                "Monitoring",
+                "Backtest",
+                "Automation",
+            ],
+            "maturity": [90, 88, 78, 80, 65],
+        }
     )
+    fig = px.bar(
+        maturity_df,
+        x="module",
+        y="maturity",
+        range_y=[0, 100],
+        color="maturity",
+        color_continuous_scale="Viridis",
+        title="Current Product Maturity by Module",
+    )
+    fig.update_layout(height=320, margin=dict(l=10, r=10, t=55, b=10), coloraxis_showscale=False)
+    st.plotly_chart(fig, use_container_width=True)
 
 with right:
-    with st.container(border=True):
-        st.markdown("### ✨ Product guidance")
-        st.markdown(
-            """
-- Check data freshness before decisions.
-- Treat alerts as triage, not final verdict.
-- Include costs/slippage in strategy tests.
-- Export outputs for audit trails.
-            """
-        )
+    st.subheader("Interactive Quick Guide")
+
+    steps = [
+        ("step_import", f"1) {t('data_management')}: import watched instruments"),
+        ("step_qc", f"2) {t('data_showcase')}: verify QC + metadata"),
+        ("step_alert", f"3) {t('monitoring')}: test and enable alert rules"),
+        ("step_backtest", f"4) {t('strategies')}: run backtest with realistic costs"),
+        ("step_auto", "5) Auto Strategy Lab: generate and rank candidates"),
+    ]
+    done = 0
+    for key, label in steps:
+        if st.checkbox(label, key=key):
+            done += 1
+    progress = done / len(steps)
+    st.progress(progress, text=f"Progress: {done}/{len(steps)} steps")
+
+st.markdown("### Quick Navigation")
+n1, n2, n3, n4 = st.columns(4)
+with n1:
+    st.page_link("pages/0_GettingStarted.py", label="🚀 Getting Started")
+    st.page_link("pages/1_DataManagement.py", label=f"📊 {t('data_management')}")
+with n2:
+    st.page_link("pages/2_DataShowcase.py", label=f"🔍 {t('data_showcase')}")
+    st.page_link("pages/3_MonitoringAlerts.py", label=f"🚨 {t('monitoring')}")
+with n3:
+    st.page_link("pages/4_Analytics.py", label=f"📈 {t('analytics')}")
+    st.page_link("pages/5_StrategiesBacktest.py", label=f"🎯 {t('strategies')}")
+with n4:
+    st.page_link("pages/7_AutoStrategyLab.py", label="🤖 Auto Strategy Lab")
 
 with st.expander("📘 Functional explanations / 功能说明", expanded=False):
     st.markdown(
@@ -68,5 +104,6 @@ with st.expander("📘 Functional explanations / 功能说明", expanded=False):
 - **{t('data_showcase')}**: Multi-tab data view, charting, QC, and metadata adjustments.
 - **{t('monitoring')}**: Alert rule lifecycle, quick tests, and acknowledgment workflow.
 - **{t('strategies')}**: Run strategy simulations, inspect equity curve and trade lists.
+- **Auto Strategy Lab**: Automated candidate generation, ranking, and historical run tracking.
         """
     )
