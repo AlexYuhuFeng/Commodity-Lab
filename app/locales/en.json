@@ -122,10 +122,27 @@
   },
   "analytics": {
     "title": "Analytics",
-    "subtitle": "Features, Correlations & Market Analysis",
+    "subtitle": "Spread, correlation and feature analysis",
     "features": "Features",
     "correlations": "Correlations",
-    "market_analysis": "Market Analysis"
+    "market_analysis": "Market Analysis",
+    "spread_lab": "Spread Comparison",
+    "ticker_a": "Instrument A",
+    "ticker_b": "Instrument B",
+    "start_date": "Start Date",
+    "end_date": "End Date",
+    "mode": "Spread Mode",
+    "difference": "Difference (A - B)",
+    "ratio": "Ratio (A / B)",
+    "z_window": "Z-Score Window",
+    "latest_spread": "Latest Spread",
+    "latest_zscore": "Latest Z-Score",
+    "rolling_corr": "Rolling Correlation",
+    "price_compare": "Price Comparison",
+    "spread_series": "Spread Series",
+    "zscore_series": "Z-Score Series",
+    "need_two": "Please watch at least two instruments to compare spread.",
+    "no_data": "Not enough overlapping data in selected range."
   },
   "monitoring": {
     "title": "Monitoring & Alerts",
@@ -203,7 +220,8 @@
     "back": "Back",
     "next": "Next",
     "previous": "Previous",
-    "go": "Go"
+    "go": "Go",
+    "none": "N/A"
   },
   "messages": {
     "no_data": "No data available",
