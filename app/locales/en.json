@@ -231,21 +231,12 @@
     "error_occurred": "An error occurred",
     "confirm_delete": "Are you sure you want to delete this item?"
   },
-  "home": {
-    "title": "Commodity Lab",
-    "subtitle": "Commodity analytics workspace",
-    "intro": "A practical platform for data ingestion, QC, monitoring, and strategy evaluation.",
-    "intro2": "If you are new, start with Getting Started.",
-    "workflow_maturity": "Workflow Maturity Overview",
-    "quick_guide": "Interactive Quick Guide",
-    "functional_notes": "Functional Explanations",
-    "progress": "Progress",
-    "steps": {
-      "import": "Import watched instruments",
-      "qc": "Verify QC and metadata",
-      "alert": "Enable and test alert rules",
-      "backtest": "Run backtests and review results",
-      "auto": "Generate and rank strategy candidates"
-    }
+  "tabs": {
+    "overview": "Overview",
+    "price_chart": "Price Chart",
+    "qc_report": "QC Report",
+    "properties": "Properties",
+    "derived": "Derived",
+    "operations": "Operations"
   }
 }

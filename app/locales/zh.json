@@ -231,21 +231,12 @@
     "error_occurred": "出现错误",
     "confirm_delete": "确定要删除此项吗？"
   },
-  "home": {
-    "title": "Commodity Lab",
-    "subtitle": "商品数据分析工作台",
-    "intro": "一个实用的平台：覆盖数据采集、质检、监控与策略评估。",
-    "intro2": "如果你是新用户，请先阅读「快速开始」。",
-    "workflow_maturity": "工作流成熟度",
-    "quick_guide": "交互式快速指引",
-    "functional_notes": "功能说明",
-    "progress": "进度",
-    "steps": {
-      "import": "导入关注品种",
-      "qc": "检查数据质量与元信息",
-      "alert": "测试并启用告警规则",
-      "backtest": "运行回测并评估结果",
-      "auto": "自动生成并排序策略候选"
-    }
+  "tabs": {
+    "overview": "概览",
+    "price_chart": "价格图表",
+    "qc_report": "质量报告",
+    "properties": "属性",
+    "derived": "衍生序列",
+    "operations": "操作"
   }
 }
