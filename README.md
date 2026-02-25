@@ -94,8 +94,9 @@
 
 - CI workflow (`.github/workflows/ci.yml`) runs tests on pushes/PRs to `main`.
 - Build & Release workflow (`.github/workflows/build-and-release.yml`) runs on GitHub (not local) and performs test → build → release.
-- Release artifacts are currently (macOS build temporarily disabled):
+- Release artifacts are currently:
   - Windows: `Commodity-Lab.exe`, `Commodity-Lab-windows-x64.zip`
+  - macOS: `Commodity-Lab-macos.dmg`
 - On `main` updates, a rolling prerelease (`nightly-latest`) is updated automatically.
 - On version tags (`v*.*.*`), a versioned release is created automatically.
 
