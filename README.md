@@ -1,28 +1,4 @@
-# Commodity Lab
-
-一个全面的商品交易数据分析平台。提供数据导入、质量控制、特征工程、策略开发、回测和实时监控功能。
-
-**语言 | Language**: 中文 / English (支持UI语言切换)
-
-## ✨ 核心特性
-
-### 📊 **数据管理** (Data Management)
-- 搜索Yahoo Finance数据源（支持过滤和分页）
-- 自动导入历史价格数据
-- 本地数据库管理和元数据编辑
-- 一键刷新所有已关注产品
-- 刷新日志追踪
-
-### 🔍 **数据展示** (Data Showcase)
-- 仿券商股票详情页设计
-- 6个标签页：概览、价格图表、质量检查、属性、派生序列、操作
-- 交互式价格走势图表
-- 自动QC检查（缺失值、异常值、数据陈旧度等）
-- 派生序列创建与管理
-
-### 🚨 **监控与告警** (Monitoring & Alerts)
-- 7种告警规则类型：
-  # Commodity Lab — Private (Internal Use Only)
+# Commodity Lab — Private (Internal Use Only)
 
   ![Private](https://img.shields.io/badge/Status-Private-red) ![Internal Use](https://img.shields.io/badge/Access-Selected%20Individuals-orange)
 
@@ -111,7 +87,3 @@
   ## Changelog
 
   - v1.0 — Internal release; UI refactor and core features (2026-02-25)
-
-  ---
-
-  If you want the README to mimic VS Code extension pages even more closely (interactive tabs or marketplace-style layout), I can create an HTML/CSS-based tabbed layout inside this README or produce a separate `README.ext.md` optimized for internal docs hosting. Which would you prefer? 
