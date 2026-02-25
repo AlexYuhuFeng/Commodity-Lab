@@ -838,6 +838,90 @@ def acknowledge_alert_event(con: duckdb.DuckDBPyConnection, event_id: str, notes
     )
 
 
+# ---------- Strategy Runs ----------
+def insert_strategy_run(con: duckdb.DuckDBPyConnection, row: dict) -> str:
+    """Insert or update one strategy run record and return run_id."""
+    import json
+    import uuid
+
+    now = utc_now()
+    run_id = (row.get("run_id") or "").strip() or f"sr_{uuid.uuid4().hex[:12]}"
+    ticker = (row.get("ticker") or "").strip()
+    strategy_name = (row.get("strategy_name") or "").strip()
+
+    params_json = row.get("params_json")
+    if params_json is None and row.get("params") is not None:
+        params_json = json.dumps(row.get("params"), ensure_ascii=False, sort_keys=True)
+
+    con.execute(
+        """
+        INSERT INTO strategy_runs
+          (run_id, ticker, strategy_name, params_json, score, total_return_pct,
+           max_drawdown_pct, sharpe_ratio, win_rate, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (run_id) DO UPDATE SET
+          ticker = excluded.ticker,
+          strategy_name = excluded.strategy_name,
+          params_json = excluded.params_json,
+          score = excluded.score,
+          total_return_pct = excluded.total_return_pct,
+          max_drawdown_pct = excluded.max_drawdown_pct,
+          sharpe_ratio = excluded.sharpe_ratio,
+          win_rate = excluded.win_rate,
+          created_at = excluded.created_at
+        """,
+        [
+            run_id,
+            ticker,
+            strategy_name,
+            params_json,
+            row.get("score"),
+            row.get("total_return_pct"),
+            row.get("max_drawdown_pct"),
+            row.get("sharpe_ratio"),
+            row.get("win_rate"),
+            row.get("created_at") or now,
+        ],
+    )
+    return run_id
+
+
+def list_strategy_runs(
+    con: duckdb.DuckDBPyConnection,
+    ticker: str | None = None,
+    strategy_name: str | None = None,
+    limit: int = 200,
+) -> pd.DataFrame:
+    """List strategy run history with optional filters."""
+    where = []
+    params: list = []
+
+    if ticker:
+        where.append("ticker = ?")
+        params.append(ticker.strip())
+    if strategy_name:
+        where.append("strategy_name = ?")
+        params.append(strategy_name.strip())
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+    params.append(max(1, int(limit)))
+
+    df = con.execute(
+        f"""
+        SELECT * FROM strategy_runs
+        {where_sql}
+        ORDER BY created_at DESC, run_id DESC
+        LIMIT ?
+        """,
+        params,
+    ).df()
+
+    if not df.empty and "created_at" in df.columns:
+        df["created_at"] = pd.to_datetime(df["created_at"])
+
+    return df
+
+
 # ---------- Notification Config ----------
 def upsert_notification_config(con: duckdb.DuckDBPyConnection, channel_type: str, 
                                config_json: str, channel_name: str = "", is_enabled: bool = True) -> str:
