@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 from datetime import datetime
+import ast
+import operator as _operator
+import math
 
 
 class OperatorType(Enum):
@@ -367,6 +370,116 @@ class ConditionValidator:
                     return False, "范围值必须是数字"
         
         return True, ""
+
+
+class ConditionEvaluator:
+    """安全评估自定义条件表达式的评估器。
+
+    支持基本算术、比较和逻辑运算，以及来自上下文的名称和少量安全函数。
+    """
+
+    _safe_funcs = {
+        'abs': abs,
+        'min': min,
+        'max': max,
+        'round': round,
+        'int': int,
+        'float': float,
+        'math': math
+    }
+
+    def evaluate(self, expr: str, context: Dict[str, Any]) -> Any:
+        """Evaluate expression `expr` using values from `context`.
+
+        Raises ValueError on invalid/unsafe expressions.
+        """
+        if not expr:
+            return False
+
+        try:
+            node = ast.parse(expr, mode='eval')
+            return self._eval(node.body, context)
+        except Exception as e:
+            raise ValueError(f"Invalid expression: {e}")
+
+    def _eval(self, node, context):
+        if isinstance(node, ast.BinOp):
+            left = self._eval(node.left, context)
+            right = self._eval(node.right, context)
+            op_type = type(node.op)
+            ops = {
+                ast.Add: _operator.add,
+                ast.Sub: _operator.sub,
+                ast.Mult: _operator.mul,
+                ast.Div: _operator.truediv,
+                ast.Mod: _operator.mod,
+                ast.Pow: _operator.pow,
+            }
+            if op_type in ops:
+                return ops[op_type](left, right)
+        elif isinstance(node, ast.UnaryOp):
+            operand = self._eval(node.operand, context)
+            if isinstance(node.op, ast.USub):
+                return -operand
+            if isinstance(node.op, ast.UAdd):
+                return +operand
+        elif isinstance(node, ast.BoolOp):
+            values = [self._eval(v, context) for v in node.values]
+            if isinstance(node.op, ast.And):
+                return all(values)
+            if isinstance(node.op, ast.Or):
+                return any(values)
+        elif isinstance(node, ast.Compare):
+            left = self._eval(node.left, context)
+            result = True
+            for op, comparator in zip(node.ops, node.comparators):
+                right = self._eval(comparator, context)
+                if isinstance(op, ast.Eq):
+                    result = result and (left == right)
+                elif isinstance(op, ast.NotEq):
+                    result = result and (left != right)
+                elif isinstance(op, ast.Lt):
+                    result = result and (left < right)
+                elif isinstance(op, ast.LtE):
+                    result = result and (left <= right)
+                elif isinstance(op, ast.Gt):
+                    result = result and (left > right)
+                elif isinstance(op, ast.GtE):
+                    result = result and (left >= right)
+                else:
+                    raise ValueError(f"Unsupported comparator: {op}")
+                left = right
+            return result
+        elif isinstance(node, ast.Call):
+            # Only allow safe function names
+            if isinstance(node.func, ast.Attribute):
+                # e.g., math.sqrt(x)
+                value = self._eval(node.func.value, context)
+                attr = node.func.attr
+                func = getattr(value, attr, None)
+            elif isinstance(node.func, ast.Name):
+                func_name = node.func.id
+                func = self._safe_funcs.get(func_name)
+            else:
+                func = None
+
+            if not callable(func):
+                raise ValueError(f"Unsafe function in expression: {ast.dump(node.func)}")
+
+            args = [self._eval(a, context) for a in node.args]
+            return func(*args)
+        elif isinstance(node, ast.Name):
+            if node.id in context:
+                return context[node.id]
+            if node.id in self._safe_funcs:
+                return self._safe_funcs[node.id]
+            raise ValueError(f"Unknown name: {node.id}")
+        elif isinstance(node, ast.Constant):
+            return node.value
+        elif isinstance(node, ast.Num):
+            return node.n
+
+        raise ValueError(f"Unsupported expression node: {type(node).__name__}")
     
     @staticmethod
     def validate_group(group: ConditionGroup) -> Tuple[bool, str]:
