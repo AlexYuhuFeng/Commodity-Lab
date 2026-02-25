@@ -1,10 +1,10 @@
-# Quick Release (Windows EXE)
+# Quick Release (EXE + DMG)
 
 ## One-click automatic release
 
-`build-and-release.yml` now automatically builds and publishes Windows artifacts (macOS temporarily disabled):
-- `Commodity-Lab.exe`
-- `Commodity-Lab-windows-x64.zip`
+`build-and-release.yml` now automatically builds and publishes:
+- Windows: `Commodity-Lab.exe` and `Commodity-Lab-windows-x64.zip`
+- macOS: `Commodity-Lab-macos.dmg`
 
 ## Trigger methods
 
@@ -24,3 +24,4 @@ GitHub → **Actions** → **Build and Release** → **Run workflow**.
 After workflow success, check GitHub Releases assets include:
 - `Commodity-Lab.exe`
 - `Commodity-Lab-windows-x64.zip`
+- `Commodity-Lab-macos.dmg`
