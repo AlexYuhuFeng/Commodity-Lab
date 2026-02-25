@@ -67,6 +67,7 @@ jobs:
           pip install pyinstaller
 
       - name: Build executable (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           pyinstaller --onefile --name "${{ env.APP_NAME }}" `
@@ -84,6 +85,16 @@ jobs:
             --collect-all streamlit \
             app/main.py
 
+      - name: Cleanup disk space for macOS packaging
+        if: runner.os == 'macOS'
+        run: |
+          df -h
+          pip cache purge || true
+          rm -rf ~/Library/Caches/pip || true
+          rm -rf release/dmg-root || true
+          rm -f "release/${{ env.APP_NAME }}-macos.dmg" || true
+          df -h
+
       - name: Package Windows artifacts (.exe + .zip)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -96,9 +107,23 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           mkdir -p release/dmg-root
-          cp "dist/${{ env.APP_NAME }}" "release/dmg-root/${{ env.APP_NAME }}"
+          cp -R "dist/${{ env.APP_NAME }}" "release/dmg-root/${{ env.APP_NAME }}"
           chmod +x "release/dmg-root/${{ env.APP_NAME }}"
-          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder release/dmg-root -ov -format UDZO "release/${{ env.APP_NAME }}-macos.dmg"
+
+          sudo pkill -9 XProtectBehaviorService || true
+          sudo pkill -9 XProtect || true
+
+          for attempt in 1 2 3; do
+            if hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder release/dmg-root -ov -format UDZO "release/${{ env.APP_NAME }}-macos.dmg"; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              echo "hdiutil failed after ${attempt} attempts"
+              exit 1
+            fi
+            echo "hdiutil failed on attempt ${attempt}, retrying..."
+            sleep 5
+          done
 
       - name: Upload packaged artifacts
         uses: actions/upload-artifact@v4
@@ -108,7 +133,7 @@ jobs:
 
   release:
     name: Publish release
-    needs: build_windows
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
