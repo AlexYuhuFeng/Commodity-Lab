@@ -9,7 +9,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Commodity Lab", layout="wide")
 st.title("Commodity Lab（逐步构建中）")
-st.info("fuck国际公司")
+st.info("初步版本，请测试")
 st.write("""
 当前进度：
 - ✅ Step 1：数据导入与展示（见左侧 Data 页面）
