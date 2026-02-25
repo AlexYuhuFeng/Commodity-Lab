@@ -106,7 +106,7 @@ jobs:
           $ownerRepo = "${{ github.repository }}"
           $token = $env:GITHUB_TOKEN
           $tag = "${{ github.ref_name }}"
-          $body = @"${{ steps.release_notes.outputs.release_body }}"@
+          $body = Get-Content -Raw RELEASE_NOTES.md
 
           $payload = @{ tag_name = $tag; name = $tag; body = $body; draft = $false; prerelease = $false } | ConvertTo-Json -Depth 6
           $headers = @{ Authorization = "token $token"; Accept = 'application/vnd.github+json' }
