@@ -94,11 +94,11 @@ if (Test-Path "app\assets\icon.ico") {
 
 # 执行构建
 Write-Host "🏗️ 开始构建..." -ForegroundColor Cyan
-Write-Host "命令: pyinstaller $($buildArgs -join ' ') app\main.py" -ForegroundColor Gray
+Write-Host "命令: pyinstaller $($buildArgs -join ' ') app\desktop_launcher.py" -ForegroundColor Gray
 Write-Host ""
 
 try {
-    & python -m PyInstaller @buildArgs "app\main.py"
+    & python -m PyInstaller @buildArgs "app\desktop_launcher.py"
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
