@@ -61,7 +61,6 @@ jobs:
           pip install pyinstaller
 
       - name: Build executable (Windows)
-        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           pyinstaller --onefile --name "${{ env.APP_NAME }}" `
@@ -103,7 +102,7 @@ jobs:
 
   release:
     name: Publish release
-    needs: build
+    needs: build_windows
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
