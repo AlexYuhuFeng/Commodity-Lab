@@ -150,11 +150,11 @@ with tab_search:
         # Display in dataframe format with pagination
         df_results = pd.DataFrame([
             {
-                "产品名称": r.get("shortname", r.get("symbol", "")),
-                "代码": r.get("symbol", ""),
-                "类型": r.get("quoteType", ""),
-                "交易所": r.get("exchange", ""),
-                "货币": r.get("currency", ""),
+                "产品名称": r.get("name") or r.get("ticker") or "",
+                "代码": r.get("ticker") or r.get("symbol") or "",
+                "类型": r.get("quote_type") or r.get("quoteType") or "",
+                "交易所": r.get("exchange") or "",
+                "货币": r.get("currency") or "",
                 "操作": "view"
             }
             for r in search_results[:max_results]
@@ -179,9 +179,9 @@ with tab_search:
         for idx, result in enumerate(search_results[:max_results]):
             with cols[idx % len(cols)]:
                 with st.container(border=True):
-                    ticker = result.get("symbol", "N/A")
-                    name = result.get("shortname", ticker)
-                    quote_type = result.get("quoteType", "")
+                    ticker = result.get("ticker", "N/A")
+                    name = result.get("name", ticker)
+                    quote_type = result.get("quote_type", "")
                     exchange = result.get("exchange", "")
                     currency = result.get("currency", "")
                     
