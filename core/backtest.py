@@ -88,7 +88,7 @@ class SimpleBacktester:
                 exit_price = price * (1 - slippage * np.sign(position)) if slippage else price
                 shares = abs(position)
                 # apply exit transaction cost on proceeds
-                proceeds = exit_price * shares * (1 - cost_per_trade) - fixed_fee
+                proceeds = exit_price * shares * (1 - cost_per_trade) - (fixed_fee / 2.0)
                 entry_value = entry_price * shares
                 pnl = proceeds - entry_value
                 pnl_pct = (pnl / entry_value) * 100 if entry_value != 0 else 0
@@ -124,7 +124,7 @@ class SimpleBacktester:
                 entry_signal = f"signal_{signal}"
                 # subtract cost on entry plus fixed fee
                 cost_amount = shares * entry_price * cost_per_trade
-                cash -= shares * entry_price + cost_amount + fixed_fee
+                cash -= shares * entry_price + cost_amount + (fixed_fee / 2.0)
             
             # Update equity
             current_equity = float(cash + position * price)
@@ -136,7 +136,7 @@ class SimpleBacktester:
             raw_exit_price = df["close"].iloc[-1]
             exit_price = raw_exit_price * (1 - slippage * np.sign(position)) if slippage else raw_exit_price
             shares = abs(position)
-            proceeds = exit_price * shares * (1 - cost_per_trade) - fixed_fee
+            proceeds = exit_price * shares * (1 - cost_per_trade) - (fixed_fee / 2.0)
             entry_value = entry_price * shares
             pnl = proceeds - entry_value
             pnl_pct = (pnl / entry_value) * 100 if entry_value != 0 else 0
