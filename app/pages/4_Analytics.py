@@ -1,17 +1,15 @@
 # app/pages/4_Analytics.py
-"""
-Analytics Page - Features & Relationships
-Placeholder for feature engineering and correlation analysis
-"""
+"""Analytics workspace for feature and relationship analysis."""
 
 import sys
 from pathlib import Path
 
+import streamlit as st
+
 workspace_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(workspace_root))
 
-import streamlit as st
-from app.i18n import t, render_language_switcher, init_language
+from app.i18n import init_language, render_language_switcher, t
 
 init_language()
 
@@ -19,14 +17,31 @@ st.set_page_config(page_title="Commodity Lab - Analytics", layout="wide")
 render_language_switcher()
 
 st.title(f"📊 {t('analytics')}")
+st.caption("Feature engineering, regime detection, and correlation diagnostics.")
 
-st.info("此功能正在开发中...")
+c1, c2, c3 = st.columns(3)
+c1.metric("Feature Library", "Rolling / Zscore")
+c2.metric("Correlation", "Pair + Matrix")
+c3.metric("Market State", "Volatility Regime")
 
-st.markdown("""
-### 计划功能
-- 📈 特征工程：Rolling Statistics、Z-Score、Percentile Bands等
-- 🔗 关联性分析：Spread分析、相关性矩阵、Regime切换检测
-- 📉 市场状态分析：波动率制度、价格分布、异常检测
+st.divider()
 
-返回 **数据展示** 页面可以管理派生序列。
-""")
+st.markdown("### Planned modules")
+st.markdown(
+    """
+1. **Feature Studio**: rolling stats, percentile bands, signal transforms.
+2. **Relationship Lab**: spread z-score, rolling correlation, lead-lag checks.
+3. **Regime Monitor**: volatility buckets, anomaly markers, trend state.
+"""
+)
+
+with st.expander("🧭 How to use this page / 使用建议", expanded=True):
+    st.markdown(
+        """
+- Step 1: Validate instrument data quality in Data Showcase.
+- Step 2: Build derived series before running relationship analysis.
+- Step 3: Save validated features and feed them to backtesting.
+        """
+    )
+
+st.info("Analytics modules are being completed in iterative milestones.")

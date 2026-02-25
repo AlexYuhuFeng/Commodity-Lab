@@ -1,12 +1,13 @@
 import sys
 from pathlib import Path
 
+import streamlit as st
+
 # Add the workspace root to the Python path so core module can be imported
 workspace_root = Path(__file__).parent.parent
 sys.path.insert(0, str(workspace_root))
 
-import streamlit as st
-from app.i18n import t, render_language_switcher, init_language
+from app.i18n import init_language, render_language_switcher, t
 
 init_language()
 
@@ -16,37 +17,56 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Render language switcher at the top of sidebar
 render_language_switcher()
 
 st.title("🌾 Commodity Lab")
-st.subheader(t("home"))
+st.subheader("Internal commodity analytics workspace")
 
-st.info(t("info") if False else "Commodity Lab - A comprehensive data analytics platform for commodity trading and analysis")
+st.markdown(
+    """
+> A practical platform for data ingestion, QC, monitoring, and strategy evaluation.
+> Use the **Getting Started** page first if you are new to the product.
+"""
+)
 
-st.markdown(f"""
-### {t("home")} 
-当前进度：
-- ✅ {t("data_management")}：搜索、导入、管理商品数据
-- ✅ {t("data_showcase")}：完整的数据展示、QC、派生序列管理
-- ⏳ {t("analytics")}：特征工程、关联性分析
-- ⏳ {t("monitoring")}：自定义告警、监控仪表板
-- ⏳ {t("strategies")}：策略构建、回测引擎
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("Data", "Management + Showcase")
+k2.metric("Alerts", "Rules + Event History")
+k3.metric("Backtest", "Strategy Simulation")
+k4.metric("Languages", "EN / 中文")
 
-### 快速导航
-从左侧菜单选择页面：
+st.divider()
 
-1. **{t("data_management")}** → 搜索和导入商品数据
-2. **{t("data_showcase")}** → 查看数据、QC、属性、派生序列
-3. **{t("analytics")}** → 特征工程、关联性分析、市场状态
-4. **{t("monitoring")}** → 自定义告警规则、告警历史
-5. **{t("strategies")}** → 策略构建、回测
+left, right = st.columns([1.4, 1])
+with left:
+    st.subheader("Recommended workflow")
+    st.markdown(
+        f"""
+1. **{t('data_management')}**: search + import watched instruments.
+2. **{t('data_showcase')}**: verify QC, metadata, and derived series.
+3. **{t('monitoring')}**: define alert rules and validate behavior.
+4. **{t('strategies')}**: run parameterized backtests with realistic costs.
+        """
+    )
 
-### 如何使用
-1. 首先在"{t("data_management")}"页面搜索并关注您感兴趣的商品
-2. 系统会自动下载历史数据
-3. 在"{t("data_showcase")}"页面查看详细数据和质量报告
-4. 在"{t("monitoring")}"页面设置自定义告警规则
-5. 根据数据和分析制定交易策略
-""")
+with right:
+    with st.container(border=True):
+        st.markdown("### ✨ Product guidance")
+        st.markdown(
+            """
+- Check data freshness before decisions.
+- Treat alerts as triage, not final verdict.
+- Include costs/slippage in strategy tests.
+- Export outputs for audit trails.
+            """
+        )
 
+with st.expander("📘 Functional explanations / 功能说明", expanded=False):
+    st.markdown(
+        f"""
+- **{t('data_management')}**: Discover symbols, watchlist curation, and refresh actions.
+- **{t('data_showcase')}**: Multi-tab data view, charting, QC, and metadata adjustments.
+- **{t('monitoring')}**: Alert rule lifecycle, quick tests, and acknowledgment workflow.
+- **{t('strategies')}**: Run strategy simulations, inspect equity curve and trade lists.
+        """
+    )

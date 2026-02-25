@@ -47,6 +47,7 @@
   - Data Showcase — product detail (multi-tab view)
   - Monitoring & Alerts — create and test rules
   - Analytics & Backtest — advanced features (internal)
+- Getting Started Guide — onboarding for new users
 
   ## Documentation
 
@@ -87,3 +88,10 @@
   ## Changelog
 
   - v1.0 — Internal release; UI refactor and core features (2026-02-25)
+
+## CI/CD & Release
+
+- CI executes tests on each push/PR to `main`.
+- Build & Release workflow creates cross-platform executables for Linux/macOS/Windows.
+- On `main` updates, a rolling prerelease (`nightly-latest`) is updated with latest artifacts and release notes.
+- On version tags (`v*.*.*`), a versioned release is created automatically.
