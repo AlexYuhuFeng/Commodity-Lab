@@ -7,7 +7,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 # 项目信息
 APP_NAME = "Commodity-Lab"
-ENTRY_POINT = os.path.join("app", "main.py")
+ENTRY_POINT = os.path.join("app", "desktop_launcher.py")
 ICON_PATH = os.path.join("app", "assets", "icon.ico") if os.path.exists(os.path.join("app", "assets", "icon.ico")) else None
 
 # 数据文件收集
