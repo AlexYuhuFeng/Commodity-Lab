@@ -17,7 +17,6 @@ from app.i18n import init_language, render_language_switcher, t
 from core.db import default_db_path, get_conn, init_db, list_instruments, query_prices_long
 
 init_language()
-
 st.set_page_config(page_title="Commodity Lab - Analytics", layout="wide")
 render_language_switcher()
 

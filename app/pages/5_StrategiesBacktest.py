@@ -1,8 +1,4 @@
-# app/pages/5_StrategiesBacktest.py
-"""
-Strategies & Backtest Page
-提供策略参数化、运行回测并展示结果（图表、指标、交易清单）
-"""
+from __future__ import annotations
 
 import sys
 from datetime import timedelta
@@ -15,20 +11,24 @@ import streamlit as st
 workspace_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(workspace_root))
 
-from app.i18n import t, render_language_switcher, init_language
+from app.i18n import get_language, init_language, render_language_switcher, t
 from core.backtest import SimpleBacktester
 from core.db import default_db_path, get_conn, list_instruments, query_prices_long
 from core.strategy_examples import rsi_mean_reversion_signals, sma_crossover_signals
 
 init_language()
-
 st.set_page_config(page_title="Commodity Lab - Strategies & Backtest", layout="wide")
 render_language_switcher()
+lang = get_language()
+
+def l(en: str, zh: str) -> str:
+    return zh if lang == "zh" else en
 
 st.title(f"🎯 {t('strategies')}")
+st.caption(l("All controls are on the main page for faster workflow.", "所有控制项已移到主页面，便于操作。"))
 
 con = get_conn(default_db_path(workspace_root))
-instruments_df = list_instruments(con)
+instruments_df = list_instruments(con, only_watched=True)
 available_tickers = instruments_df["ticker"].tolist() if not instruments_df.empty else []
 
 with st.sidebar:
