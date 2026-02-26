@@ -39,7 +39,7 @@ init_language()
 st.set_page_config(page_title="Commodity Lab - Data Showcase", layout="wide")
 render_language_switcher()
 
-st.title(f"🔍 {t('data_showcase')}")
+st.title(f"🔍 {t('data_showcase.title')}")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = default_db_path(PROJECT_ROOT)
@@ -61,7 +61,7 @@ selected_ticker = sel_col1.selectbox(
     ticker_options,
     format_func=lambda x: f"{x} - {inst[inst['ticker']==x]['name'].iloc[0] if inst[inst['ticker']==x]['name'].iloc[0] else x}",
 )
-sel_col2.caption("查看行情、质检与属性信息。")
+sel_col2.caption("衍生序列编辑、价差创建已集中到“派生管理”页签。")
 
 
 # ===== GET DATA FOR SELECTED TICKER =====
@@ -87,12 +87,12 @@ if derived_tickers:
 
 # ===== MAIN CONTENT WITH TABS =====
 tabs = st.tabs([
-    f"{t('tabs.overview')} 📊",
-    f"{t('tabs.price_chart')} 📈",
-    f"{t('tabs.qc_report')} ✓",
-    f"{t('tabs.properties')} 🏷️",
-    f"{t('tabs.derived')} 🔗",
-    f"{t('tabs.operations')} ⚙️",
+    f"{t('data_showcase.tabs.overview')} 📊",
+    f"{t('data_showcase.tabs.price_chart')} 📈",
+    f"{t('data_showcase.tabs.qc_report')} ✓",
+    f"{t('data_showcase.tabs.properties')} 🏷️",
+    f"{t('data_showcase.tabs.derived')} 🔗",
+    f"{t('data_showcase.tabs.operations')} ⚙️",
 ])
 
 
@@ -507,8 +507,62 @@ with tabs[4]:
                 st.error(f"❌ 创建失败: {str(e)}")
 
 
-# ===== TAB 5: OPERATIONS =====
+# ===== TAB 5: DERIVED STUDIO =====
 with tabs[5]:
+    st.subheader(f"派生管理 - {selected_ticker}")
+    st.caption("支持基于两条序列创建 spread 作为派生序列，便于监控与回测复用。")
+
+    all_inst = list_instruments(con, only_watched=False)
+    all_tickers = sorted(all_inst["ticker"].dropna().astype(str).tolist()) if not all_inst.empty else []
+
+    c1, c2, c3 = st.columns(3)
+    spread_left = c1.selectbox("左侧序列", all_tickers, index=0 if all_tickers else None, key="ds_left")
+    spread_right = c2.selectbox("右侧序列", all_tickers, index=1 if len(all_tickers) > 1 else 0, key="ds_right")
+    spread_mode = c3.selectbox("公式", ["L-R", "L/R", "(L-R)/R"], key="ds_mode")
+
+    m1, m2 = st.columns(2)
+    left_mult = m1.number_input("左侧倍率", value=1.0, step=0.1, key="ds_lm")
+    right_mult = m2.number_input("右侧倍率", value=1.0, step=0.1, key="ds_rm")
+
+    out_name = st.text_input("派生代码", value=f"SPREAD_{selected_ticker}")
+
+    if st.button("💾 保存Spread派生序列", type="primary", width='stretch'):
+        if not spread_left or not spread_right:
+            st.error("请选择左右序列")
+        else:
+            l_raw = query_prices_long(con, [spread_left], field="close")
+            if l_raw.empty:
+                l_raw = query_derived_long(con, [spread_left])
+            r_raw = query_prices_long(con, [spread_right], field="close")
+            if r_raw.empty:
+                r_raw = query_derived_long(con, [spread_right])
+
+            if l_raw.empty or r_raw.empty:
+                st.error("左右序列有一侧没有数据")
+            else:
+                ldf = l_raw[["date", "value"]].rename(columns={"value": "L"})
+                rdf = r_raw[["date", "value"]].rename(columns={"value": "R"})
+                mm = pd.merge(ldf, rdf, on="date", how="inner").dropna().sort_values("date")
+                mm["L"] = mm["L"] * float(left_mult)
+                mm["R"] = mm["R"] * float(right_mult)
+                if spread_mode == "L-R":
+                    mm["value"] = mm["L"] - mm["R"]
+                elif spread_mode == "L/R":
+                    mm["value"] = mm["L"] / mm["R"]
+                else:
+                    mm["value"] = (mm["L"] - mm["R"]) / mm["R"]
+                save_name = (out_name or "").strip().upper()
+                if not save_name:
+                    st.error("派生代码不能为空")
+                else:
+                    from core.db import upsert_derived_daily, upsert_instruments
+                    rows = upsert_derived_daily(con, save_name, mm[["date", "value"]])
+                    upsert_instruments(con, pd.DataFrame([{"ticker": save_name, "name": save_name, "quote_type": "derived", "exchange": "local", "currency": "", "unit": "", "category": "spread", "source": "derived_studio"}]))
+                    st.success(f"已保存 {rows} 行至 {save_name}")
+                    st.line_chart(mm.set_index("date")["value"])
+
+# ===== TAB 6: OPERATIONS =====
+with tabs[6]:
     st.subheader(f"操作 - {selected_ticker}")
     
     col1, col2 = st.columns(2)

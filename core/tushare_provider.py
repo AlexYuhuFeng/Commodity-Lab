@@ -4,17 +4,6 @@ import os
 from typing import Any, Dict, List
 
 
-def tushare_status() -> tuple[bool, str]:
-    token = os.getenv("TUSHARE_TOKEN", "").strip()
-    if not token:
-        return False, "missing_token"
-    try:
-        import tushare as ts  # noqa: F401
-    except Exception:
-        return False, "missing_package"
-    return True, "ok"
-
-
 def search_tushare(query: str, max_results: int = 20) -> List[Dict[str, Any]]:
     q = (query or "").strip().lower()
     if not q:
