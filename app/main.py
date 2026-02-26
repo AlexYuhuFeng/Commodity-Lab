@@ -16,7 +16,7 @@ init_language()
 st.set_page_config(
     page_title="Commodity Lab",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -101,6 +101,7 @@ pages = {
     "Start Here": [
         st.Page(render_home, title="Home", icon="🏠", default=True),
         st.Page("pages/0_GettingStarted.py", title="Getting Started", icon="🚀"),
+        st.Page("pages/8_About.py", title="About", icon="ℹ️"),
     ],
     "Data Workspace": [
         st.Page("pages/1_DataManagement.py", title="Data Management", icon="📊"),
