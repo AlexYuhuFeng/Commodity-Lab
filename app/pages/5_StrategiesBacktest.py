@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import sys
+import uuid
 from datetime import timedelta
 from pathlib import Path
 
@@ -13,7 +15,15 @@ sys.path.insert(0, str(workspace_root))
 
 from app.i18n import get_language, init_language, render_language_switcher, t
 from core.backtest import SimpleBacktester
-from core.db import default_db_path, get_conn, list_instruments, query_prices_long
+from core.db import (
+    default_db_path,
+    delete_strategy_profile,
+    get_conn,
+    list_instruments,
+    list_strategy_profiles,
+    query_prices_long,
+    upsert_strategy_profile,
+)
 from core.strategy_examples import rsi_mean_reversion_signals, sma_crossover_signals
 
 init_language()
