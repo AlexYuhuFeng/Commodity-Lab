@@ -39,7 +39,7 @@ init_language()
 st.set_page_config(page_title="Commodity Lab - Data Showcase", layout="wide")
 render_language_switcher()
 
-st.title(f"🔍 {t('data_showcase')}")
+st.title(f"🔍 {t('data_showcase.title')}")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = default_db_path(PROJECT_ROOT)
@@ -87,13 +87,12 @@ if derived_tickers:
 
 # ===== MAIN CONTENT WITH TABS =====
 tabs = st.tabs([
-    f"{t('tabs.overview')} 📊",
-    f"{t('tabs.price_chart')} 📈",
-    f"{t('tabs.qc_report')} ✓",
-    f"{t('tabs.properties')} 🏷️",
-    f"{t('tabs.derived')} 🔗",
-    "派生管理 🧪",
-    f"{t('tabs.operations')} ⚙️",
+    f"{t('data_showcase.tabs.overview')} 📊",
+    f"{t('data_showcase.tabs.price_chart')} 📈",
+    f"{t('data_showcase.tabs.qc_report')} ✓",
+    f"{t('data_showcase.tabs.properties')} 🏷️",
+    f"{t('data_showcase.tabs.derived')} 🔗",
+    f"{t('data_showcase.tabs.operations')} ⚙️",
 ])
 
 
