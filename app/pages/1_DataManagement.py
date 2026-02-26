@@ -1,320 +1,186 @@
-# app/pages/1_DataManagement.py
-"""
-Data Management Page
-Integrated search, import, and management of commodity data
-"""
-
 from __future__ import annotations
 
 import sys
+from datetime import date
 from pathlib import Path
-from datetime import timedelta, date
+
 import pandas as pd
 import streamlit as st
-from datetime import datetime
 
-# Add the workspace root to the Python path so core module can be imported
 workspace_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(workspace_root))
 
+from app.i18n import get_language, init_language, render_language_switcher, t
 from core.db import (
     default_db_path,
+    delete_instruments,
     get_conn,
+    get_last_price_date,
     init_db,
     list_instruments,
-    set_watch,
-    get_last_price_date,
-    upsert_prices_daily,
-    log_refresh,
     list_refresh_log,
+    log_refresh,
+    set_watch,
     upsert_instruments,
+    upsert_prices_daily,
 )
-from core.yf_provider import search_yahoo, normalize_search_results
-from core.yf_prices import fetch_history_daily
 from core.refresh import refresh_many
-from app.i18n import t, render_language_switcher, init_language
+from core.yf_provider import normalize_search_results, search_yahoo
+from core.tushare_provider import search_tushare
 
 init_language()
-
 st.set_page_config(page_title="Commodity Lab - Data Management", layout="wide")
 render_language_switcher()
+lang = get_language()
+
+def l(en: str, zh: str) -> str:
+    return zh if lang == "zh" else en
 
 st.title(f"📊 {t('data_management')}")
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DB_PATH = default_db_path(PROJECT_ROOT)
-
-con = get_conn(DB_PATH)
+con = get_conn(default_db_path(workspace_root))
 init_db(con)
 
-
-# ===== SIDEBAR CONTROLS =====
-def download_and_upsert_one(tk: str, first_period: str, backfill_days: int) -> dict:
-    """Download and upsert single ticker with backfill"""
-    tk = (tk or "").strip()
-    last_dt = get_last_price_date(con, tk)
-
-    try:
-        if last_dt is None:
-            px = fetch_history_daily(tk, start=None, period_if_no_start=first_period)
-        else:
-            start = last_dt - timedelta(days=int(backfill_days))
-            px = fetch_history_daily(tk, start=start, period_if_no_start=first_period)
-
-        if px is None or px.empty:
-            log_refresh(con, tk, status="empty", message="no data returned", last_success_date=last_dt)
-            return {"ticker": tk, "status": "empty", "rows": 0, "last": last_dt}
-
-        n = upsert_prices_daily(con, tk, px)
-        last_success = px["date"].max() if "date" in px.columns and not px.empty else last_dt
-
-        if n > 0:
-            log_refresh(con, tk, status="success", message=f"upserted {n} rows", last_success_date=last_success)
-            return {"ticker": tk, "status": "success", "rows": n, "last": last_success}
-        else:
-            log_refresh(con, tk, status="empty", message="no new rows", last_success_date=last_success)
-            return {"ticker": tk, "status": "empty", "rows": 0, "last": last_success}
-
-    except Exception as e:
-        log_refresh(con, tk, status="error", message=str(e), last_success_date=last_dt)
-        return {"ticker": tk, "status": "error", "rows": 0, "last": last_dt}
+st.subheader(l("Refresh settings", "刷新设置"))
+r1, r2, r3, r4 = st.columns([1, 1, 1, 1.2])
+first_period = r1.selectbox(l("Initial download period", "首次下载周期"), ["max", "10y", "5y", "2y", "1y"], index=0)
+backfill_days = r2.slider(l("Backfill days", "回补天数"), 0, 30, 7, 1)
+derived_backfill_days = r3.slider(l("Derived backfill days", "派生回补天数"), 0, 30, 7, 1)
+watched = list_instruments(con, only_watched=True)
+if r4.button(l("Refresh all watched", "刷新全部关注"), type="primary", width="stretch"):
+    tickers = watched["ticker"].tolist() if not watched.empty else []
+    if not tickers:
+        st.warning(l("No watched tickers.", "暂无已关注代码。"))
+    else:
+        results = refresh_many(con, tickers, first_period, backfill_days, derived_backfill_days)
+        ok = sum(1 for r in results if r.get("status") == "success")
+        st.success(l(f"Refresh done: {ok}/{len(results)} success", f"刷新完成：{ok}/{len(results)} 成功"))
 
 
-with st.sidebar:
-    st.header("⚙️ " + t("refresh_settings"))
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        first_period = st.selectbox(
-            t("first_download_period"),
-            ["max", "10y", "5y", "2y", "1y"],
-            index=0
-        )
-    with col2:
-        backfill_days = st.slider(t("backfill_days"), 0, 30, 7, 1)
-    
-    derived_backfill_days = st.slider(t("backfill_derived"), 0, 30, 7, 1)
-    auto_download = st.checkbox(t("auto_download"), value=True)
-    
-    st.divider()
-    
-    inst = list_instruments(con, only_watched=False)
-    watched = inst[inst["is_watched"] == True]["ticker"].tolist() if not inst.empty else []
-    
-    if st.button(f"🔄 {t('refresh_all')}", type="primary", width='stretch'):
-        if not watched:
-            st.warning("暂无已关注的产品。请先在下方搜索并关注。")
-        else:
-            with st.spinner("刷新中..."):
-                results = refresh_many(
-                    con,
-                    watched,
-                    first_period=first_period,
-                    backfill_days=backfill_days,
-                    derived_backfill_days=derived_backfill_days,
-                )
-                ok = sum(1 for r in results if r["status"] == "success")
-                st.success(f"✅ 刷新完成：{ok}/{len(results)} 成功")
+search_tab, local_tab, upload_tab, log_tab = st.tabs([
+    l("🔍 Search", "🔍 搜索"),
+    l("📁 Local", "📁 本地"),
+    l("⤴️ CSV Upload", "⤴️ CSV上传"),
+    l("📋 Refresh Log", "📋 刷新日志"),
+])
 
+with search_tab:
+    query = st.text_input(l("Keywords", "关键词"), placeholder="Brent / TTF / HH / EURUSD")
+    max_results = st.slider(l("Max results", "最大结果数"), 5, 50, 15)
+    source_mode = st.radio(l("Data source", "数据源"), ["all", "yfinance", "tushare"], horizontal=True)
 
-# ===== MAIN CONTENT =====
-# Create tabs for Search and Local Data
-tab_search, tab_local, tab_logs = st.tabs(["🔍 搜索", "📁 本地数据", "📋 刷新日志"])
-
-# ===== TAB 1: SEARCH =====
-with tab_search:
-    st.subheader(t("search") + " - Yahoo Finance")
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        search_query = st.text_input(
-            t("keywords"),
-            placeholder="e.g., Brent, Natural Gas, TTF, EURUSD",
-            key="search_input"
-        )
-    with col2:
-        max_results = st.slider("数量", 5, 100, 20, 5)
-    
-    search_results = []
-    if search_query:
-        with st.spinner("搜索中..."):
+    yf_rows = []
+    ts_rows = []
+    if query:
+        if source_mode in ("all", "yfinance"):
             try:
-                results = search_yahoo(search_query)
-                search_results = normalize_search_results(results)
+                yf_rows = normalize_search_results(search_yahoo(query))[:max_results]
             except Exception as e:
-                st.error(f"搜索出错: {str(e)}")
-    
-    if search_results:
-        st.write(f"找到 {len(search_results)} 个结果")
-        
-        # Display in dataframe format with pagination
-        df_results = pd.DataFrame([
-            {
-                "产品名称": r.get("name") or r.get("ticker") or "",
-                "代码": r.get("ticker") or r.get("symbol") or "",
-                "类型": r.get("quote_type") or r.get("quoteType") or "",
-                "交易所": r.get("exchange") or "",
-                "货币": r.get("currency") or "",
-                "操作": "view"
-            }
-            for r in search_results[:max_results]
-        ])
-        
-        st.dataframe(
-            df_results,
-            width='stretch',
-            hide_index=True,
-            column_config={
-                "操作": st.column_config.SelectboxColumn(
-                    options=["view"],
-                    width="small"
-                )
-            }
-        )
-        
-        # Detail view
-        st.subheader("⭐ 产品详情")
-        
-        cols = st.columns(min(3, len(search_results)))
-        for idx, result in enumerate(search_results[:max_results]):
-            with cols[idx % len(cols)]:
-                with st.container(border=True):
-                    ticker = result.get("ticker", "N/A")
-                    name = result.get("name", ticker)
-                    quote_type = result.get("quote_type", "")
-                    exchange = result.get("exchange", "")
-                    currency = result.get("currency", "")
-                    
-                    st.write(f"**{name}**")
-                    st.caption(f"代码: {ticker}")
-                    
-                    info = f"**类型**: {quote_type}\n\n**交易所**: {exchange}\n\n**货币**: {currency}"
-                    st.markdown(info)
-                    
-                    # Check if already watched
-                    is_watched = not inst.empty and ticker in inst[inst["is_watched"] == True]["ticker"].values
-                    
-                    if is_watched:
-                        st.success("✅ 已关注")
-                    else:
-                        if st.button("➕ 添加关注", key=f"add_{ticker}_{idx}", width='stretch'):
-                            # Add to instruments and optionally download
-                            try:
-                                upsert_instruments(
-                                    con,
-                                    pd.DataFrame([
-                                        {
-                                            "ticker": ticker,
-                                            "name": name,
-                                            "quote_type": quote_type,
-                                            "exchange": exchange,
-                                            "currency": currency,
-                                            "category": "commodity",
-                                        }
-                                    ])
-                                )
-                                set_watch(con, [ticker], True)
-                                
-                                # Auto download if enabled
-                                if auto_download:
-                                    with st.spinner(f"下载 {ticker} 数据中..."):
-                                        result = download_and_upsert_one(ticker, first_period, backfill_days)
-                                        if result["status"] == "success":
-                                            st.success(f"✅ {result['rows']} 行数据已导入")
-                                        elif result["status"] == "empty":
-                                            st.warning("⚠️ 未获得数据")
-                                        else:
-                                            st.error(f"❌ 下载失败")
-                                
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"操作失败: {str(e)}")
+                st.warning(f"yfinance: {e}")
+        if source_mode in ("all", "tushare"):
+            try:
+                ts_rows = search_tushare(query, max_results=max_results)
+            except Exception as e:
+                st.warning(f"tushare: {e}")
 
+    tabs = st.tabs([
+        l("All", "全部"),
+        "YFinance",
+        "Tushare",
+    ])
 
-# ===== TAB 2: LOCAL DATA =====
-with tab_local:
-    st.subheader(t("local_data"))
-    
+    all_rows = (yf_rows + ts_rows)[:max_results]
+    for tab, rows in [(tabs[0], all_rows), (tabs[1], yf_rows), (tabs[2], ts_rows)]:
+        with tab:
+            if not rows:
+                st.info(l("No results.", "暂无结果。"))
+            else:
+                for idx, r in enumerate(rows):
+                    ticker = r.get("ticker") or r.get("symbol")
+                    if not ticker:
+                        continue
+                    with st.container(border=True):
+                        st.write(f"**{ticker}** - {r.get('name','')}")
+                        c1, c2 = st.columns([2, 1])
+                        src = r.get("source", "")
+                        c1.caption(f"{r.get('exchange','')} / {r.get('currency','')} / {src}")
+                        if c2.button(l("Watch", "关注"), key=f"watch_{ticker}_{idx}_{src}"):
+                            upsert_instruments(con, pd.DataFrame([{
+                                "ticker": ticker,
+                                "name": r.get("name", ticker),
+                                "quote_type": r.get("quote_type", ""),
+                                "exchange": r.get("exchange", ""),
+                                "currency": r.get("currency", ""),
+                                "category": "commodity",
+                                "source": src or "search",
+                            }]))
+                            set_watch(con, [ticker], True)
+                            st.success(l("Added to watchlist", "已加入关注"))
+                            st.rerun()
+
+with local_tab:
     inst = list_instruments(con, only_watched=False)
-    
-    if inst.empty:
-        st.info(t("no_local_data"))
+    watched = inst[inst["is_watched"] == True] if not inst.empty else pd.DataFrame()
+    st.subheader(l("Watched tickers", "已关注代码"))
+    if watched.empty:
+        st.info(l("No watched tickers.", "暂无已关注代码。"))
     else:
-        watched_inst = inst[inst["is_watched"] == True]
-        
-        if watched_inst.empty:
-            st.info("暂无已关注的产品")
-        else:
-            # Display watched instruments with stats
-            display_cols = ["ticker", "name", "exchange", "currency", "unit", "is_watched"]
-            df_display = watched_inst[display_cols].copy()
-            
-            st.dataframe(
-                df_display,
-                width='stretch',
-                hide_index=True,
-                column_config={
-                    "ticker": st.column_config.TextColumn("代码"),
-                    "name": st.column_config.TextColumn("产品名称"),
-                    "exchange": st.column_config.TextColumn("交易所"),
-                    "currency": st.column_config.TextColumn("货币"),
-                    "unit": st.column_config.TextColumn("单位"),
-                    "is_watched": st.column_config.CheckboxColumn("已关注"),
-                }
-            )
-            
-            st.divider()
-            st.subheader("📊 数据统计")
-            
-            # Get price stats for watched instruments
-            stats_rows = []
-            for _, row in watched_inst.iterrows():
-                ticker = row["ticker"]
-                last_date = get_last_price_date(con, ticker)
-                
-                if last_date:
-                    today = date.today()
-                    staleness = (today - last_date).days
-                    stats_rows.append({
-                        "代码": ticker,
-                        "最后更新": last_date,
-                        "陈旧度(天)": staleness,
-                        "状态": "✅ 最新" if staleness <= 1 else f"⚠️ {staleness}天未更新"
-                    })
+        st.dataframe(watched[["ticker", "name", "exchange", "currency", "unit"]], width="stretch", hide_index=True)
+
+        pick = st.multiselect(l("Select tickers", "选择代码"), watched["ticker"].tolist())
+        c1, c2 = st.columns(2)
+        if c1.button(l("Unwatch selected", "取消关注选中"), disabled=not pick):
+            set_watch(con, pick, False)
+            st.success(l("Unwatched.", "已取消关注。"))
+            st.rerun()
+        if c2.button(l("Delete selected (with prices)", "删除选中（含价格）"), disabled=not pick):
+            delete_instruments(con, pick, delete_prices=True)
+            st.success(l("Deleted.", "已删除。"))
+            st.rerun()
+
+        stats = []
+        for tk in watched["ticker"].tolist():
+            last = get_last_price_date(con, tk)
+            stale = None if last is None else (date.today() - last).days
+            stats.append({"ticker": tk, "last_date": last, "staleness_days": stale})
+        st.dataframe(pd.DataFrame(stats), width="stretch", hide_index=True)
+
+with upload_tab:
+    st.markdown(l("Upload CSV to create/update a raw series. Required columns: `date`, `close`; optional: `open,high,low,adj_close,volume`.", "上传CSV创建/更新原始序列。必需列：`date`,`close`；可选：`open,high,low,adj_close,volume`。"))
+    ticker = st.text_input(l("Target raw ticker", "目标raw代码"), placeholder="TTF_MANUAL")
+    name = st.text_input(l("Display name", "显示名称"), value="Manual Uploaded Series")
+    file = st.file_uploader("CSV", type=["csv"])
+    if file is not None and st.button(l("Import CSV", "导入CSV"), type="primary"):
+        try:
+            df = pd.read_csv(file)
+            req = {"date", "close"}
+            if not req.issubset(df.columns):
+                st.error(l("CSV must include date and close columns.", "CSV必须包含date和close列。"))
+            else:
+                df["date"] = pd.to_datetime(df["date"]).dt.date
+                for c in ["open", "high", "low", "adj_close", "volume"]:
+                    if c not in df.columns:
+                        df[c] = pd.NA
+                tk = (ticker or "").strip().upper()
+                if not tk:
+                    st.error(l("Ticker is required.", "代码不能为空。"))
                 else:
-                    stats_rows.append({
-                        "代码": ticker,
-                        "最后更新": "无",
-                        "陈旧度(天)": "-",
-                        "状态": "❌ 无数据"
-                    })
-            
-            if stats_rows:
-                st.dataframe(
-                    pd.DataFrame(stats_rows),
-                    width='stretch',
-                    hide_index=True
-                )
+                    upsert_instruments(con, pd.DataFrame([{
+                        "ticker": tk,
+                        "name": name or tk,
+                        "quote_type": "manual",
+                        "exchange": "local",
+                        "currency": "",
+                        "category": "commodity",
+                        "source": "csv_upload",
+                    }]))
+                    set_watch(con, [tk], True)
+                    n = upsert_prices_daily(con, tk, df)
+                    log_refresh(con, tk, "success", f"csv upload rows={n}", df["date"].max())
+                    st.success(l(f"Imported {n} rows into {tk}.", f"已导入 {n} 行到 {tk}。"))
+        except Exception as e:
+            st.error(str(e))
 
-
-# ===== TAB 3: REFRESH LOG =====
-with tab_logs:
-    st.subheader(t("refresh_log"))
-    
-    refresh_log = list_refresh_log(con)
-    
-    if refresh_log.empty:
-        st.info("暂无刷新日志")
-    else:
-        # Format display
-        display_cols = ["ticker", "status", "message", "last_success_date", "last_attempt_at"]
-        available_cols = [c for c in display_cols if c in refresh_log.columns]
-        
-        df_display = refresh_log[available_cols].copy()
-        df_display.columns = ["代码", "状态", "信息", "最后成功日期", "最后尝试时间"]
-        
-        st.dataframe(
-            df_display,
-            width='stretch',
-            hide_index=True
-        )
+with log_tab:
+    logs = list_refresh_log(con)
+    st.dataframe(logs, width="stretch", hide_index=True) if not logs.empty else st.info(l("No logs.", "暂无日志。"))

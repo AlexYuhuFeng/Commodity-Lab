@@ -6,6 +6,7 @@ Sophisticated alert system with multiple rule types and persistence
 
 from __future__ import annotations
 
+import ast
 import sys
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -566,3 +567,25 @@ with tabs[2]:
             file_name=f"alert_history_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
+
+
+st.divider()
+st.subheader("通知与调度（已合并）")
+merge_tab1, merge_tab2 = st.tabs(["通知配置", "调度设置"]) 
+
+with merge_tab1:
+    st.caption("原 Notification Setup 页面已合并到此处。")
+    n1, n2 = st.columns(2)
+    email_to = n1.text_input("告警邮箱", key="merged_email_to", placeholder="ops@example.com")
+    webhook = n2.text_input("Webhook URL", key="merged_webhook", placeholder="https://...")
+    if st.button("保存通知配置", key="save_merged_notif"):
+        st.session_state["merged_notification_config"] = {"email": email_to, "webhook": webhook}
+        st.success("通知配置已保存到当前会话")
+
+with merge_tab2:
+    st.caption("原 Scheduler & Notifications 页面已合并到此处。")
+    interval = st.slider("自动检测间隔(秒)", 60, 3600, value=300, step=60, key="merged_sched_interval")
+    enabled = st.toggle("启用自动检测", value=st.session_state.get("merged_sched_enabled", False), key="merged_sched_enabled")
+    if st.button("保存调度设置", key="save_merged_sched"):
+        st.session_state["merged_scheduler_settings"] = {"enabled": enabled, "interval": interval}
+        st.success("调度设置已保存到当前会话")

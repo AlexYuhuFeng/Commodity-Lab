@@ -16,7 +16,7 @@ init_language()
 st.set_page_config(
     page_title="Commodity Lab",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -101,6 +101,7 @@ pages = {
     "Start Here": [
         st.Page(render_home, title="Home", icon="🏠", default=True),
         st.Page("pages/0_GettingStarted.py", title="Getting Started", icon="🚀"),
+        st.Page("pages/8_About.py", title="About", icon="ℹ️"),
     ],
     "Data Workspace": [
         st.Page("pages/1_DataManagement.py", title="Data Management", icon="📊"),
@@ -108,8 +109,6 @@ pages = {
     ],
     "Monitoring": [
         st.Page("pages/3_MonitoringAlerts.py", title="Monitoring & Alerts", icon="🚨"),
-        st.Page("pages/3_NotificationSetup.py", title="Notification Setup", icon="📧"),
-        st.Page("pages/6_SchedulerNotifications.py", title="Scheduler & Notifications", icon="⏱️"),
         st.Page("pages/4_ConditionEditor.py", title="Condition Editor", icon="🧩"),
     ],
     "Research & Strategies": [

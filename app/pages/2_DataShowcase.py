@@ -48,21 +48,20 @@ con = get_conn(DB_PATH)
 init_db(con)
 
 
-# ===== SIDEBAR: TICKER SELECTOR =====
-with st.sidebar:
-    inst = list_instruments(con, only_watched=True)
-    
-    if inst.empty:
-        st.warning("暂无已关注的产品。请先在数据管理页面关注产品。")
-        st.stop()
-    
-    # Ticker selector with search
-    ticker_options = inst["ticker"].tolist()
-    selected_ticker = st.selectbox(
-        "选择产品",
-        ticker_options,
-        format_func=lambda x: f"{x} - {inst[inst['ticker']==x]['name'].iloc[0] if inst[inst['ticker']==x]['name'].iloc[0] else x}"
-    )
+# ===== TOP: TICKER SELECTOR =====
+inst = list_instruments(con, only_watched=True)
+if inst.empty:
+    st.warning("暂无已关注的产品。请先在数据管理页面关注产品。")
+    st.stop()
+
+sel_col1, sel_col2 = st.columns([3, 2])
+ticker_options = inst["ticker"].tolist()
+selected_ticker = sel_col1.selectbox(
+    "选择产品",
+    ticker_options,
+    format_func=lambda x: f"{x} - {inst[inst['ticker']==x]['name'].iloc[0] if inst[inst['ticker']==x]['name'].iloc[0] else x}",
+)
+sel_col2.caption("衍生序列编辑、价差创建已集中到“派生管理”页签。")
 
 
 # ===== GET DATA FOR SELECTED TICKER =====
@@ -93,6 +92,7 @@ tabs = st.tabs([
     f"{t('tabs.qc_report')} ✓",
     f"{t('tabs.properties')} 🏷️",
     f"{t('tabs.derived')} 🔗",
+    "派生管理 🧪",
     f"{t('tabs.operations')} ⚙️",
 ])
 
@@ -444,8 +444,7 @@ with tabs[4]:
                                 st.error(f"❌ 重算失败: {str(e)}")
                     
                     with col2:
-                        if st.button(f"✏️ 编辑 {derived_ticker}", key=f"edit_{derived_ticker}"):
-                            st.session_state[f"edit_{derived_ticker}"] = True
+                        st.caption("编辑请在下方“派生管理”页签进行")
                     
                     with col3:
                         if st.button(f"🗑️ 删除 {derived_ticker}", key=f"delete_{derived_ticker}"):
@@ -509,8 +508,62 @@ with tabs[4]:
                 st.error(f"❌ 创建失败: {str(e)}")
 
 
-# ===== TAB 5: OPERATIONS =====
+# ===== TAB 5: DERIVED STUDIO =====
 with tabs[5]:
+    st.subheader(f"派生管理 - {selected_ticker}")
+    st.caption("支持基于两条序列创建 spread 作为派生序列，便于监控与回测复用。")
+
+    all_inst = list_instruments(con, only_watched=False)
+    all_tickers = sorted(all_inst["ticker"].dropna().astype(str).tolist()) if not all_inst.empty else []
+
+    c1, c2, c3 = st.columns(3)
+    spread_left = c1.selectbox("左侧序列", all_tickers, index=0 if all_tickers else None, key="ds_left")
+    spread_right = c2.selectbox("右侧序列", all_tickers, index=1 if len(all_tickers) > 1 else 0, key="ds_right")
+    spread_mode = c3.selectbox("公式", ["L-R", "L/R", "(L-R)/R"], key="ds_mode")
+
+    m1, m2 = st.columns(2)
+    left_mult = m1.number_input("左侧倍率", value=1.0, step=0.1, key="ds_lm")
+    right_mult = m2.number_input("右侧倍率", value=1.0, step=0.1, key="ds_rm")
+
+    out_name = st.text_input("派生代码", value=f"SPREAD_{selected_ticker}")
+
+    if st.button("💾 保存Spread派生序列", type="primary", width='stretch'):
+        if not spread_left or not spread_right:
+            st.error("请选择左右序列")
+        else:
+            l_raw = query_prices_long(con, [spread_left], field="close")
+            if l_raw.empty:
+                l_raw = query_derived_long(con, [spread_left])
+            r_raw = query_prices_long(con, [spread_right], field="close")
+            if r_raw.empty:
+                r_raw = query_derived_long(con, [spread_right])
+
+            if l_raw.empty or r_raw.empty:
+                st.error("左右序列有一侧没有数据")
+            else:
+                ldf = l_raw[["date", "value"]].rename(columns={"value": "L"})
+                rdf = r_raw[["date", "value"]].rename(columns={"value": "R"})
+                mm = pd.merge(ldf, rdf, on="date", how="inner").dropna().sort_values("date")
+                mm["L"] = mm["L"] * float(left_mult)
+                mm["R"] = mm["R"] * float(right_mult)
+                if spread_mode == "L-R":
+                    mm["value"] = mm["L"] - mm["R"]
+                elif spread_mode == "L/R":
+                    mm["value"] = mm["L"] / mm["R"]
+                else:
+                    mm["value"] = (mm["L"] - mm["R"]) / mm["R"]
+                save_name = (out_name or "").strip().upper()
+                if not save_name:
+                    st.error("派生代码不能为空")
+                else:
+                    from core.db import upsert_derived_daily, upsert_instruments
+                    rows = upsert_derived_daily(con, save_name, mm[["date", "value"]])
+                    upsert_instruments(con, pd.DataFrame([{"ticker": save_name, "name": save_name, "quote_type": "derived", "exchange": "local", "currency": "", "unit": "", "category": "spread", "source": "derived_studio"}]))
+                    st.success(f"已保存 {rows} 行至 {save_name}")
+                    st.line_chart(mm.set_index("date")["value"])
+
+# ===== TAB 6: OPERATIONS =====
+with tabs[6]:
     st.subheader(f"操作 - {selected_ticker}")
     
     col1, col2 = st.columns(2)
