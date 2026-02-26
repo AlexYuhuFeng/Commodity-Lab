@@ -225,6 +225,23 @@ def init_db(con: duckdb.DuckDBPyConnection) -> None:
     )
     con.execute(
         """
+        CREATE TABLE IF NOT EXISTS strategy_profiles (
+            profile_id       VARCHAR PRIMARY KEY,
+            profile_name     VARCHAR NOT NULL,
+            strategy_name    VARCHAR NOT NULL,
+            ticker           VARCHAR,
+            params_json      VARCHAR,
+            risk_policy      VARCHAR,
+            risk_params_json VARCHAR,
+            notes            VARCHAR,
+            created_at       TIMESTAMPTZ,
+            updated_at       TIMESTAMPTZ
+        );
+        """
+    )
+
+    con.execute(
+        """
         CREATE TABLE IF NOT EXISTS scheduler_settings (
             setting_id      VARCHAR PRIMARY KEY,
             is_enabled      BOOLEAN DEFAULT FALSE,
@@ -1068,3 +1085,54 @@ def get_db_connection(db_path: Path | None = None) -> duckdb.DuckDBPyConnection:
 def get_db(db_path: Path | None = None) -> duckdb.DuckDBPyConnection:
     """Alias for get_db_connection (keeps older import names working)."""
     return get_db_connection(db_path)
+
+
+# ---------- Strategy Profiles ----------
+def upsert_strategy_profile(con: duckdb.DuckDBPyConnection, row: dict) -> None:
+    now = utc_now()
+    pid = (row.get("profile_id") or "").strip()
+    if not pid:
+        raise ValueError("profile_id is required")
+    pname = (row.get("profile_name") or "").strip()
+    if not pname:
+        raise ValueError("profile_name is required")
+    sname = (row.get("strategy_name") or "").strip()
+    if not sname:
+        raise ValueError("strategy_name is required")
+
+    con.execute(
+        """
+        INSERT INTO strategy_profiles
+          (profile_id, profile_name, strategy_name, ticker, params_json, risk_policy, risk_params_json, notes, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (profile_id) DO UPDATE SET
+          profile_name = excluded.profile_name,
+          strategy_name = excluded.strategy_name,
+          ticker = excluded.ticker,
+          params_json = excluded.params_json,
+          risk_policy = excluded.risk_policy,
+          risk_params_json = excluded.risk_params_json,
+          notes = excluded.notes,
+          updated_at = excluded.updated_at
+        """,
+        [
+            pid,
+            pname,
+            sname,
+            (row.get("ticker") or "").strip() or None,
+            row.get("params_json"),
+            row.get("risk_policy"),
+            row.get("risk_params_json"),
+            row.get("notes") or "",
+            now,
+            now,
+        ],
+    )
+
+
+def list_strategy_profiles(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    return con.execute("SELECT * FROM strategy_profiles ORDER BY updated_at DESC").df()
+
+
+def delete_strategy_profile(con: duckdb.DuckDBPyConnection, profile_id: str) -> None:
+    con.execute("DELETE FROM strategy_profiles WHERE profile_id = ?", [profile_id])

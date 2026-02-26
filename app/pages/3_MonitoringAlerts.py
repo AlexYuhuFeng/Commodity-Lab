@@ -6,6 +6,7 @@ Sophisticated alert system with multiple rule types and persistence
 
 from __future__ import annotations
 
+import ast
 import sys
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -238,23 +239,18 @@ def test_alert_rule(rule: dict):
         return f"⏸️ 未触发"
 
 
-# ===== SIDEBAR: QUICK ACTIONS =====
-with st.sidebar:
-    st.header("⚙️ 快速操作")
-    
-    if st.button("🔄 检测所有规则", type="primary", width='stretch'):
-        st.session_state["check_all_rules"] = True
-    
-    st.divider()
-    
-    inst = list_instruments(con, only_watched=True)
-    if not inst.empty:
-        st.write(f"**已关注产品**: {len(inst)}")
-        selected_ticker = st.selectbox("快速检测", inst["ticker"].tolist(), key="quick_check_ticker")
-        
-        if st.button("🔍 检测此产品的所有规则", width='stretch'):
-            st.session_state["quick_check_ticker"] = selected_ticker
+# ===== QUICK ACTIONS =====
+st.subheader("⚙️ 快速操作")
+qa1, qa2, qa3 = st.columns([1.2, 1.2, 1.6])
+if qa1.button("🔄 检测所有规则", type="primary", width='stretch'):
+    st.session_state["check_all_rules"] = True
 
+inst = list_instruments(con, only_watched=True)
+if not inst.empty:
+    selected_ticker = qa2.selectbox("快速检测", inst["ticker"].tolist(), key="quick_check_ticker")
+    if qa3.button("🔍 检测此产品的所有规则", width='stretch'):
+        st.session_state["quick_check_ticker"] = selected_ticker
+st.divider()
 
 # ===== MAIN TABS =====
 tabs = st.tabs(["📋 告警规则", "🚨 活跃告警", "📊 告警历史"])
@@ -566,3 +562,25 @@ with tabs[2]:
             file_name=f"alert_history_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
+
+
+st.divider()
+st.subheader("通知与调度（已合并）")
+merge_tab1, merge_tab2 = st.tabs(["通知配置", "调度设置"]) 
+
+with merge_tab1:
+    st.caption("原 Notification Setup 页面已合并到此处。")
+    n1, n2 = st.columns(2)
+    email_to = n1.text_input("告警邮箱", key="merged_email_to", placeholder="ops@example.com")
+    webhook = n2.text_input("Webhook URL", key="merged_webhook", placeholder="https://...")
+    if st.button("保存通知配置", key="save_merged_notif"):
+        st.session_state["merged_notification_config"] = {"email": email_to, "webhook": webhook}
+        st.success("通知配置已保存到当前会话")
+
+with merge_tab2:
+    st.caption("原 Scheduler & Notifications 页面已合并到此处。")
+    interval = st.slider("自动检测间隔(秒)", 60, 3600, value=300, step=60, key="merged_sched_interval")
+    enabled = st.toggle("启用自动检测", value=st.session_state.get("merged_sched_enabled", False), key="merged_sched_enabled")
+    if st.button("保存调度设置", key="save_merged_sched"):
+        st.session_state["merged_scheduler_settings"] = {"enabled": enabled, "interval": interval}
+        st.success("调度设置已保存到当前会话")

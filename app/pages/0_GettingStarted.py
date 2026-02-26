@@ -1,5 +1,3 @@
-"""Getting Started page for onboarding new users."""
-
 from __future__ import annotations
 
 import sys
@@ -10,73 +8,31 @@ import streamlit as st
 workspace_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(workspace_root))
 
-from app.i18n import init_language, render_language_switcher, t
+from app.i18n import get_language, init_language, render_language_switcher
 
 init_language()
 st.set_page_config(page_title="Commodity Lab - Getting Started", layout="wide")
 render_language_switcher()
+lang = get_language()
 
-st.title("🚀 Getting Started / 新手指引")
-st.caption("Learn the workflow in 5 minutes and avoid common mistakes.")
+def l(en: str, zh: str) -> str:
+    return zh if lang == "zh" else en
 
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("1) Import data")
-    st.markdown(
-        """
-- Open **Data Management** to search symbols.
-- Add watchlist instruments and trigger refresh.
-- Verify freshness from refresh logs.
-        """
-    )
-with col2:
-    st.subheader("2) Explore and validate")
-    st.markdown(
-        """
-- Use **Data Showcase** tabs for chart/QC/attributes.
-- Fix metadata (currency/unit/category) before analysis.
-- Confirm no major QC issues before strategy testing.
-        """
-    )
+st.title(l("🚀 Getting Started", "🚀 新手指引"))
+st.caption(l("One-page map of what each page does and when to use it.", "一页看懂每个页面做什么、何时使用。"))
 
-st.divider()
+items = [
+    ("1) Data Management", "搜索并关注标的；支持CSV上传原始序列；刷新本地库。", "Search/watch tickers, upload CSV raw series, refresh local data."),
+    ("2) Data Showcase", "看K线与QC，维护元数据和派生序列。", "Inspect chart/QC, manage metadata and derived series."),
+    ("3) Analytics", "可比较raw与derived，做单位换算后生成并保存spread序列。", "Compare raw/derived with normalization and persist spread series."),
+    ("4) Monitoring", "配置告警规则、通知渠道与调度。", "Configure alert rules, notification channels, and scheduler."),
+    ("5) Strategies & Backtest", "在主页面配置参数并回测，查看指标与成交。", "Configure on-page controls, run backtests, inspect metrics/trades."),
+    ("6) Auto Strategy Lab", "批量策略实验、评分与历史追踪。", "Batch strategy experiments, scoring, and run history tracking."),
+]
 
-col3, col4 = st.columns(2)
-with col3:
-    st.subheader("3) Configure monitoring")
-    st.markdown(
-        """
-- Create alert rules (price/zscore/volatility/staleness etc.).
-- Test each rule immediately in Monitoring page.
-- Enable scheduler + notifications after test pass.
-        """
-    )
-with col4:
-    st.subheader("4) Run backtests")
-    st.markdown(
-        """
-- Select ticker/date range/transaction costs.
-- Compare strategy outputs and review trades.
-- Treat backtests as decision support, not guaranteed outcome.
-        """
-    )
+for title, zh_desc, en_desc in items:
+    with st.container(border=True):
+        st.subheader(title)
+        st.write(zh_desc if lang == "zh" else en_desc)
 
-with st.expander("💡 Tips for better results / 使用建议", expanded=True):
-    st.markdown(
-        """
-- Use a broad history window (>= 1 year) for more stable metrics.
-- Always include realistic cost/slippage assumptions.
-- Start with one ticker, then scale to a portfolio.
-- Keep alert thresholds explicit and versioned.
-        """
-    )
-
-with st.expander("📘 What each page does / 页面用途说明", expanded=False):
-    st.markdown(
-        f"""
-- **{t('data_management')}**: symbol discovery, watchlist management, refresh operations.
-- **{t('data_showcase')}**: profile, quality checks, derived series, export.
-- **{t('monitoring')}**: rule-based alerts, active events, history and acknowledgement.
-- **{t('strategies')}**: parameterized strategy simulation and trade inspection.
-        """
-    )
+st.info(l("Suggested order: Data Management → Data Showcase → Analytics → Monitoring/Backtest.", "建议顺序：数据管理 → 数据展示 → 分析 → 监控/回测。"))
