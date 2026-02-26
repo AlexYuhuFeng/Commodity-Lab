@@ -72,14 +72,27 @@
   "data_showcase": {
     "title": "Data Showcase",
     "subtitle": "View, Analyze & Manage Your Data",
-    "tabs": "Data Items",
+    "tabs": {
+      "overview": "Overview",
+      "price_chart": "Price Chart",
+      "qc_report": "QC Report",
+      "properties": "Properties",
+      "derived": "Derived",
+      "operations": "Operations"
+    },
     "raw_data": "Raw Data",
     "summary": "Summary",
     "qc_report": "QC Report",
     "attributes": "Attributes",
     "price_chart": "Price Chart",
     "derived_series": "Derived Series",
-    "operations": "Operations",
+    "operations": {
+      "transform": "Transform",
+      "create_derived": "Create Derived",
+      "refresh": "Refresh",
+      "delete": "Delete",
+      "export": "Export"
+    },
     "columns": {
       "ticker": "Ticker",
       "name": "Name",
@@ -105,20 +118,31 @@
       "missing_business_days": "Missing Business Days",
       "data_staleness": "Data Staleness"
     },
-    "operations": {
-      "transform": "Transform",
-      "create_derived": "Create Derived",
-      "refresh": "Refresh",
-      "delete": "Delete",
-      "export": "Export"
-    }
+    "tabs_label": "Data Items"
   },
   "analytics": {
     "title": "Analytics",
-    "subtitle": "Features, Correlations & Market Analysis",
+    "subtitle": "Spread, correlation and feature analysis",
     "features": "Features",
     "correlations": "Correlations",
-    "market_analysis": "Market Analysis"
+    "market_analysis": "Market Analysis",
+    "spread_lab": "Spread Comparison",
+    "ticker_a": "Instrument A",
+    "ticker_b": "Instrument B",
+    "start_date": "Start Date",
+    "end_date": "End Date",
+    "mode": "Spread Mode",
+    "difference": "Difference (A - B)",
+    "ratio": "Ratio (A / B)",
+    "z_window": "Z-Score Window",
+    "latest_spread": "Latest Spread",
+    "latest_zscore": "Latest Z-Score",
+    "rolling_corr": "Rolling Correlation",
+    "price_compare": "Price Comparison",
+    "spread_series": "Spread Series",
+    "zscore_series": "Z-Score Series",
+    "need_two": "Please watch at least two instruments to compare spread.",
+    "no_data": "Not enough overlapping data in selected range."
   },
   "monitoring": {
     "title": "Monitoring & Alerts",
@@ -196,7 +220,8 @@
     "back": "Back",
     "next": "Next",
     "previous": "Previous",
-    "go": "Go"
+    "go": "Go",
+    "none": "N/A"
   },
   "messages": {
     "no_data": "No data available",
@@ -205,5 +230,13 @@
     "delete_success": "Deleted successfully",
     "error_occurred": "An error occurred",
     "confirm_delete": "Are you sure you want to delete this item?"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "price_chart": "Price Chart",
+    "qc_report": "QC Report",
+    "properties": "Properties",
+    "derived": "Derived",
+    "operations": "Operations"
   }
 }

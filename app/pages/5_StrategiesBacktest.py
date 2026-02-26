@@ -31,97 +31,111 @@ con = get_conn(default_db_path(workspace_root))
 instruments_df = list_instruments(con, only_watched=True)
 available_tickers = instruments_df["ticker"].tolist() if not instruments_df.empty else []
 
-c1, c2, c3, c4 = st.columns(4)
-strategy = c1.selectbox(l("Strategy", "策略"), ["SMA Crossover", "RSI Mean Reversion"])
-capital = c2.number_input(l("Initial Capital", "初始资金"), value=100000.0, step=1000.0)
-position_size_pct = c3.slider(l("Position Size (% equity)", "仓位比例（权益%）"), 0.01, 1.0, 0.95)
-cost_per_trade = c4.number_input(l("Transaction Cost (pct)", "交易成本（比例）"), value=0.001)
+with st.sidebar:
+    st.header("Backtest Controls")
+    strategy = st.selectbox("Strategy", ["SMA Crossover", "RSI Mean Reversion"])
+    capital = st.number_input("Initial Capital", value=100000.0, step=1000.0)
+    position_size_pct = st.slider("Position Size (% of equity)", 0.01, 1.0, 0.95)
+    cost_per_trade = st.number_input("Transaction Cost (pct)", value=0.001)
+    slippage = st.number_input("Slippage (fraction)", value=0.0)
+    fixed_fee = st.number_input("Fixed fee per trade", value=0.0)
+    max_position_value = st.number_input("Max position value (0 = no limit)", value=0.0)
+    selected_tickers = st.multiselect(
+        "Tickers (from DB)",
+        options=available_tickers,
+        default=(available_tickers[:1] if available_tickers else []),
+    )
+    start = st.date_input("Start date", value=pd.Timestamp.today().date() - timedelta(days=365))
+    end = st.date_input("End date", value=pd.Timestamp.today().date())
 
-c5, c6, c7, c8 = st.columns(4)
-slippage = c5.number_input(l("Slippage", "滑点"), value=0.0)
-fixed_fee = c6.number_input(l("Fixed fee per trade", "每笔固定费用"), value=0.0)
-max_position_value = c7.number_input(l("Max position value (0=unlimited)", "最大仓位金额（0=不限制）"), value=0.0)
-selected_tickers = c8.multiselect(l("Tickers", "标的"), options=available_tickers, default=available_tickers[:1] if available_tickers else [])
+with st.expander("🧭 Backtest Guide / 回测说明", expanded=False):
+    st.markdown(
+        """
+- 先选 1~3 个标的测试流程，再扩展到组合回测。
+- 建议开启交易成本与滑点，避免过度乐观结果。
+- 如果权益曲线为空，请检查日期范围和本地数据是否已刷新。
+        """
+    )
 
-c9, c10 = st.columns(2)
-start = c9.date_input(l("Start date", "开始日期"), value=pd.Timestamp.today().date() - timedelta(days=365))
-end = c10.date_input(l("End date", "结束日期"), value=pd.Timestamp.today().date())
+st.info("Configure strategy parameters and run backtest")
 
-if st.button(l("Run Backtest", "运行回测"), type="primary"):
+eq = None
+metrics = {}
+trades: list[dict] = []
+
+if st.button("Run Backtest"):
     if not selected_tickers:
-        st.warning(l("Please select at least one ticker.", "请至少选择一个标的。"))
+        st.warning("请选择至少一个标的（Tickers）以运行回测")
     else:
         results = []
         for tk in selected_tickers:
             px_df = query_prices_long(con, [tk], start=start, end=end, field="close")
             if px_df.empty:
-                st.warning(l(f"No data for {tk}", f"{tk} 无数据"))
+                st.warning(f"未找到 {tk} 的历史价格，跳过")
                 continue
+
             px_df = px_df.rename(columns={"value": "close"})[["date", "close"]]
-            signals_df = sma_crossover_signals(px_df, short=20, long=50) if strategy == "SMA Crossover" else rsi_mean_reversion_signals(px_df, window=14)
+            if strategy == "SMA Crossover":
+                signals_df = sma_crossover_signals(px_df, short=20, long=50)
+            else:
+                signals_df = rsi_mean_reversion_signals(px_df, window=14)
+
+            max_pos = None if max_position_value == 0 else float(max_position_value)
             bt = SimpleBacktester(prices_df=px_df, signals_df=signals_df, capital=float(capital))
-            run = bt.run(
+            r = bt.run(
                 position_size_pct=float(position_size_pct),
                 cost_per_trade=float(cost_per_trade),
                 slippage=float(slippage),
                 fixed_fee=float(fixed_fee),
-                max_position_value=None if max_position_value == 0 else float(max_position_value),
+                max_position_value=max_pos,
             )
-            results.append((tk, run))
+            results.append((tk, r))
 
         if not results:
-            st.error(l("No valid backtest result.", "没有有效回测结果。"))
+            st.error("没有可用回测结果")
         else:
             merged = None
-            trade_rows = []
-            metric_rows = []
-            for tk, run in results:
-                eq = run.get("equity_curve")
-                if eq is not None:
-                    eq = eq.rename(columns={"equity": f"equity_{tk}"})
-                    merged = eq if merged is None else pd.merge(merged, eq, on="date", how="outer")
-                metric_rows.append({"ticker": tk, **(run.get("metrics") or {})})
-                for tr in (run.get("trades") or []):
-                    item = tr.__dict__.copy() if hasattr(tr, "__dict__") else dict(tr)
-                    item["ticker"] = tk
-                    trade_rows.append(item)
+            for tk, r in results:
+                curve = r.get("equity_curve")
+                if curve is None:
+                    continue
+                curve = curve.rename(columns={"equity": f"equity_{tk}"})
+                if merged is None:
+                    merged = curve
+                else:
+                    merged = pd.merge(merged, curve, on="date", how="outer")
 
             merged = merged.sort_values("date").ffill().fillna(0)
             eq_cols = [c for c in merged.columns if c.startswith("equity_")]
             merged["equity"] = merged[eq_cols].sum(axis=1)
+            eq = merged[["date", "equity"]]
 
-            st.plotly_chart(px.line(merged, x="date", y="equity", title=l("Portfolio Equity", "组合权益曲线")), width="stretch")
-            st.subheader(l("Metrics", "指标"))
-            st.dataframe(pd.DataFrame(metric_rows), width="stretch", hide_index=True)
-            st.subheader(l("Trades", "成交明细"))
-            st.dataframe(pd.DataFrame(trade_rows), width="stretch", hide_index=True)
+            metrics = {tk: r.get("metrics") for tk, r in results}
+            trades = []
+            for tk, r in results:
+                tlist = r.get("trades") or []
+                for tr in tlist:
+                    try:
+                        tr_dict = tr.__dict__.copy()
+                        tr_dict["ticker"] = tk
+                        trades.append(tr_dict)
+                    except Exception:
+                        trades.append({**tr, "ticker": tk})
 
+    st.subheader("Equity Curve")
+    if eq is not None:
+        fig = px.line(eq, x="date", y="equity", title="Equity Curve")
+        st.plotly_chart(fig, width="stretch")
 
-st.divider()
-st.subheader(l("Risk Control Stress Test", "风控压力测试"))
-rc1, rc2, rc3 = st.columns(3)
-rc_ticker = rc1.selectbox(l("Risk test ticker", "风控测试标的"), options=available_tickers, index=0 if available_tickers else None)
-rc_window = rc2.number_input(l("Consecutive days", "连续天数"), min_value=2, max_value=60, value=10)
-rc_drop = rc3.number_input(l("Cumulative drop threshold (%)", "累计跌幅阈值(%)"), min_value=0.1, max_value=50.0, value=2.0)
+    st.subheader("Performance Metrics")
+    if metrics:
+        st.json(metrics)
 
-if st.button(l("Run Risk Test", "运行风控测试"), disabled=not available_tickers):
-    pxf = query_prices_long(con, [rc_ticker], start=start, end=end, field="close")
-    if pxf.empty:
-        st.warning(l("No data for selected ticker.", "所选标的无数据。"))
-    else:
-        pxf = pxf.sort_values("date").copy()
-        pxf["roll_return"] = pxf["value"] / pxf["value"].shift(int(rc_window)) - 1
-        pxf["breach"] = pxf["roll_return"] <= (-float(rc_drop) / 100.0)
-        breaches = pxf[pxf["breach"]].copy()
-        worst = float(pxf["roll_return"].min()) if pxf["roll_return"].notna().any() else 0.0
+    st.subheader("Trades")
+    if trades:
+        st.dataframe(pd.DataFrame(trades), width="stretch")
 
-        m1, m2, m3 = st.columns(3)
-        m1.metric(l("Worst rolling return", "最差滚动收益"), f"{worst*100:.2f}%")
-        m2.metric(l("Breach count", "触发次数"), int(len(breaches)))
-        m3.metric(l("Threshold", "阈值"), f"-{float(rc_drop):.2f}% / {int(rc_window)}d")
-
-        st.plotly_chart(
-            px.line(pxf, x="date", y="roll_return", title=l("Rolling cumulative return", "滚动累计收益")),
-            width="stretch",
-        )
-        st.dataframe(breaches[["date", "value", "roll_return"]].tail(200), width="stretch", hide_index=True)
+try:
+    con.close()
+except Exception:
+    pass
