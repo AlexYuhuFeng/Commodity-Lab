@@ -26,7 +26,6 @@ from core.db import (
 )
 from core.refresh import refresh_many
 from core.yf_provider import normalize_search_results, search_yahoo
-from core.tushare_provider import search_tushare
 
 init_language()
 st.set_page_config(page_title="Commodity Lab - Data Management", layout="wide")
@@ -68,56 +67,31 @@ search_tab, local_tab, upload_tab, log_tab = st.tabs([
 with search_tab:
     query = st.text_input(l("Keywords", "关键词"), placeholder="Brent / TTF / HH / EURUSD")
     max_results = st.slider(l("Max results", "最大结果数"), 5, 50, 15)
-    source_mode = st.radio(l("Data source", "数据源"), ["all", "yfinance", "tushare"], horizontal=True)
-
-    yf_rows = []
-    ts_rows = []
     if query:
-        if source_mode in ("all", "yfinance"):
-            try:
-                yf_rows = normalize_search_results(search_yahoo(query))[:max_results]
-            except Exception as e:
-                st.warning(f"yfinance: {e}")
-        if source_mode in ("all", "tushare"):
-            try:
-                ts_rows = search_tushare(query, max_results=max_results)
-            except Exception as e:
-                st.warning(f"tushare: {e}")
-
-    tabs = st.tabs([
-        l("All", "全部"),
-        "YFinance",
-        "Tushare",
-    ])
-
-    all_rows = (yf_rows + ts_rows)[:max_results]
-    for tab, rows in [(tabs[0], all_rows), (tabs[1], yf_rows), (tabs[2], ts_rows)]:
-        with tab:
-            if not rows:
-                st.info(l("No results.", "暂无结果。"))
-            else:
-                for idx, r in enumerate(rows):
-                    ticker = r.get("ticker") or r.get("symbol")
-                    if not ticker:
-                        continue
-                    with st.container(border=True):
-                        st.write(f"**{ticker}** - {r.get('name','')}")
-                        c1, c2 = st.columns([2, 1])
-                        src = r.get("source", "")
-                        c1.caption(f"{r.get('exchange','')} / {r.get('currency','')} / {src}")
-                        if c2.button(l("Watch", "关注"), key=f"watch_{ticker}_{idx}_{src}"):
-                            upsert_instruments(con, pd.DataFrame([{
-                                "ticker": ticker,
-                                "name": r.get("name", ticker),
-                                "quote_type": r.get("quote_type", ""),
-                                "exchange": r.get("exchange", ""),
-                                "currency": r.get("currency", ""),
-                                "category": "commodity",
-                                "source": src or "search",
-                            }]))
-                            set_watch(con, [ticker], True)
-                            st.success(l("Added to watchlist", "已加入关注"))
-                            st.rerun()
+        try:
+            rows = normalize_search_results(search_yahoo(query))[:max_results]
+            for idx, r in enumerate(rows):
+                ticker = r.get("ticker") or r.get("symbol")
+                if not ticker:
+                    continue
+                with st.container(border=True):
+                    st.write(f"**{ticker}** - {r.get('name','')}")
+                    c1, c2 = st.columns([1, 1])
+                    c1.caption(f"{r.get('exchange','')} / {r.get('currency','')}")
+                    if c2.button(l("Watch", "关注"), key=f"watch_{ticker}_{idx}"):
+                        upsert_instruments(con, pd.DataFrame([{
+                            "ticker": ticker,
+                            "name": r.get("name", ticker),
+                            "quote_type": r.get("quote_type", ""),
+                            "exchange": r.get("exchange", ""),
+                            "currency": r.get("currency", ""),
+                            "category": "commodity",
+                        }]))
+                        set_watch(con, [ticker], True)
+                        st.success(l("Added to watchlist", "已加入关注"))
+                        st.rerun()
+        except Exception as e:
+            st.error(str(e))
 
 with local_tab:
     inst = list_instruments(con, only_watched=False)
