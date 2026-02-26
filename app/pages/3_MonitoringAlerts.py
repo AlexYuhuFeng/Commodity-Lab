@@ -239,23 +239,18 @@ def test_alert_rule(rule: dict):
         return f"⏸️ 未触发"
 
 
-# ===== SIDEBAR: QUICK ACTIONS =====
-with st.sidebar:
-    st.header("⚙️ 快速操作")
-    
-    if st.button("🔄 检测所有规则", type="primary", width='stretch'):
-        st.session_state["check_all_rules"] = True
-    
-    st.divider()
-    
-    inst = list_instruments(con, only_watched=True)
-    if not inst.empty:
-        st.write(f"**已关注产品**: {len(inst)}")
-        selected_ticker = st.selectbox("快速检测", inst["ticker"].tolist(), key="quick_check_ticker")
-        
-        if st.button("🔍 检测此产品的所有规则", width='stretch'):
-            st.session_state["quick_check_ticker"] = selected_ticker
+# ===== QUICK ACTIONS =====
+st.subheader("⚙️ 快速操作")
+qa1, qa2, qa3 = st.columns([1.2, 1.2, 1.6])
+if qa1.button("🔄 检测所有规则", type="primary", width='stretch'):
+    st.session_state["check_all_rules"] = True
 
+inst = list_instruments(con, only_watched=True)
+if not inst.empty:
+    selected_ticker = qa2.selectbox("快速检测", inst["ticker"].tolist(), key="quick_check_ticker")
+    if qa3.button("🔍 检测此产品的所有规则", width='stretch'):
+        st.session_state["quick_check_ticker"] = selected_ticker
+st.divider()
 
 # ===== MAIN TABS =====
 tabs = st.tabs(["📋 告警规则", "🚨 活跃告警", "📊 告警历史"])
