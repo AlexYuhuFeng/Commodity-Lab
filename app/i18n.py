@@ -141,23 +141,24 @@ def t(key: str, lang: str | None = None) -> str:
 
 
 def render_language_switcher() -> None:
-    with st.sidebar:
-        st.markdown("### 🌐 Language")
-        locales = _load_locale_files()
-        options = sorted(locales.keys())
-        current = get_language()
-        if current not in options:
-            current = "en"
+    locales = _load_locale_files()
+    options = sorted(locales.keys())
+    current = get_language()
+    if current not in options:
+        current = "en"
 
-        labels = {"en": "English", "zh": "中文"}
-        selected = st.selectbox(
-            "Language / 语言",
-            options=options,
-            index=options.index(current),
-            format_func=lambda x: labels.get(x, x),
-            key="lang_selectbox",
-        )
+    labels = {"en": "English", "zh": "中文"}
+    c1, c2 = st.columns([6, 2])
+    c2.markdown("### 🌐")
+    selected = c2.selectbox(
+        "Language / 语言",
+        options=options,
+        index=options.index(current),
+        format_func=lambda x: labels.get(x, x),
+        key="lang_selectbox",
+        label_visibility="collapsed",
+    )
 
-        if selected != get_language():
-            set_language(selected)
-            st.rerun()
+    if selected != get_language():
+        set_language(selected)
+        st.rerun()

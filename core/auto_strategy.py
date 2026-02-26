@@ -14,7 +14,12 @@ import numpy as np
 import pandas as pd
 
 from core.backtest import SimpleBacktester
-from core.strategy_examples import rsi_mean_reversion_signals, sma_crossover_signals
+from core.strategy_examples import (
+    bollinger_reversion_signals,
+    breakout_signals,
+    rsi_mean_reversion_signals,
+    sma_crossover_signals,
+)
 
 
 @dataclass
@@ -88,6 +93,16 @@ def _rsi_param_grid() -> list[dict[str, Any]]:
     return out
 
 
+
+
+def _boll_param_grid() -> list[dict[str, Any]]:
+    windows = [15, 20, 30]
+    stds = [1.5, 2.0, 2.5]
+    return [{"window": w, "num_std": s} for w, s in product(windows, stds)]
+
+
+def _breakout_param_grid() -> list[dict[str, Any]]:
+    return [{"window": w} for w in [10, 20, 40, 60]]
 def _build_signals(strategy_name: str, prices: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
     if strategy_name == "sma_crossover":
         return sma_crossover_signals(prices, short=int(params["short"]), long=int(params["long"]))
@@ -98,6 +113,10 @@ def _build_signals(strategy_name: str, prices: pd.DataFrame, params: dict[str, A
             lower=int(params["lower"]),
             upper=int(params["upper"]),
         )
+    if strategy_name == "bollinger_reversion":
+        return bollinger_reversion_signals(prices, window=int(params["window"]), num_std=float(params["num_std"]))
+    if strategy_name == "breakout":
+        return breakout_signals(prices, window=int(params["window"]))
     raise ValueError(f"Unsupported strategy name: {strategy_name}")
 
 
@@ -115,13 +134,17 @@ def run_auto_strategy_search(
     if prices is None or prices.empty:
         return pd.DataFrame()
 
-    strategy_names = strategy_names or ["sma_crossover", "rsi_mean_reversion"]
+    strategy_names = strategy_names or ["sma_crossover", "rsi_mean_reversion", "bollinger_reversion", "breakout"]
 
     grids: dict[str, list[dict[str, Any]]] = {}
     if "sma_crossover" in strategy_names:
         grids["sma_crossover"] = _sma_param_grid()
     if "rsi_mean_reversion" in strategy_names:
         grids["rsi_mean_reversion"] = _rsi_param_grid()
+    if "bollinger_reversion" in strategy_names:
+        grids["bollinger_reversion"] = _boll_param_grid()
+    if "breakout" in strategy_names:
+        grids["breakout"] = _breakout_param_grid()
 
     candidates: list[StrategyCandidate] = []
 
