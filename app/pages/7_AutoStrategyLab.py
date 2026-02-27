@@ -24,7 +24,7 @@ from core.db import (
     insert_strategy_run,
     list_instruments,
     list_strategy_runs,
-    query_prices_long,
+    query_series_long,
 )
 
 init_language()
@@ -83,7 +83,7 @@ if run_clicked:
 
         all_rankings: list[pd.DataFrame] = []
         for tk in selected:
-            pxdf = query_prices_long(con, [tk], start=start, end=end, field="close")
+            pxdf = query_series_long(con, [tk], start=start, end=end, field="close")
             if pxdf.empty:
                 st.warning(f"No data for {tk}; skipped.")
                 continue
