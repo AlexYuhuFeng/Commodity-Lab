@@ -6,7 +6,6 @@ Sophisticated alert system with multiple rule types and persistence
 
 from __future__ import annotations
 
-import ast
 import sys
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -34,6 +33,7 @@ from core.db import (
     query_prices_long,
     query_series_long,
 )
+from core.condition_builder import ConditionEvaluator
 from app.i18n import t, render_language_switcher, init_language
 
 init_language()
@@ -64,49 +64,13 @@ init_db(con)
 
 def safe_eval_custom_expression(expr: str, value: float, threshold: float | None) -> bool:
     """Safely evaluate simple boolean expressions for custom rules."""
-    if not expr:
-        return False
-
-    allowed_nodes = (
-        ast.Expression,
-        ast.BoolOp,
-        ast.BinOp,
-        ast.UnaryOp,
-        ast.Compare,
-        ast.Name,
-        ast.Load,
-        ast.Constant,
-        ast.And,
-        ast.Or,
-        ast.Not,
-        ast.Add,
-        ast.Sub,
-        ast.Mult,
-        ast.Div,
-        ast.Mod,
-        ast.Pow,
-        ast.USub,
-        ast.UAdd,
-        ast.Eq,
-        ast.NotEq,
-        ast.Lt,
-        ast.LtE,
-        ast.Gt,
-        ast.GtE,
-    )
-
-    tree = ast.parse(expr, mode="eval")
-    for node in ast.walk(tree):
-        if not isinstance(node, allowed_nodes):
-            raise ValueError("Expression contains unsupported syntax")
-        if isinstance(node, ast.Name) and node.id not in {"value", "threshold"}:
-            raise ValueError(f"Unsupported variable: {node.id}")
-
     return bool(
-        eval(
-            compile(tree, "<alert_expr>", "eval"),
-            {"__builtins__": {}},
-            {"value": float(value), "threshold": float(threshold) if threshold is not None else None},
+        ConditionEvaluator.evaluate(
+            expr,
+            {
+                "value": float(value),
+                "threshold": float(threshold) if threshold is not None else None,
+            },
         )
     )
 
