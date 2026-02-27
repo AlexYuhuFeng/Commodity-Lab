@@ -29,7 +29,7 @@ if 'saved_templates' not in st.session_state:
     st.session_state.saved_templates = {}
 
 # 侧边栏：模板和快速操作
-with st.sidebar:
+with st.container(border=True):
     st.markdown("### 📚 快速模板")
     
     template_col1, template_col2 = st.columns(2)
@@ -410,8 +410,8 @@ print(f"条件满足: {result}")
             )
 
 # 底部帮助信息
-st.sidebar.divider()
-st.sidebar.markdown("""
+st.divider()
+st.markdown("""
 ### 💡 使用提示
 
 1. **添加条件**: 选择字段、操作符、输入值

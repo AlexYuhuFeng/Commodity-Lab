@@ -96,7 +96,7 @@ fi
 
 # 执行构建
 echo -e "${BLUE}🏗️ 开始构建...${NC}"
-python3 -m PyInstaller "${BUILD_ARGS[@]}" app/main.py
+python3 -m PyInstaller "${BUILD_ARGS[@]}" app/desktop_launcher.py
 
 if [ $? -eq 0 ]; then
     echo ""

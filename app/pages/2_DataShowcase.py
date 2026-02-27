@@ -48,21 +48,20 @@ con = get_conn(DB_PATH)
 init_db(con)
 
 
-# ===== SIDEBAR: TICKER SELECTOR =====
-with st.sidebar:
-    inst = list_instruments(con, only_watched=True)
-    
-    if inst.empty:
-        st.warning("暂无已关注的产品。请先在数据管理页面关注产品。")
-        st.stop()
-    
-    # Ticker selector with search
-    ticker_options = inst["ticker"].tolist()
-    selected_ticker = st.selectbox(
-        "选择产品",
-        ticker_options,
-        format_func=lambda x: f"{x} - {inst[inst['ticker']==x]['name'].iloc[0] if inst[inst['ticker']==x]['name'].iloc[0] else x}"
-    )
+# ===== TOP: TICKER SELECTOR =====
+inst = list_instruments(con, only_watched=True)
+if inst.empty:
+    st.warning("暂无已关注的产品。请先在数据管理页面关注产品。")
+    st.stop()
+
+sel_col1, sel_col2 = st.columns([3, 2])
+ticker_options = inst["ticker"].tolist()
+selected_ticker = sel_col1.selectbox(
+    "选择产品",
+    ticker_options,
+    format_func=lambda x: f"{x} - {inst[inst['ticker']==x]['name'].iloc[0] if inst[inst['ticker']==x]['name'].iloc[0] else x}",
+)
+sel_col2.caption("查看行情、质检与属性信息。")
 
 
 # ===== GET DATA FOR SELECTED TICKER =====
@@ -444,8 +443,7 @@ with tabs[4]:
                                 st.error(f"❌ 重算失败: {str(e)}")
                     
                     with col2:
-                        if st.button(f"✏️ 编辑 {derived_ticker}", key=f"edit_{derived_ticker}"):
-                            st.session_state[f"edit_{derived_ticker}"] = True
+                        st.caption("编辑请在下方“派生管理”页签进行")
                     
                     with col3:
                         if st.button(f"🗑️ 删除 {derived_ticker}", key=f"delete_{derived_ticker}"):
