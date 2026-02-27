@@ -5,7 +5,6 @@ from typing import Dict, List, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import json
-from datetime import datetime
 import ast
 import operator as _operator
 import math
@@ -388,7 +387,7 @@ class ConditionEvaluator:
         'math': math
     }
 
-    def evaluate(self, expr: str, context: Dict[str, Any]) -> Any:
+    def _evaluate(self, expr: str, context: Dict[str, Any]) -> Any:
         """Evaluate expression `expr` using values from `context`.
 
         Raises ValueError on invalid/unsafe expressions.
@@ -401,6 +400,11 @@ class ConditionEvaluator:
             return self._eval(node.body, context)
         except Exception as e:
             raise ValueError(f"Invalid expression: {e}")
+
+    @staticmethod
+    def evaluate(expression: str, context: Dict[str, Any]) -> Any:
+        """Backward-compatible API used by scheduler and pages."""
+        return ConditionEvaluator()._evaluate(expression, context)
 
     def _eval(self, node, context):
         if isinstance(node, ast.BinOp):
@@ -495,7 +499,7 @@ class ConditionEvaluator:
         
         # 验证所有子组
         for i, subgroup in enumerate(group.sub_groups):
-            is_valid, msg = ConditionValidator.validate_group(subgroup)
+            is_valid, msg = ConditionEvaluator.validate_group(subgroup)
             if not is_valid:
                 return False, f"条件组 {i+1}: {msg}"
         
@@ -537,21 +541,3 @@ if __name__ == "__main__":
     print(f"条件评估结果: {result}")
     print(f"表达式: {final_group.to_expression()}")
     print(f"JSON: {json.dumps(final_group.to_dict(), indent=2)}")
-
-
-
-class ConditionEvaluator:
-    """Simple expression evaluator for scheduler/backward compatibility."""
-
-    @staticmethod
-    def evaluate(expression: str, context: dict[str, Any]) -> Any:
-        if not expression:
-            return False
-        safe_locals = {
-            "price": context.get("price"),
-            "threshold": context.get("threshold"),
-            "mean": context.get("mean"),
-            "std": context.get("std"),
-            **{k: v for k, v in context.items() if isinstance(k, str)},
-        }
-        return eval(expression, {"__builtins__": {}}, safe_locals)

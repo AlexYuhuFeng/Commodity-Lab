@@ -40,20 +40,9 @@ st.title(f"📊 {t('data_management')}")
 con = get_conn(default_db_path(workspace_root))
 init_db(con)
 
-with st.expander(l("Refresh settings", "刷新设置"), expanded=False):
-    first_period = st.selectbox(l("Initial download period", "首次下载周期"), ["max", "10y", "5y", "2y", "1y"], index=0)
-    backfill_days = st.slider(l("Backfill days", "回补天数"), 0, 30, 7, 1)
-    synthetic_backfill_days = st.slider(l("Synthetic series backfill days", "合成序列回补天数"), 0, 30, 7, 1)
-
-    watched = list_instruments(con, only_watched=True)
-    if st.button(l("Refresh all watched", "刷新全部关注"), type="primary", width="stretch"):
-        tickers = watched["ticker"].tolist() if not watched.empty else []
-        if not tickers:
-            st.warning(l("No watched tickers.", "暂无已关注代码。"))
-        else:
-            results = refresh_many(con, tickers, first_period, backfill_days, synthetic_backfill_days)
-            ok = sum(1 for r in results if r.get("status") == "success")
-            st.success(l(f"Refresh done: {ok}/{len(results)} success", f"刷新完成：{ok}/{len(results)} 成功"))
+first_period = "max"
+backfill_days = 7
+synthetic_backfill_days = 7
 
 
 search_tab, local_tab, upload_tab, log_tab = st.tabs([
@@ -66,6 +55,27 @@ search_tab, local_tab, upload_tab, log_tab = st.tabs([
 with search_tab:
     query = st.text_input(l("Keywords", "关键词"), placeholder="Brent / TTF / HH / EURUSD")
     max_results = st.slider(l("Max results", "最大结果数"), 5, 50, 15)
+
+    st.subheader(l("Refresh settings", "刷新设置"))
+    rs1, rs2, rs3 = st.columns(3)
+    with rs1:
+        first_period = st.selectbox(l("Initial download period", "首次下载周期"), ["max", "10y", "5y", "2y", "1y"], index=0)
+    with rs2:
+        backfill_days = st.slider(l("Backfill days", "回补天数"), 0, 30, 7, 1)
+    with rs3:
+        synthetic_backfill_days = st.slider(l("Synthetic series backfill days", "合成序列回补天数"), 0, 30, 7, 1)
+
+    watched = list_instruments(con, only_watched=True)
+    if st.button(l("Refresh all watched", "刷新全部关注"), type="primary", width="stretch"):
+        tickers = watched["ticker"].tolist() if not watched.empty else []
+        if not tickers:
+            st.warning(l("No watched tickers.", "暂无已关注代码。"))
+        else:
+            results = refresh_many(con, tickers, first_period, backfill_days, synthetic_backfill_days)
+            ok = sum(1 for r in results if r.get("status") == "success")
+            st.success(l(f"Refresh done: {ok}/{len(results)} success", f"刷新完成：{ok}/{len(results)} 成功"))
+
+    st.divider()
     if query:
         try:
             rows = normalize_search_results(search_yahoo(query))[:max_results]
@@ -112,12 +122,27 @@ with local_tab:
             st.success(l("Deleted.", "已删除。"))
             st.rerun()
 
-        stats = []
-        for tk in watched["ticker"].tolist():
-            last = get_last_price_date(con, tk)
-            stale = None if last is None else (date.today() - last).days
-            stats.append({"ticker": tk, "last_date": last, "staleness_days": stale})
-        st.dataframe(pd.DataFrame(stats), width="stretch", hide_index=True)
+    st.subheader(l("Delete any ticker", "删除任意代码"))
+    st.caption(l(
+        "Use this when a ticker remains in other pages after being unwatched. This performs hard delete from instruments/prices/derived/recipes.",
+        "当某代码取消关注后仍在其他页面出现时可用。此操作会从 instruments/prices/derived/recipes 做彻底删除。",
+    ))
+    all_pick = st.multiselect(
+        l("Tickers to hard-delete", "需要彻底删除的代码"),
+        inst["ticker"].tolist() if not inst.empty else [],
+        key="hard_delete_all_tickers",
+    )
+    if st.button(l("🗑️ Hard delete selected tickers", "🗑️ 彻底删除选中代码"), disabled=not all_pick):
+        delete_instruments(con, all_pick, delete_prices=True)
+        st.success(l("Hard delete completed.", "彻底删除完成。"))
+        st.rerun()
+
+    stats = []
+    for tk in watched["ticker"].tolist():
+        last = get_last_price_date(con, tk)
+        stale = None if last is None else (date.today() - last).days
+        stats.append({"ticker": tk, "last_date": last, "staleness_days": stale})
+    st.dataframe(pd.DataFrame(stats), width="stretch", hide_index=True)
 
 with upload_tab:
     st.markdown(l("Upload CSV to create/update a raw series. Required columns: `date`, `close`; optional: `open,high,low,adj_close,volume`.", "上传CSV创建/更新原始序列。必需列：`date`,`close`；可选：`open,high,low,adj_close,volume`。"))
