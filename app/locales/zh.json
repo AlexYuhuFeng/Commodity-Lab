@@ -77,19 +77,23 @@
       "price_chart": "价格图表",
       "qc_report": "质量报告",
       "properties": "属性",
+<<<<<<< HEAD
       "derived": "衍生序列",
       "operations": "操作",
       "derived_studio": "派生管理"
+=======
+      "operations": "操作"
+>>>>>>> origin/codex/resolve-project-issues-y7ic9g
     },
     "raw_data": "原始数据",
     "summary": "摘要",
     "qc_report": "质量检查报告",
     "attributes": "属性",
     "price_chart": "价格图表",
-    "derived_series": "衍生序列",
+    "derived_series": "合成序列",
     "operations": {
       "transform": "转换",
-      "create_derived": "创建衍生序列",
+      "create_derived": "创建合成序列",
       "refresh": "刷新",
       "delete": "删除",
       "export": "导出"
