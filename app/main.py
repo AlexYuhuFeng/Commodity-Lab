@@ -26,11 +26,7 @@ pages = {
     "Data Workspace": [
         st.Page("pages/1_DataManagement.py", title=t("nav.data_management"), icon="📊"),
         st.Page("pages/2_DataShowcase.py", title=t("nav.data_showcase"), icon="🔍"),
-<<<<<<< HEAD
-        st.Page("pages/9_DerivedManagement.py", title="Derived Management", icon="🔗"),
-=======
         st.Page("pages/9_DerivedManagement.py", title="Synthetic Series Studio", icon="🔗"),
->>>>>>> origin/codex/resolve-project-issues-y7ic9g
     ],
     "Monitoring": [
         st.Page("pages/3_MonitoringAlerts.py", title=t("nav.monitoring"), icon="🚨"),
