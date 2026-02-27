@@ -69,23 +69,15 @@ if left_raw.empty or right_raw.empty:
 ldf = left_raw[["date", "value"]].rename(columns={"value": "L"})
 rdf = right_raw[["date", "value"]].rename(columns={"value": "R"})
 merged = pd.merge(ldf, rdf, on="date", how="inner").dropna().sort_values("date")
-if merged.empty:
-    st.error(l("No overlapping dates between selected series.", "所选序列没有重叠日期。"))
-    st.stop()
 merged["L"] = merged["L"] * float(lm)
 merged["R"] = merged["R"] * float(rm)
 
 if formula == "L-R":
     merged["value"] = merged["L"] - merged["R"]
 elif formula == "L/R":
-    merged["value"] = merged["L"] / merged["R"].replace(0, pd.NA)
+    merged["value"] = merged["L"] / merged["R"]
 else:
-    merged["value"] = (merged["L"] - merged["R"]) / merged["R"].replace(0, pd.NA)
-
-merged = merged.dropna(subset=["value"])
-if merged.empty:
-    st.error(l("Formula produced empty result (check divide-by-zero).", "计算结果为空（请检查除零问题）。"))
-    st.stop()
+    merged["value"] = (merged["L"] - merged["R"]) / merged["R"]
 
 st.plotly_chart(px.line(merged, x="date", y="value", title=l("Derived spread preview", "派生价差预览")), width="stretch")
 st.dataframe(merged[["date", "L", "R", "value"]].tail(250), width="stretch", hide_index=True)
@@ -108,4 +100,3 @@ if st.button(l("Save derived series", "保存派生序列"), type="primary"):
         }]))
         con.execute("UPDATE instruments SET is_watched=TRUE WHERE ticker=?", [save])
         st.success(l(f"Saved {rows} rows -> {save}", f"已保存 {rows} 行 -> {save}"))
-        st.rerun()
