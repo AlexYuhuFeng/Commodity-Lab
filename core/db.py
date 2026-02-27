@@ -404,18 +404,7 @@ def delete_instruments(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], d
     con.execute("DELETE FROM refresh_log WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM strategy_profiles WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM strategy_runs WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
-    con.execute(
-        """
-        DELETE FROM derived_recipes
-        WHERE derived_ticker IN (SELECT * FROM UNNEST(?))
-           OR EXISTS (
-             SELECT 1
-             FROM UNNEST(?) AS t(ticker)
-             WHERE source_tickers_json LIKE ('%"' || t.ticker || '"%')
-           )
-        """,
-        [tickers, tickers],
-    )
+    con.execute("DELETE FROM derived_recipes WHERE derived_ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM instruments WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
 
 
