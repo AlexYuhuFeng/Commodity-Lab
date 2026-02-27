@@ -393,10 +393,7 @@ def delete_instruments(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], d
     con.execute("DELETE FROM refresh_log WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM strategy_profiles WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM strategy_runs WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
-<<<<<<< HEAD
-=======
     con.execute("DELETE FROM derived_recipes WHERE derived_ticker IN (SELECT * FROM UNNEST(?))", [tickers])
->>>>>>> origin/codex/resolve-project-issues-y7ic9g
     con.execute("DELETE FROM instruments WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
 
 
