@@ -86,12 +86,13 @@ if derived_tickers:
 
 
 # ===== MAIN CONTENT WITH TABS =====
-tabs = st.tabs([
+tab_overview, tab_price, tab_qc, tab_properties, tab_derived, tab_studio, tab_operations = st.tabs([
     f"{t('data_showcase.tabs.overview')} 📊",
     f"{t('data_showcase.tabs.price_chart')} 📈",
     f"{t('data_showcase.tabs.qc_report')} ✓",
     f"{t('data_showcase.tabs.properties')} 🏷️",
     f"{t('data_showcase.tabs.derived')} 🔗",
+    "派生管理 🧪",
     f"{t('data_showcase.tabs.operations')} ⚙️",
 ])
 
@@ -461,7 +462,7 @@ with tab_derived:
 
 
 # ===== TAB 5: DERIVED STUDIO =====
-with tabs[5]:
+with tab_studio:
     st.subheader(f"派生管理 - {selected_ticker}")
     st.caption("支持基于两条序列创建 spread 作为派生序列，便于监控与回测复用。")
 
@@ -515,7 +516,7 @@ with tabs[5]:
                     st.line_chart(mm.set_index("date")["value"])
 
 # ===== TAB 6: OPERATIONS =====
-with tabs[6]:
+with tab_operations:
     st.subheader(f"操作 - {selected_ticker}")
     
     col1, col2 = st.columns(2)
@@ -562,4 +563,3 @@ with tabs[6]:
                 set_watch(con, [selected_ticker], True)
                 st.success(f"已关注 {selected_ticker}")
                 st.rerun()
-
