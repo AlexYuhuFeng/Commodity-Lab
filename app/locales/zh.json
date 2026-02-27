@@ -77,13 +77,9 @@
       "price_chart": "价格图表",
       "qc_report": "质量报告",
       "properties": "属性",
-<<<<<<< HEAD
       "derived": "衍生序列",
       "operations": "操作",
       "derived_studio": "派生管理"
-=======
-      "operations": "操作"
->>>>>>> origin/codex/resolve-project-issues-y7ic9g
     },
     "raw_data": "原始数据",
     "summary": "摘要",
