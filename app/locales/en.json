@@ -77,7 +77,6 @@
       "price_chart": "Price Chart",
       "qc_report": "QC Report",
       "properties": "Properties",
-      "derived": "Derived",
       "operations": "Operations"
     },
     "raw_data": "Raw Data",
@@ -85,10 +84,10 @@
     "qc_report": "QC Report",
     "attributes": "Attributes",
     "price_chart": "Price Chart",
-    "derived_series": "Derived Series",
+    "derived_series": "Synthetic Series",
     "operations": {
       "transform": "Transform",
-      "create_derived": "Create Derived",
+      "create_derived": "Create Synthetic Series",
       "refresh": "Refresh",
       "delete": "Delete",
       "export": "Export"

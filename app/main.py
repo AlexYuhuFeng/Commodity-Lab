@@ -1,3 +1,5 @@
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -24,6 +26,7 @@ pages = {
     "Data Workspace": [
         st.Page("pages/1_DataManagement.py", title=t("nav.data_management"), icon="📊"),
         st.Page("pages/2_DataShowcase.py", title=t("nav.data_showcase"), icon="🔍"),
+        st.Page("pages/9_DerivedManagement.py", title="Synthetic Series Studio", icon="🔗"),
     ],
     "Monitoring": [
         st.Page("pages/3_MonitoringAlerts.py", title=t("nav.monitoring"), icon="🚨"),
@@ -39,4 +42,25 @@ pages = {
 }
 
 pg = st.navigation(pages, position="sidebar")
+
+with st.sidebar:
+    st.markdown("---")
+    version = "dev"
+    try:
+        pp = (workspace_root / "pyproject.toml").read_text(encoding="utf-8")
+        m = re.search(r'^version\s*=\s*"([^"]+)"', pp, re.MULTILINE)
+        if m:
+            version = m.group(1)
+    except Exception:
+        pass
+
+    commit = "unknown"
+    try:
+        commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=workspace_root).decode().strip()
+    except Exception:
+        pass
+
+    st.caption(f"Commodity Lab v{version} · {commit}")
+    st.caption("Developer: Commodity Lab Contributors")
+
 pg.run()
