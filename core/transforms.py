@@ -25,7 +25,7 @@ def _asof_fx_merge(base: pd.DataFrame, fx: pd.DataFrame) -> pd.DataFrame:
 
 def recompute_transform(
     con,
-    transform_row: dict,
+    transform_row: dict | str,
     backfill_days: int = 7,
     field: str = "close",
 ) -> dict:
@@ -38,6 +38,19 @@ def recompute_transform(
 
     注意：base/fx 都取 prices_daily 的 close（你以后需要可以扩展成可选字段）
     """
+    if isinstance(transform_row, str):
+        t_id = transform_row.strip()
+        if not t_id:
+            raise ValueError("transform_id is required")
+        row = con.execute(
+            "SELECT * FROM transforms WHERE transform_id = ?",
+            [t_id],
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"transform not found: {t_id}")
+        cols = [d[0] for d in con.description]
+        transform_row = dict(zip(cols, row))
+
     derived_ticker = transform_row["derived_ticker"]
     base_ticker = transform_row["base_ticker"]
     fx_ticker = transform_row.get("fx_ticker")
