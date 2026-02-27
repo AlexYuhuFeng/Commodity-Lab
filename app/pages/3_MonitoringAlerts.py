@@ -26,11 +26,9 @@ from core.db import (
     list_alert_rules,
     upsert_alert_rule,
     delete_alert_rule,
-    get_alert_rule,
     list_alert_events,
     create_alert_event,
     acknowledge_alert_event,
-    query_prices_long,
     query_series_long,
 )
 from core.condition_builder import ConditionEvaluator
@@ -201,7 +199,7 @@ def test_alert_rule(rule: dict):
     if result["triggered"]:
         return f"✅ 触发条件：{result['message']}"
     else:
-        return f"⏸️ 未触发"
+        return "⏸️ 未触发"
 
 
 # ===== QUICK ACTIONS =====
@@ -280,7 +278,7 @@ with tabs[0]:
                 with col4:
                     if st.button("🗑️ 删除", key=f"delete_{rule['rule_id']}"):
                         delete_alert_rule(con, rule["rule_id"])
-                        st.success(f"规则已删除")
+                        st.success("规则已删除")
                         st.rerun()
     else:
         st.info("暂无告警规则，请创建一个")

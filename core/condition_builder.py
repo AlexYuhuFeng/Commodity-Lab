@@ -5,7 +5,6 @@ from typing import Dict, List, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import json
-from datetime import datetime
 import ast
 import operator as _operator
 import math
@@ -500,7 +499,7 @@ class ConditionEvaluator:
         
         # 验证所有子组
         for i, subgroup in enumerate(group.sub_groups):
-            is_valid, msg = ConditionValidator.validate_group(subgroup)
+            is_valid, msg = ConditionEvaluator.validate_group(subgroup)
             if not is_valid:
                 return False, f"条件组 {i+1}: {msg}"
         

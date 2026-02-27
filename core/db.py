@@ -793,8 +793,7 @@ def upsert_alert_rule(con: duckdb.DuckDBPyConnection, row: dict) -> None:
         severity = "medium"
     
     enabled = bool(row.get("enabled") if row.get("enabled") is not None else True)
-    notes = (row.get("notes") or "").strip()
-    
+    notes = (row.get("notes") or "").strip() or None
     con.execute(
         """
         INSERT INTO alert_rules
@@ -880,8 +879,6 @@ def create_alert_event(con: duckdb.DuckDBPyConnection, row: dict) -> str:
             value = float(value)
         except (ValueError, TypeError):
             value = None
-    
-    notes = (row.get("notes") or "").strip()
     
     con.execute(
         """
