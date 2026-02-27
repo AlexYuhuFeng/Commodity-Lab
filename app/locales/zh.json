@@ -78,7 +78,8 @@
       "qc_report": "质量报告",
       "properties": "属性",
       "derived": "衍生序列",
-      "operations": "操作"
+      "operations": "操作",
+      "derived_studio": "派生管理"
     },
     "raw_data": "原始数据",
     "summary": "摘要",
