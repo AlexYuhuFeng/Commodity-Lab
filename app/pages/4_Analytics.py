@@ -14,7 +14,7 @@ workspace_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(workspace_root))
 
 from app.i18n import init_language, render_language_switcher, t
-from core.db import default_db_path, get_conn, init_db, list_instruments, query_prices_long
+from core.db import default_db_path, get_conn, init_db, list_instruments, query_series_long
 
 init_language()
 st.set_page_config(page_title="Commodity Lab - Analytics", layout="wide")
@@ -66,7 +66,7 @@ if ticker_a == ticker_b:
     st.info("A/B 请选择不同产品。" if t("language.name") == "简体中文" else "Please choose two different instruments.")
     st.stop()
 
-px = query_prices_long(
+px = query_series_long(
     con,
     [ticker_a, ticker_b],
     start=start_date,

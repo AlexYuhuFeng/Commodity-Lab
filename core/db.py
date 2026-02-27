@@ -7,6 +7,7 @@ from typing import Iterable
 
 import duckdb
 import pandas as pd
+import json
 
 
 ALLOWED_PRICE_FIELDS = {
@@ -149,6 +150,18 @@ def init_db(con: duckdb.DuckDBPyConnection) -> None:
             value          DOUBLE,
             updated_at     TIMESTAMPTZ,
             PRIMARY KEY (derived_ticker, date)
+        );
+        """
+    )
+
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS derived_recipes (
+            derived_ticker   VARCHAR PRIMARY KEY,
+            source_tickers_json VARCHAR,
+            expression      VARCHAR,
+            created_at       TIMESTAMPTZ,
+            updated_at       TIMESTAMPTZ
         );
         """
     )
@@ -572,6 +585,55 @@ def query_derived_long(con: duckdb.DuckDBPyConnection, derived_tickers: list[str
     if not df.empty:
         df["date"] = pd.to_datetime(df["date"])
     return df
+
+
+def query_series_long(con: duckdb.DuckDBPyConnection, tickers: list[str], start=None, end=None, field: str = "close") -> pd.DataFrame:
+    """Query mixed raw/derived tickers as a unified long dataframe(date,ticker,value)."""
+    tickers = [str(t).strip() for t in (tickers or []) if str(t).strip()]
+    if not tickers:
+        return pd.DataFrame(columns=["date", "ticker", "value"])
+
+    out_frames: list[pd.DataFrame] = []
+    for tk in tickers:
+        raw = query_prices_long(con, [tk], start=start, end=end, field=field)
+        if raw.empty:
+            raw = query_derived_long(con, [tk], start=start, end=end)
+        if not raw.empty:
+            out_frames.append(raw[["date", "ticker", "value"]].copy())
+
+    if not out_frames:
+        return pd.DataFrame(columns=["date", "ticker", "value"])
+    return pd.concat(out_frames, ignore_index=True).sort_values(["date", "ticker"])
+
+
+def upsert_derived_recipe(con: duckdb.DuckDBPyConnection, derived_ticker: str, source_tickers: list[str], expression: str) -> None:
+    now = utc_now()
+    dt = (derived_ticker or "").strip().upper()
+    if not dt:
+        raise ValueError("derived_ticker is required")
+    payload = json.dumps([str(x).strip() for x in (source_tickers or []) if str(x).strip()], ensure_ascii=False)
+    con.execute(
+        """
+        INSERT INTO derived_recipes (derived_ticker, source_tickers_json, expression, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT (derived_ticker) DO UPDATE SET
+          source_tickers_json = excluded.source_tickers_json,
+          expression = excluded.expression,
+          updated_at = excluded.updated_at
+        """,
+        [dt, payload, (expression or "").strip(), now, now],
+    )
+
+
+def list_derived_recipes(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    return con.execute("SELECT * FROM derived_recipes ORDER BY updated_at DESC").df()
+
+
+def delete_derived_recipe(con: duckdb.DuckDBPyConnection, derived_ticker: str) -> None:
+    dt = (derived_ticker or "").strip().upper()
+    if not dt:
+        return
+    con.execute("DELETE FROM derived_recipes WHERE derived_ticker = ?", [dt])
 
 
 # ---------- Transforms ----------
