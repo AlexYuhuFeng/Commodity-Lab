@@ -357,7 +357,7 @@ def set_watch(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], watched: b
 
 
 def delete_instruments(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], delete_prices: bool = False) -> None:
-    tickers = list(tickers)
+    tickers = [str(t).strip() for t in tickers if str(t).strip()]
     if not tickers:
         return
 
@@ -367,7 +367,19 @@ def delete_instruments(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], d
             [tickers],
         )
 
+    # remove derived data and transform links to avoid ghost options
+    con.execute(
+        "DELETE FROM derived_daily WHERE derived_ticker IN (SELECT * FROM UNNEST(?))",
+        [tickers],
+    )
+    con.execute(
+        "DELETE FROM transforms WHERE derived_ticker IN (SELECT * FROM UNNEST(?)) OR base_ticker IN (SELECT * FROM UNNEST(?)) OR fx_ticker IN (SELECT * FROM UNNEST(?))",
+        [tickers, tickers, tickers],
+    )
+
     con.execute("DELETE FROM refresh_log WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
+    con.execute("DELETE FROM strategy_profiles WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
+    con.execute("DELETE FROM strategy_runs WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM instruments WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
 
 
