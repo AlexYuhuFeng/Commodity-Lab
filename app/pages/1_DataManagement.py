@@ -104,9 +104,9 @@ with local_tab:
 
         pick = st.multiselect(l("Select tickers", "选择代码"), watched["ticker"].tolist())
         c1, c2 = st.columns(2)
-        if c1.button(l("Unwatch selected", "取消关注选中"), disabled=not pick):
-            set_watch(con, pick, False)
-            st.success(l("Unwatched.", "已取消关注。"))
+        if c1.button(l("Unwatch selected (hard delete)", "取消关注选中（彻底删除）"), disabled=not pick):
+            delete_instruments(con, pick, delete_prices=True)
+            st.success(l("Deleted from watchlist and storage.", "已取消关注并彻底删除。"))
             st.rerun()
         if c2.button(l("Delete selected (with prices)", "删除选中（含价格）"), disabled=not pick):
             delete_instruments(con, pick, delete_prices=True)

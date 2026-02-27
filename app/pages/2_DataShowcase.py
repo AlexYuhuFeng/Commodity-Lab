@@ -21,16 +21,16 @@ sys.path.insert(0, str(workspace_root))
 
 from core.db import (
     default_db_path,
+    delete_instruments,
+    delete_transform,
     get_conn,
     init_db,
     list_instruments,
-    query_prices_long,
-    query_derived_long,
     list_transforms,
-    upsert_transform,
-    delete_transform,
+    query_derived_long,
+    query_prices_long,
 )
-from core.qc import run_qc_report, summarize_qc_reports
+from core.qc import run_qc_report
 from core.transforms import recompute_transform
 from app.i18n import t, render_language_switcher, init_language
 
@@ -61,17 +61,23 @@ selected_ticker = sel_col1.selectbox(
     ticker_options,
     format_func=lambda x: f"{x} - {inst[inst['ticker']==x]['name'].iloc[0] if inst[inst['ticker']==x]['name'].iloc[0] else x}",
 )
-sel_col2.caption("衍生序列编辑、价差创建已集中到“派生管理”页签。")
+sel_col2.caption("衍生序列编辑、价差创建已集中到左侧『Derived Management』页面。")
 
 
 # ===== GET DATA FOR SELECTED TICKER =====
 ticker_info = inst[inst["ticker"] == selected_ticker].iloc[0]
 
-# Get price data
+# Get price data (raw first, derived fallback)
 prices = query_prices_long(con, [selected_ticker], field="close")
+selected_is_derived = False
 if prices.empty:
-    st.error(f"❌ 未找到 {selected_ticker} 的价格数据")
-    st.stop()
+    derived_prices = query_derived_long(con, [selected_ticker])
+    if not derived_prices.empty:
+        prices = derived_prices
+        selected_is_derived = True
+    else:
+        st.error(f"❌ 未找到 {selected_ticker} 的价格数据")
+        st.stop()
 
 # Get derived series
 transforms = list_transforms(con, enabled_only=False)
@@ -525,17 +531,20 @@ with tab_operations:
         st.markdown("**数据操作**")
         
         if st.button("🔄 立即刷新", width='stretch'):
-            from core.refresh import refresh_many
-            try:
-                with st.spinner(f"刷新 {selected_ticker} 中..."):
-                    results = refresh_many(con, [selected_ticker], first_period="10y", backfill_days=7)
-                    if results[0]["status"] == "success":
-                        st.success(f"✅ 已刷新 {results[0]['rows']} 行")
-                        st.rerun()
-                    else:
-                        st.error(f"❌ 刷新失败")
-            except Exception as e:
-                st.error(f"❌ 错误: {str(e)}")
+            if is_derived_quote:
+                st.warning("派生序列请在『Derived Management』页面重算/更新。")
+            else:
+                from core.refresh import refresh_many
+                try:
+                    with st.spinner(f"刷新 {selected_ticker} 中..."):
+                        results = refresh_many(con, [selected_ticker], first_period="10y", backfill_days=7)
+                        if results[0]["status"] == "success":
+                            st.success(f"✅ 已刷新 {results[0]['rows']} 行")
+                            st.rerun()
+                        else:
+                            st.error("❌ 刷新失败")
+                except Exception as e:
+                    st.error(f"❌ 错误: {str(e)}")
         
         if st.button("📥 导出数据", width='stretch'):
             csv = prices.to_csv(index=False)
@@ -550,13 +559,13 @@ with tab_operations:
         st.markdown("**关注管理**")
         
         from core.db import set_watch
-        
+
         is_watched = ticker_info.get("is_watched", False)
-        
+
         if is_watched:
-            if st.button("⭐ 取消关注", width='stretch'):
-                set_watch(con, [selected_ticker], False)
-                st.success(f"已取消关注 {selected_ticker}")
+            if st.button("🗑️ 取消关注并彻底删除", width='stretch'):
+                delete_instruments(con, [selected_ticker], delete_prices=True)
+                st.success(f"已彻底删除 {selected_ticker}")
                 st.rerun()
         else:
             if st.button("⭐ 加入关注", width='stretch'):
