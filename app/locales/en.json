@@ -78,7 +78,8 @@
       "qc_report": "QC Report",
       "properties": "Properties",
       "derived": "Derived",
-      "operations": "Operations"
+      "operations": "Operations",
+      "derived_studio": "Derived Studio"
     },
     "raw_data": "Raw Data",
     "summary": "Summary",
