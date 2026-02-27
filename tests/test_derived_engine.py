@@ -59,3 +59,25 @@ def test_recompute_recipe_graph_supports_chain():
         assert d2["value"].iloc[0] == 5.0
     finally:
         con.close()
+
+
+def test_recompute_recipe_graph_updates_downstream_dependents():
+    con = duckdb.connect(":memory:")
+    try:
+        _seed(con)
+        upsert_derived_recipe(con, "D1", ["A", "B"], "S1/S2")
+        upsert_derived_recipe(con, "D2", ["D1", "C"], "S1*S2")
+
+        recompute_recipe_graph(con, "D2")
+        baseline = query_derived_long(con, ["D2"])["value"].iloc[0]
+        assert baseline == 5.0
+
+        # change upstream recipe and recompute only D1; D2 should be updated automatically
+        upsert_derived_recipe(con, "D1", ["A", "B"], "(S1/S2)*2")
+        results = recompute_recipe_graph(con, "D1")
+        assert [r["ticker"] for r in results] == ["D1", "D2"]
+
+        updated = query_derived_long(con, ["D2"])["value"].iloc[0]
+        assert updated == 10.0
+    finally:
+        con.close()

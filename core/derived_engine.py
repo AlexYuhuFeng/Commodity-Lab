@@ -237,7 +237,7 @@ def _load_recipe_map(con) -> dict[str, Recipe]:
 
 
 def recompute_recipe_graph(con, target_ticker: str) -> list[dict]:
-    """Recompute a target recipe and upstream recipe deps in topological order."""
+    """Recompute target recipe with both upstream dependencies and downstream dependents."""
     target = (target_ticker or "").strip().upper()
     if not target:
         raise ValueError("target_ticker is required")
@@ -246,7 +246,7 @@ def recompute_recipe_graph(con, target_ticker: str) -> list[dict]:
     if target not in recipe_map:
         raise ValueError(f"recipe not found: {target}")
 
-    order: list[str] = []
+    upstream_order: list[str] = []
     visiting: set[str] = set()
     visited: set[str] = set()
 
@@ -262,14 +262,56 @@ def recompute_recipe_graph(con, target_ticker: str) -> list[dict]:
                 src_u = src.upper()
                 if src_u in recipe_map:
                     dfs(src_u)
-            order.append(tk)
+            upstream_order.append(tk)
         visiting.remove(tk)
         visited.add(tk)
 
     dfs(target)
 
+    # collect downstream dependents so updating a base recipe can propagate to children recipes
+    reverse_deps: dict[str, set[str]] = {}
+    for recipe_ticker, recipe in recipe_map.items():
+        for src in recipe.source_tickers:
+            src_u = str(src).strip().upper()
+            reverse_deps.setdefault(src_u, set()).add(recipe_ticker)
+
+    downstream: set[str] = set()
+    stack = [target]
+    while stack:
+        curr = stack.pop()
+        for child in reverse_deps.get(curr, set()):
+            if child not in downstream:
+                downstream.add(child)
+                stack.append(child)
+
+    nodes = set(upstream_order) | downstream
+
+    # topological order on selected nodes
+    final_order: list[str] = []
+    visiting2: set[str] = set()
+    visited2: set[str] = set()
+
+    def topo(node: str):
+        if node in visited2:
+            return
+        if node in visiting2:
+            raise ValueError(f"cycle detected at {node}")
+        visiting2.add(node)
+        recipe = recipe_map.get(node)
+        if recipe:
+            for src in recipe.source_tickers:
+                src_u = str(src).strip().upper()
+                if src_u in nodes:
+                    topo(src_u)
+            final_order.append(node)
+        visiting2.remove(node)
+        visited2.add(node)
+
+    for node in sorted(nodes):
+        topo(node)
+
     results: list[dict] = []
-    for tk in order:
+    for tk in final_order:
         recipe = recipe_map[tk]
         calc = evaluate_recipe(con, recipe.source_tickers, recipe.expression)
         rows = upsert_derived_daily(con, tk, calc[["date", "value"]])
