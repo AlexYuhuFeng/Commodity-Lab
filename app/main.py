@@ -16,7 +16,7 @@ init_language()
 st.set_page_config(
     page_title="Commodity Lab",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -100,22 +100,22 @@ def render_home() -> None:
 pages = {
     "Start Here": [
         st.Page(render_home, title="Home", icon="🏠", default=True),
-        st.Page("pages/0_GettingStarted.py", title="Getting Started", icon="🚀"),
+        st.Page("pages/0_GettingStarted.py", title=t("getting_started") if t("getting_started")!="getting_started" else "Getting Started", icon="🚀"),
+        st.Page("pages/8_About.py", title=t("about") if t("about")!="about" else "About", icon="ℹ️"),
     ],
     "Data Workspace": [
-        st.Page("pages/1_DataManagement.py", title="Data Management", icon="📊"),
-        st.Page("pages/2_DataShowcase.py", title="Data Showcase", icon="🔍"),
+        st.Page("pages/1_DataManagement.py", title=t("data_management"), icon="📊"),
+        st.Page("pages/2_DataShowcase.py", title=t("data_showcase"), icon="🔍"),
+        st.Page("pages/9_DerivedManagement.py", title="派生管理" if t("lang")=="中文" else "Derived Management", icon="🔗"),
     ],
     "Monitoring": [
-        st.Page("pages/3_MonitoringAlerts.py", title="Monitoring & Alerts", icon="🚨"),
-        st.Page("pages/3_NotificationSetup.py", title="Notification Setup", icon="📧"),
-        st.Page("pages/6_SchedulerNotifications.py", title="Scheduler & Notifications", icon="⏱️"),
-        st.Page("pages/4_ConditionEditor.py", title="Condition Editor", icon="🧩"),
+        st.Page("pages/3_MonitoringAlerts.py", title=t("monitoring"), icon="🚨"),
+        st.Page("pages/4_ConditionEditor.py", title="条件编辑器" if t("lang")=="中文" else "Condition Editor", icon="🧩"),
     ],
     "Research & Strategies": [
-        st.Page("pages/4_Analytics.py", title="Analytics", icon="📈"),
-        st.Page("pages/5_StrategiesBacktest.py", title="Strategies & Backtest", icon="🎯"),
-        st.Page("pages/7_AutoStrategyLab.py", title="Auto Strategy Lab", icon="🤖"),
+        st.Page("pages/4_Analytics.py", title=t("analytics"), icon="📈"),
+        st.Page("pages/5_StrategiesBacktest.py", title=t("strategies"), icon="🎯"),
+        st.Page("pages/7_AutoStrategyLab.py", title="自动策略实验室" if t("lang")=="中文" else "Auto Strategy Lab", icon="🤖"),
     ],
 }
 
