@@ -32,6 +32,7 @@ from core.db import (
     create_alert_event,
     acknowledge_alert_event,
     query_prices_long,
+    query_series_long,
 )
 from app.i18n import t, render_language_switcher, init_language
 
@@ -122,7 +123,7 @@ def evaluate_alert_condition(ticker: str, con, rule: dict) -> dict | None:
         return None
     
     # Get latest price
-    prices = query_prices_long(con, [ticker], field="close")
+    prices = query_series_long(con, [ticker], field="close")
     if prices.empty:
         return None
     
@@ -188,7 +189,7 @@ def evaluate_alert_condition(ticker: str, con, rule: dict) -> dict | None:
     elif rule_type == "correlation_break":
         peer_ticker = (rule.get("condition_expr") or "").strip()
         if peer_ticker and threshold is not None and len(prices) >= 60:
-            peer = query_prices_long(con, [peer_ticker], field="close")
+            peer = query_series_long(con, [peer_ticker], field="close")
             if not peer.empty:
                 merged = pd.merge(
                     prices[["date", "value"]].rename(columns={"value": "v1"}),
@@ -249,7 +250,7 @@ inst = list_instruments(con, only_watched=True)
 if not inst.empty:
     selected_ticker = qa2.selectbox("快速检测", inst["ticker"].tolist(), key="quick_check_ticker")
     if qa3.button("🔍 检测此产品的所有规则", width='stretch'):
-        st.session_state["quick_check_ticker"] = selected_ticker
+        st.session_state["quick_check_target"] = selected_ticker
 st.divider()
 
 # ===== MAIN TABS =====
@@ -415,6 +416,22 @@ with tabs[1]:
     st.subheader("活跃告警")
     
     # Refresh active alerts if triggered
+    quick_target = st.session_state.get("quick_check_target")
+    if quick_target:
+        all_rules = list_alert_rules(con, enabled_only=False)
+        target_rules = all_rules[all_rules["ticker"] == quick_target] if not all_rules.empty else pd.DataFrame()
+        if target_rules.empty:
+            st.info(f"{quick_target} 暂无规则")
+        else:
+            st.write(f"快速检测 {quick_target} 的规则：{len(target_rules)} 条")
+            for _, rr in target_rules.iterrows():
+                result = evaluate_alert_condition(rr.get("ticker"), con, rr.to_dict())
+                if result and result.get("triggered"):
+                    st.warning(result.get("message"))
+                elif result:
+                    st.caption(f"未触发: {result.get('message','')}")
+        st.session_state["quick_check_target"] = None
+
     if st.session_state.get("check_all_rules"):
         st.info("正在检查所有规则...")
         
