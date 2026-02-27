@@ -99,6 +99,12 @@ def _resolve_path(data: dict[str, Any], key: str) -> str | None:
             result = result[part]
         else:
             return None
+
+    # Only leaf-like scalar values should be translated into text.
+    # Returning stringified dict/list causes UI corruption like
+    # "{'title': '...'}" when callers pass section keys.
+    if isinstance(result, (dict, list, tuple, set)):
+        return None
     return str(result)
 
 
@@ -148,16 +154,19 @@ def render_language_switcher() -> None:
         current = "en"
 
     labels = {"en": "English", "zh": "中文"}
-    c1, c2 = st.columns([6, 2])
-    c2.markdown("### 🌐")
-    selected = c2.selectbox(
-        "Language / 语言",
-        options=options,
-        index=options.index(current),
-        format_func=lambda x: labels.get(x, x),
-        key="lang_selectbox",
-        label_visibility="collapsed",
-    )
+
+    left, right = st.columns([8, 1.8])
+    with left:
+        st.empty()
+    with right:
+        selected = st.selectbox(
+            "Language / 语言",
+            options=options,
+            index=options.index(current),
+            format_func=lambda x: labels.get(x, x),
+            key="lang_selectbox",
+            label_visibility="collapsed",
+        )
 
     if selected != get_language():
         set_language(selected)
