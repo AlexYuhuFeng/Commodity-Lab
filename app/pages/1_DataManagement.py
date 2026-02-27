@@ -40,11 +40,10 @@ st.title(f"📊 {t('data_management')}")
 con = get_conn(default_db_path(workspace_root))
 init_db(con)
 
-with st.sidebar:
-    st.header(l("Refresh settings", "刷新设置"))
+with st.expander(l("Refresh settings", "刷新设置"), expanded=False):
     first_period = st.selectbox(l("Initial download period", "首次下载周期"), ["max", "10y", "5y", "2y", "1y"], index=0)
     backfill_days = st.slider(l("Backfill days", "回补天数"), 0, 30, 7, 1)
-    derived_backfill_days = st.slider(l("Derived backfill days", "派生回补天数"), 0, 30, 7, 1)
+    synthetic_backfill_days = st.slider(l("Synthetic series backfill days", "合成序列回补天数"), 0, 30, 7, 1)
 
     watched = list_instruments(con, only_watched=True)
     if st.button(l("Refresh all watched", "刷新全部关注"), type="primary", width="stretch"):
@@ -52,7 +51,7 @@ with st.sidebar:
         if not tickers:
             st.warning(l("No watched tickers.", "暂无已关注代码。"))
         else:
-            results = refresh_many(con, tickers, first_period, backfill_days, derived_backfill_days)
+            results = refresh_many(con, tickers, first_period, backfill_days, synthetic_backfill_days)
             ok = sum(1 for r in results if r.get("status") == "success")
             st.success(l(f"Refresh done: {ok}/{len(results)} success", f"刷新完成：{ok}/{len(results)} 成功"))
 

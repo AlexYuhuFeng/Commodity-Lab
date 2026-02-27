@@ -1,7 +1,7 @@
 # app/pages/2_DataShowcase.py
 """
 Data Showcase Page
-Complete data display with tabs: Overview, Price Chart, QC, Properties, Derived, Operations
+Complete data display with tabs: Overview, Price Chart, QC, Properties, Operations
 Inspired by broker stock detail pages
 """
 
@@ -22,16 +22,25 @@ sys.path.insert(0, str(workspace_root))
 from core.db import (
     default_db_path,
     delete_instruments,
+<<<<<<< HEAD
     delete_transform,
     get_conn,
     init_db,
     list_instruments,
     list_transforms,
+=======
+    get_conn,
+    init_db,
+    list_instruments,
+>>>>>>> origin/codex/resolve-project-issues-y7ic9g
     query_derived_long,
     query_prices_long,
 )
 from core.qc import run_qc_report
+<<<<<<< HEAD
 from core.transforms import recompute_transform
+=======
+>>>>>>> origin/codex/resolve-project-issues-y7ic9g
 from app.i18n import t, render_language_switcher, init_language
 
 init_language()
@@ -61,7 +70,11 @@ selected_ticker = sel_col1.selectbox(
     ticker_options,
     format_func=lambda x: f"{x} - {inst[inst['ticker']==x]['name'].iloc[0] if inst[inst['ticker']==x]['name'].iloc[0] else x}",
 )
+<<<<<<< HEAD
 sel_col2.caption("衍生序列编辑、价差创建已集中到左侧『Derived Management』页面。")
+=======
+sel_col2.caption("合成序列编辑与价差构建已集中到左侧『Synthetic Series Studio』页面。")
+>>>>>>> origin/codex/resolve-project-issues-y7ic9g
 
 
 # ===== GET DATA FOR SELECTED TICKER =====
@@ -78,6 +91,7 @@ if prices.empty:
     else:
         st.error(f"❌ 未找到 {selected_ticker} 的价格数据")
         st.stop()
+<<<<<<< HEAD
 
 # Get derived series
 transforms = list_transforms(con, enabled_only=False)
@@ -93,12 +107,20 @@ if derived_tickers:
 
 # ===== MAIN CONTENT WITH TABS =====
 tab_overview, tab_price, tab_qc, tab_properties, tab_derived, tab_studio, tab_operations = st.tabs([
+=======
+
+# ===== MAIN CONTENT WITH TABS =====
+tab_overview, tab_price, tab_qc, tab_properties, tab_operations = st.tabs([
+>>>>>>> origin/codex/resolve-project-issues-y7ic9g
     f"{t('data_showcase.tabs.overview')} 📊",
     f"{t('data_showcase.tabs.price_chart')} 📈",
     f"{t('data_showcase.tabs.qc_report')} ✓",
     f"{t('data_showcase.tabs.properties')} 🏷️",
+<<<<<<< HEAD
     f"{t('data_showcase.tabs.derived')} 🔗",
     f"{t('data_showcase.tabs.derived_studio')} 🧪",
+=======
+>>>>>>> origin/codex/resolve-project-issues-y7ic9g
     f"{t('data_showcase.tabs.operations')} ⚙️",
 ])
 
@@ -394,6 +416,7 @@ with tab_properties:
                 st.error(f"❌ 保存失败: {str(e)}")
 
 
+<<<<<<< HEAD
 # ===== TAB 4: DERIVED SERIES =====
 with tab_derived:
     st.subheader(f"派生序列 - {selected_ticker}")
@@ -523,6 +546,11 @@ with tab_studio:
 
 # ===== TAB 6: OPERATIONS =====
 with tab_operations:
+=======
+# ===== TAB 4: OPERATIONS =====
+with tab_operations:
+    is_derived_quote = str(ticker_info.get("quote_type", "")).lower() == "derived" or selected_is_derived
+>>>>>>> origin/codex/resolve-project-issues-y7ic9g
     st.subheader(f"操作 - {selected_ticker}")
     
     col1, col2 = st.columns(2)
@@ -532,7 +560,11 @@ with tab_operations:
         
         if st.button("🔄 立即刷新", width='stretch'):
             if is_derived_quote:
+<<<<<<< HEAD
                 st.warning("派生序列请在『Derived Management』页面重算/更新。")
+=======
+                st.warning("合成序列请在『Synthetic Series Studio』页面重算/更新。")
+>>>>>>> origin/codex/resolve-project-issues-y7ic9g
             else:
                 from core.refresh import refresh_many
                 try:

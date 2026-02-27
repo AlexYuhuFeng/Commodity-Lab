@@ -77,19 +77,23 @@
       "price_chart": "Price Chart",
       "qc_report": "QC Report",
       "properties": "Properties",
+<<<<<<< HEAD
       "derived": "Derived",
       "operations": "Operations",
       "derived_studio": "Derived Studio"
+=======
+      "operations": "Operations"
+>>>>>>> origin/codex/resolve-project-issues-y7ic9g
     },
     "raw_data": "Raw Data",
     "summary": "Summary",
     "qc_report": "QC Report",
     "attributes": "Attributes",
     "price_chart": "Price Chart",
-    "derived_series": "Derived Series",
+    "derived_series": "Synthetic Series",
     "operations": {
       "transform": "Transform",
-      "create_derived": "Create Derived",
+      "create_derived": "Create Synthetic Series",
       "refresh": "Refresh",
       "delete": "Delete",
       "export": "Export"
