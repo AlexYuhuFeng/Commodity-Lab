@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 import sys
-import uuid
 from datetime import timedelta
 from pathlib import Path
 
@@ -15,15 +13,7 @@ sys.path.insert(0, str(workspace_root))
 
 from app.i18n import get_language, init_language, render_language_switcher, t
 from core.backtest import SimpleBacktester
-from core.db import (
-    default_db_path,
-    delete_strategy_profile,
-    get_conn,
-    list_instruments,
-    list_strategy_profiles,
-    query_prices_long,
-    upsert_strategy_profile,
-)
+from core.db import default_db_path, get_conn, init_db, list_instruments, query_derived_long, query_prices_long
 from core.strategy_examples import rsi_mean_reversion_signals, sma_crossover_signals
 
 init_language()
@@ -38,6 +28,7 @@ st.title(f"🎯 {t('strategies')}")
 st.caption(l("All controls are on the main page for faster workflow.", "所有控制项已移到主页面，便于操作。"))
 
 con = get_conn(default_db_path(workspace_root))
+init_db(con)
 instruments_df = list_instruments(con, only_watched=True)
 available_tickers = instruments_df["ticker"].tolist() if not instruments_df.empty else []
 
@@ -81,6 +72,8 @@ if st.button("Run Backtest"):
         for tk in selected_tickers:
             px_df = query_prices_long(con, [tk], start=start, end=end, field="close")
             if px_df.empty:
+                px_df = query_derived_long(con, [tk], start=start, end=end)
+            if px_df.empty:
                 st.warning(f"未找到 {tk} 的历史价格，跳过")
                 continue
 
@@ -115,10 +108,13 @@ if st.button("Run Backtest"):
                 else:
                     merged = pd.merge(merged, curve, on="date", how="outer")
 
-            merged = merged.sort_values("date").ffill().fillna(0)
-            eq_cols = [c for c in merged.columns if c.startswith("equity_")]
-            merged["equity"] = merged[eq_cols].sum(axis=1)
-            eq = merged[["date", "equity"]]
+            if merged is None or merged.empty:
+                st.error("没有可用的权益曲线结果")
+            else:
+                merged = merged.sort_values("date").ffill().fillna(0)
+                eq_cols = [c for c in merged.columns if c.startswith("equity_")]
+                merged["equity"] = merged[eq_cols].sum(axis=1)
+                eq = merged[["date", "equity"]]
 
             metrics = {tk: r.get("metrics") for tk, r in results}
             trades = []
