@@ -55,6 +55,12 @@ def _canon_unit(x) -> str:
     return mapping.get(key, s)  # unknown units kept as-is (but trimmed)
 
 
+def _canon_ticker(x) -> str:
+    if x is None or (isinstance(x, float) and pd.isna(x)):
+        return ""
+    return str(x).strip().upper()
+
+
 def default_db_path(project_root: Path) -> Path:
     return project_root / "data" / "commodity_lab.duckdb"
 
@@ -296,6 +302,11 @@ def upsert_instruments(con: duckdb.DuckDBPyConnection, rows: pd.DataFrame) -> No
     if "ticker" not in rows.columns:
         raise ValueError("rows must include 'ticker'")
 
+    rows["ticker"] = rows["ticker"].apply(_canon_ticker)
+    rows = rows[rows["ticker"] != ""].copy()
+    if rows.empty:
+        return
+
     # ✅ normalize here
     rows["currency"] = rows["currency"].apply(_canon_currency)
     rows["unit"] = rows["unit"].apply(_canon_unit)
@@ -355,7 +366,7 @@ def list_instruments(con: duckdb.DuckDBPyConnection, only_watched: bool = False)
 
 
 def set_watch(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], watched: bool) -> None:
-    tickers = list(tickers)
+    tickers = sorted({_canon_ticker(t) for t in tickers if _canon_ticker(t)})
     if not tickers:
         return
     now = utc_now()
@@ -370,7 +381,7 @@ def set_watch(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], watched: b
 
 
 def delete_instruments(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], delete_prices: bool = False) -> None:
-    tickers = [str(t).strip() for t in tickers if str(t).strip()]
+    tickers = sorted({_canon_ticker(t) for t in tickers if _canon_ticker(t)})
     if not tickers:
         return
 
@@ -393,10 +404,18 @@ def delete_instruments(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], d
     con.execute("DELETE FROM refresh_log WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM strategy_profiles WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM strategy_runs WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
-<<<<<<< HEAD
-=======
-    con.execute("DELETE FROM derived_recipes WHERE derived_ticker IN (SELECT * FROM UNNEST(?))", [tickers])
->>>>>>> origin/codex/resolve-project-issues-y7ic9g
+    con.execute(
+        """
+        DELETE FROM derived_recipes
+        WHERE derived_ticker IN (SELECT * FROM UNNEST(?))
+           OR EXISTS (
+             SELECT 1
+             FROM UNNEST(?) AS t(ticker)
+             WHERE source_tickers_json LIKE ('%"' || t.ticker || '"%')
+           )
+        """,
+        [tickers, tickers],
+    )
     con.execute("DELETE FROM instruments WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
 
 

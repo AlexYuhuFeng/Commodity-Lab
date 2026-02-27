@@ -77,13 +77,9 @@
       "price_chart": "Price Chart",
       "qc_report": "QC Report",
       "properties": "Properties",
-<<<<<<< HEAD
       "derived": "Derived",
       "operations": "Operations",
       "derived_studio": "Derived Studio"
-=======
-      "operations": "Operations"
->>>>>>> origin/codex/resolve-project-issues-y7ic9g
     },
     "raw_data": "Raw Data",
     "summary": "Summary",
