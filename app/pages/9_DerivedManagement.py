@@ -21,6 +21,7 @@ from core.db import (
     init_db,
     list_derived_recipes,
     list_instruments,
+    query_series_long,
     upsert_derived_daily,
     upsert_derived_recipe,
     upsert_instruments,
@@ -39,6 +40,45 @@ lang = get_language()
 
 def l(en: str, zh: str) -> str:
     return zh if lang == "zh" else en
+
+
+def _var_name(ticker: str) -> str:
+    out = re.sub(r"[^0-9A-Za-z_]", "_", str(ticker).strip())
+    if out and out[0].isdigit():
+        out = f"T_{out}"
+    return out or "T"
+
+
+def _compute_expression(con, source_tickers: list[str], expression: str) -> pd.DataFrame:
+    src = [str(t).strip() for t in source_tickers if str(t).strip()]
+    if not src:
+        raise ValueError("请选择至少一个源序列")
+
+    long_df = query_series_long(con, src)
+    if long_df.empty:
+        raise ValueError("所选源序列没有可用数据")
+
+    pivot = long_df.pivot_table(index="date", columns="ticker", values="value", aggfunc="last").sort_index()
+    required = [t for t in src if t in pivot.columns]
+    if not required:
+        raise ValueError("源序列对齐后无有效列")
+    calc = pivot[required].dropna(how="any").copy()
+    if calc.empty:
+        raise ValueError("源序列日期交集为空，请调整源序列")
+
+    aliases = {}
+    for i, tk in enumerate(required, start=1):
+        aliases[f"S{i}"] = calc[tk]
+        aliases[_var_name(tk)] = calc[tk]
+
+    try:
+        result = pd.eval((expression or "").strip(), local_dict=aliases, engine="numexpr")
+    except Exception as exc:
+        raise ValueError(f"表达式计算失败: {exc}") from exc
+
+    out = pd.DataFrame({"date": calc.index, "value": pd.Series(result, index=calc.index)})
+    out = out.replace([float("inf"), float("-inf")], pd.NA).dropna(subset=["value"]).reset_index(drop=True)
+    return out
 
 
 st.title(l("🔗 Derived Management", "🔗 派生序列管理"))
@@ -87,15 +127,15 @@ expression = st.text_input(
 )
 out_name = st.text_input(l("Derived ticker", "派生代码"), value="DERIVED_EXAMPLE")
 
-preview_df = None
+preview_df = pd.DataFrame()
 if st.button(l("Preview expression", "预览表达式"), type="secondary"):
     try:
-        preview_df = evaluate_recipe(con, sources, expression)
+        preview_df = _compute_expression(con, sources, expression)
         st.success(l(f"Preview rows: {len(preview_df)}", f"预览完成，行数: {len(preview_df)}"))
-    except ExpressionValidationError as exc:
+    except Exception as exc:
         st.error(str(exc))
 
-if preview_df is not None and not preview_df.empty:
+if not preview_df.empty:
     st.plotly_chart(px.line(preview_df, x="date", y="value", title=l("Preview", "预览")), width="stretch")
     st.dataframe(preview_df.tail(200), width="stretch", hide_index=True)
 
@@ -105,7 +145,7 @@ if st.button(l("Save Derived", "保存派生序列"), type="primary"):
         st.error(l("Derived ticker is required", "派生代码不能为空"))
     else:
         try:
-            calc_df = evaluate_recipe(con, sources, expression)
+            calc_df = _compute_expression(con, sources, expression)
             rows = upsert_derived_daily(con, save, calc_df[["date", "value"]])
             upsert_derived_recipe(con, save, sources, expression)
             upsert_instruments(
@@ -125,7 +165,7 @@ if st.button(l("Save Derived", "保存派生序列"), type="primary"):
             )
             con.execute("UPDATE instruments SET is_watched=TRUE WHERE ticker=?", [save])
             st.success(l(f"Saved {rows} rows -> {save}", f"已保存 {rows} 行 -> {save}"))
-        except ExpressionValidationError as exc:
+        except Exception as exc:
             st.error(str(exc))
 
 st.divider()
@@ -148,9 +188,9 @@ else:
             c1, c2 = st.columns(2)
             if c1.button(l("Recompute", "重算"), key=f"recompute_{dt}"):
                 try:
-                    results = recompute_recipe_graph(con, dt)
-                    total = sum(int(r.get("rows", 0)) for r in results)
-                    st.success(l(f"Recomputed {len(results)} recipes ({total} rows)", f"重算完成 {len(results)} 个配方（{total} 行）"))
+                    calc_df = _compute_expression(con, src, expr)
+                    rows = upsert_derived_daily(con, dt, calc_df[["date", "value"]])
+                    st.success(l(f"Recomputed {dt}: {rows} rows", f"重算完成 {dt}: {rows} 行"))
                 except Exception as exc:
                     st.error(str(exc))
             if c2.button(l("Delete derived", "删除派生"), key=f"delete_{dt}"):
