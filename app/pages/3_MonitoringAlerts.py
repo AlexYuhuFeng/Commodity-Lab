@@ -32,6 +32,7 @@ from core.db import (
     create_alert_event,
     acknowledge_alert_event,
     query_prices_long,
+    query_series_long,
 )
 from app.i18n import t, render_language_switcher, init_language
 
@@ -122,7 +123,7 @@ def evaluate_alert_condition(ticker: str, con, rule: dict) -> dict | None:
         return None
     
     # Get latest price
-    prices = query_prices_long(con, [ticker], field="close")
+    prices = query_series_long(con, [ticker], field="close")
     if prices.empty:
         return None
     
@@ -188,7 +189,7 @@ def evaluate_alert_condition(ticker: str, con, rule: dict) -> dict | None:
     elif rule_type == "correlation_break":
         peer_ticker = (rule.get("condition_expr") or "").strip()
         if peer_ticker and threshold is not None and len(prices) >= 60:
-            peer = query_prices_long(con, [peer_ticker], field="close")
+            peer = query_series_long(con, [peer_ticker], field="close")
             if not peer.empty:
                 merged = pd.merge(
                     prices[["date", "value"]].rename(columns={"value": "v1"}),
