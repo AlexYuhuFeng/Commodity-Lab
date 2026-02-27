@@ -92,7 +92,7 @@ tab_overview, tab_price, tab_qc, tab_properties, tab_derived, tab_studio, tab_op
     f"{t('data_showcase.tabs.qc_report')} ✓",
     f"{t('data_showcase.tabs.properties')} 🏷️",
     f"{t('data_showcase.tabs.derived')} 🔗",
-    "派生管理 🧪",
+    f"{t('data_showcase.tabs.derived_studio')} 🧪",
     f"{t('data_showcase.tabs.operations')} ⚙️",
 ])
 
