@@ -48,21 +48,20 @@ con = get_conn(DB_PATH)
 init_db(con)
 
 
-# ===== SIDEBAR: TICKER SELECTOR =====
-with st.sidebar:
-    inst = list_instruments(con, only_watched=True)
-    
-    if inst.empty:
-        st.warning("暂无已关注的产品。请先在数据管理页面关注产品。")
-        st.stop()
-    
-    # Ticker selector with search
-    ticker_options = inst["ticker"].tolist()
-    selected_ticker = st.selectbox(
-        "选择产品",
-        ticker_options,
-        format_func=lambda x: f"{x} - {inst[inst['ticker']==x]['name'].iloc[0] if inst[inst['ticker']==x]['name'].iloc[0] else x}"
-    )
+# ===== TOP: TICKER SELECTOR =====
+inst = list_instruments(con, only_watched=True)
+if inst.empty:
+    st.warning("暂无已关注的产品。请先在数据管理页面关注产品。")
+    st.stop()
+
+sel_col1, sel_col2 = st.columns([3, 2])
+ticker_options = inst["ticker"].tolist()
+selected_ticker = sel_col1.selectbox(
+    "选择产品",
+    ticker_options,
+    format_func=lambda x: f"{x} - {inst[inst['ticker']==x]['name'].iloc[0] if inst[inst['ticker']==x]['name'].iloc[0] else x}",
+)
+sel_col2.caption("查看行情、质检与属性信息。")
 
 
 # ===== GET DATA FOR SELECTED TICKER =====
@@ -87,7 +86,7 @@ if derived_tickers:
 
 
 # ===== MAIN CONTENT WITH TABS =====
-tabs = st.tabs([
+tab_overview, tab_price, tab_qc, tab_properties, tab_derived, tab_operations = st.tabs([
     f"{t('tabs.overview')} 📊",
     f"{t('tabs.price_chart')} 📈",
     f"{t('tabs.qc_report')} ✓",
@@ -98,7 +97,7 @@ tabs = st.tabs([
 
 
 # ===== TAB 0: OVERVIEW =====
-with tabs[0]:
+with tab_overview:
     st.subheader(f"产品概览 - {selected_ticker}")
     
     col1, col2, col3, col4 = st.columns(4)
@@ -182,7 +181,7 @@ with tabs[0]:
 
 
 # ===== TAB 1: PRICE CHART =====
-with tabs[1]:
+with tab_price:
     st.subheader(f"价格走势 - {selected_ticker}")
     
     # Date range selector
@@ -251,7 +250,7 @@ with tabs[1]:
 
 
 # ===== TAB 2: QC REPORT =====
-with tabs[2]:
+with tab_qc:
     st.subheader(f"数据质量检查 - {selected_ticker}")
     
     # QC parameters
@@ -319,7 +318,7 @@ with tabs[2]:
 
 
 # ===== TAB 3: PROPERTIES =====
-with tabs[3]:
+with tab_properties:
     st.subheader(f"产品属性 - {selected_ticker}")
     
     col1, col2 = st.columns(2)
@@ -389,7 +388,7 @@ with tabs[3]:
 
 
 # ===== TAB 4: DERIVED SERIES =====
-with tabs[4]:
+with tab_derived:
     st.subheader(f"派生序列 - {selected_ticker}")
     
     # Show existing derived series
@@ -444,8 +443,7 @@ with tabs[4]:
                                 st.error(f"❌ 重算失败: {str(e)}")
                     
                     with col2:
-                        if st.button(f"✏️ 编辑 {derived_ticker}", key=f"edit_{derived_ticker}"):
-                            st.session_state[f"edit_{derived_ticker}"] = True
+                        st.caption("编辑请在下方“派生管理”页签进行")
                     
                     with col3:
                         if st.button(f"🗑️ 删除 {derived_ticker}", key=f"delete_{derived_ticker}"):
@@ -458,59 +456,12 @@ with tabs[4]:
     else:
         st.info("暂无派生序列")
     
-    # Create new derived series
     st.divider()
-    st.subheader("创建派生序列")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        derived_name = st.text_input("派生序列名称", placeholder=f"{selected_ticker}_derived")
-    
-    with col2:
-        fx_ticker = st.text_input("汇率代码 (可选)", placeholder="e.g., EURUSD=X")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        fx_op = st.selectbox("汇率操作", ["mul", "div"])
-    
-    with col2:
-        target_currency = st.text_input("目标货币", placeholder="USD")
-    
-    with col3:
-        target_unit = st.text_input("目标单位", placeholder="bbl")
-    
-    with col4:
-        multiplier = st.number_input("乘数", value=1.0, step=0.1)
-    
-    if st.button("➕ 创建派生序列", width='stretch'):
-        if not derived_name:
-            st.error("请输入派生序列名称")
-        else:
-            try:
-                upsert_transform(con, {
-                    "transform_id": derived_name,
-                    "derived_ticker": derived_name,
-                    "base_ticker": selected_ticker,
-                    "fx_ticker": fx_ticker if fx_ticker else None,
-                    "fx_op": fx_op,
-                    "target_currency": target_currency,
-                    "target_unit": target_unit,
-                    "multiplier": multiplier,
-                    "enabled": True,
-                })
-                
-                # Recompute
-                recompute_transform(con, derived_name)
-                st.success(f"✅ 派生序列 {derived_name} 已创建并计算")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ 创建失败: {str(e)}")
+    st.info("新建/编辑派生序列请使用左侧 Data Workspace 下的『Derived Management』页面。")
 
 
 # ===== TAB 5: OPERATIONS =====
-with tabs[5]:
+with tab_operations:
     st.subheader(f"操作 - {selected_ticker}")
     
     col1, col2 = st.columns(2)
