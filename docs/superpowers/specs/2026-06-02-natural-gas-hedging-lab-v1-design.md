@@ -17,6 +17,8 @@ V1 is a Natural Gas Hedging Lab with an LLM-led training experience. The first u
 
 Other categories and product areas remain visible in navigation, but show a clear `Constructing` state.
 
+The client must support English and Mandarin from V1. All first-party UI text, setup flows, scenario labels, guidance steps, validation messages, exam instructions, and constructing states must be available in both languages through a real translation catalog rather than inline conditionals. The active language should also be sent to 海能 so tutor output, exam questions, hints, and debriefs match the user's selected language.
+
 ## Scope
 
 V1 enables only natural gas scenarios:
@@ -38,6 +40,37 @@ Pipeline capacity must work in sample mode when Platts is not configured. Platts
 - Live order routing or broker integration.
 - Full Platts contract-universe management beyond the optional data-provider path.
 - A separate Streamlit app. V1 targets the Tauri desktop app.
+
+## Bilingual UX And Visual Aid Requirements
+
+V1 should feel like a professional product, not an engineering prototype. The UI should be minimalist and trading-terminal-like, but still intuitive for learners who are not yet confident with hedging terminology.
+
+Language support:
+
+- Support English and Mandarin Chinese with a persistent language selector available from setup and the main app header.
+- Default to English unless a saved user preference exists.
+- Keep all first-party strings in a translation catalog, including buttons, labels, tooltips, scenario names, guided-step names, empty states, errors, metric labels, exam copy, and constructing states.
+- Keep commodity terms consistent across both languages through a small glossary, including hedge, basis, capacity, nomination, congestion, exposure, hedge ratio, P&L, and calendar spread.
+- Pass the selected locale to 海能 prompts and require responses in that locale.
+- Allow user rationale and exam answers in either English or Mandarin, independent of the UI language.
+
+Visual aid requirements:
+
+- Use charts, compact diagrams, and visual state cues to teach the scenario rather than relying on text alone.
+- Show a pipeline-capacity strip or flow diagram for capacity scenarios: receipt point, pipeline segment, delivery point, available capacity, nominations, utilization, and congestion status.
+- Show exposure visually with clear long/short direction, unhedged amount, hedged amount, and hedge ratio.
+- Show order effects immediately after simulation through P&L, coverage, basis impact, and mistake tags.
+- Use a guided stepper in the right rail so learners always know where they are: understand exposure, inspect market, place hedge, review score, exam.
+- Use concise tooltips or inline definitions for trading terms; avoid long instructional paragraphs inside dense panels.
+- Use meaningful icons and status colors for provider health, data source, completed steps, warnings, and constructing sections.
+
+Product quality requirements:
+
+- The first screen after setup must be usable without reading a manual.
+- The order ticket must guide required fields and prevent invalid orders before submission.
+- Dense panels must stay readable on desktop and laptop viewports; text must not overlap or overflow.
+- Empty, loading, provider-error, and constructing states must look intentional and polished.
+- The UI should use restrained color, clear hierarchy, and stable panel dimensions so it feels like a modern commodity training terminal.
 
 ## Provider Model
 
@@ -136,20 +169,29 @@ Frontend sections:
 - Exam Tab
 - Constructing Views
 
+Frontend architecture should include:
+
+- `src/i18n.js` or equivalent translation module with English and Mandarin dictionaries.
+- A persistent language selector and saved locale preference.
+- Component-level use of translation keys rather than hardcoded visible strings.
+- Reusable visual-aid components for market charts, exposure bars, capacity diagrams, guided stepper, provider health, and constructing states.
+
 ## Data Flow
 
 1. App starts and asks backend for provider status.
-2. If 海能 is not configured or fails health check, the setup gate blocks the learning loop.
-3. After 海能 is healthy, frontend loads natural gas scenarios.
-4. User selects a scenario.
-5. Backend returns scenario facts, sample/yFinance/Platts market context, and capacity context.
-6. 海能 introduces the scenario and asks the user to identify exposure.
-7. User enters rationale and draft hedge order.
-8. Python computes deterministic metrics and validation signals.
-9. 海能 receives sanitized scenario, rationale, order, metrics, and attempt history.
-10. 海能 returns hint, critique, score explanation, mistake tags, and next action.
-11. User can revise the hedge, complete the attempt, and generate an exam.
-12. Exam results feed back into the session summary and next-challenge generation.
+2. App loads the saved locale preference and applies English or Mandarin UI strings.
+3. If 海能 is not configured or fails health check, the setup gate blocks the learning loop.
+4. After 海能 is healthy, frontend loads natural gas scenarios in the selected locale.
+5. User selects a scenario.
+6. Backend returns scenario facts, sample/yFinance/Platts market context, and capacity context.
+7. 海能 receives the selected locale and introduces the scenario in that language.
+8. 海能 asks the user to identify exposure before order entry.
+9. User enters rationale and draft hedge order.
+10. Python computes deterministic metrics and validation signals.
+11. 海能 receives sanitized scenario, rationale, order, metrics, selected locale, and attempt history.
+12. 海能 returns hint, critique, score explanation, mistake tags, and next action in the selected locale.
+13. User can revise the hedge, complete the attempt, and generate an exam.
+14. Exam results feed back into the session summary and next-challenge generation.
 
 ## Error Handling
 
@@ -162,6 +204,8 @@ Frontend sections:
 - Capacity data unavailable: use built-in sample capacity model for V1 gas scenarios.
 - Invalid order: show deterministic validation before sending anything to 海能.
 - No fake AI responses: all advisor, score explanation, and exam content must come from 海能.
+- Missing translation key: fail visibly in development and fall back to English in packaged clients.
+- 海能 returns the wrong language: show the response, tag it as a language mismatch in logs, and retry only when the user explicitly requests regeneration.
 
 ## Testing
 
@@ -172,6 +216,8 @@ Unit tests:
 - Hedge scoring inputs and order simulation.
 - Provider-status parsing.
 - Prompt-contract builders that verify credentials are never included.
+- Translation catalog coverage for English and Mandarin.
+- Locale-aware prompt builders that include the selected language and never include credentials.
 
 Backend tests:
 
@@ -189,14 +235,19 @@ Frontend tests:
 - Other tabs show `Constructing`.
 - User can select a scenario, enter an order, view deterministic metrics, and request 海能 feedback.
 - Exam tab can request generated questions and submit answers.
+- Language selector updates the full app shell, simulator, constructing states, and exam UI.
+- Visual aids render for market, exposure, capacity, guided-step, and provider-health panels.
+- Text remains readable without overlap in both English and Mandarin.
 
 Manual verification:
 
 - Start backend and Tauri frontend.
 - Complete setup with user-provided 海能 credentials.
+- Switch between English and Mandarin and confirm all visible first-party UI text changes.
 - Select a natural gas scenario.
 - Place an order.
-- Confirm metrics and 海能 guidance appear.
+- Confirm visual aids explain market context, pipeline capacity, exposure, hedge result, and guided step status.
+- Confirm metrics and 海能 guidance appear in the selected language.
 - Generate and submit a short exam.
 - Confirm Platts failure does not block sample/yFinance mode.
 
@@ -207,10 +258,13 @@ V1 delivery remains Windows and Linux Tauri clients. The app should feel like a 
 The final V1 acceptance criteria:
 
 - 海能 setup gate is mandatory and branded correctly.
+- English and Mandarin UI are both complete and selectable.
+- 海能 tutor, exam, hint, and debrief output follow the selected language.
 - Natural gas scenario deck works.
 - Pipeline capacity sample model works without Platts.
 - User can place simulated hedge orders.
 - Deterministic metrics calculate locally.
 - 海能 provides hints, critique, score explanation, debrief, and exam generation.
+- Professional visual aids are present for market context, pipeline capacity, exposure, guidance steps, and provider status.
 - Other categories and future sections are visible but marked `Constructing`.
 - No provider credentials are committed or sent inside prompts.
