@@ -119,7 +119,20 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "id": "producer_short_hedge",
         "status": "enabled",
         "commodity_id": "natural_gas",
+        "commodity": "natural_gas",
+        "enabled": True,
         "difficulty": "intro",
+        "exposure": {
+            "direction": "long",
+            "volume_mmbtu": 100000,
+            "risk": {
+                "en": "Forward production revenue falls if Henry Hub natural gas prices decline.",
+                "zh": "如果亨利港天然气价格下跌，远期产量收入会下降。",
+            },
+        },
+        "recommended_hedge_type": "short_hedge",
+        "recommended_side": "sell",
+        "default_symbol": "NG=F",
         "title": {
             "en": "Producer Short Hedge",
             "zh": "生产商卖出套保",
@@ -145,7 +158,20 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "id": "winter_load_spike",
         "status": "enabled",
         "commodity_id": "natural_gas",
+        "commodity": "natural_gas",
+        "enabled": True,
         "difficulty": "intro",
+        "exposure": {
+            "direction": "short",
+            "volume_mmbtu": 85000,
+            "risk": {
+                "en": "Heating demand can lift spot and futures prices before fuel is purchased.",
+                "zh": "采暖需求可能在采购燃料前推高现货和期货价格。",
+            },
+        },
+        "recommended_hedge_type": "long_hedge",
+        "recommended_side": "buy",
+        "default_symbol": "NG=F",
         "title": {
             "en": "Winter Load Spike",
             "zh": "冬季负荷上升",
@@ -171,7 +197,20 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "id": "pipeline_capacity_constraint",
         "status": "enabled",
         "commodity_id": "natural_gas",
+        "commodity": "natural_gas",
+        "enabled": True,
         "difficulty": "intermediate",
+        "exposure": {
+            "direction": "short",
+            "volume_mmbtu": 111000,
+            "risk": {
+                "en": "Tight pipeline space can raise delivered costs and widen regional basis.",
+                "zh": "管道空间紧张可能抬高到岸成本并扩大区域基差。",
+            },
+        },
+        "recommended_hedge_type": "basis_hedge",
+        "recommended_side": "buy",
+        "default_symbol": "NG=F",
         "title": {
             "en": "Pipeline Capacity Constraint",
             "zh": "管道运力约束",
@@ -197,7 +236,20 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "id": "regional_basis_blowout",
         "status": "enabled",
         "commodity_id": "natural_gas",
+        "commodity": "natural_gas",
+        "enabled": True,
         "difficulty": "intermediate",
+        "exposure": {
+            "direction": "long",
+            "volume_mmbtu": 90000,
+            "risk": {
+                "en": "A local cash discount can widen versus Henry Hub and reduce realized sales value.",
+                "zh": "本地现货相对亨利港的贴水可能扩大，压低实现销售价值。",
+            },
+        },
+        "recommended_hedge_type": "basis_hedge",
+        "recommended_side": "sell",
+        "default_symbol": "NG=F",
         "title": {
             "en": "Regional Basis Blowout",
             "zh": "区域基差扩大",
@@ -223,7 +275,20 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "id": "storage_calendar_spread",
         "status": "enabled",
         "commodity_id": "natural_gas",
+        "commodity": "natural_gas",
+        "enabled": True,
         "difficulty": "advanced",
+        "exposure": {
+            "direction": "long",
+            "volume_mmbtu": 75000,
+            "risk": {
+                "en": "Storage margin depends on the spread between injection and withdrawal months.",
+                "zh": "储气利润取决于注气月份和采气月份之间的价差。",
+            },
+        },
+        "recommended_hedge_type": "calendar_spread",
+        "recommended_side": "spread",
+        "default_symbol": "NG=F",
         "title": {
             "en": "Storage Calendar Spread",
             "zh": "储气库月差套保",
@@ -291,6 +356,16 @@ _SAMPLE_PRICE_POINTS: dict[str, list[dict[str, Any]]] = {
     ],
 }
 
+_SOURCE_LABELS: dict[str, str] = {
+    "sample": "Simulated",
+    "simulated": "Simulated",
+    "yfinance": "Yahoo Finance",
+    "platts": "Platts",
+}
+
+_SIMULATED_SOURCE = "simulated"
+_SIMULATED_SOURCE_LABEL = "Simulated"
+
 _CAPACITY_CONTEXTS: dict[str, dict[str, Any]] = {
     "pipeline_capacity_constraint": {
         "scenario_id": "pipeline_capacity_constraint",
@@ -323,7 +398,11 @@ def list_categories(locale: str = "en") -> list[dict[str, Any]]:
 def list_scenarios(locale: str = "en") -> list[dict[str, Any]]:
     """Return enabled V1 natural gas scenarios only."""
     active_locale = _normalize_locale(locale)
-    return [_localize_scenario(scenario, active_locale) for scenario in _SCENARIO_DATA]
+    return [
+        _localize_scenario(scenario, active_locale)
+        for scenario in _SCENARIO_DATA
+        if _is_enabled_natural_gas_scenario(scenario)
+    ]
 
 
 def get_scenario(scenario_id: str, locale: str = "en") -> dict[str, Any]:
@@ -335,36 +414,48 @@ def get_scenario(scenario_id: str, locale: str = "en") -> dict[str, Any]:
 
 def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, Any]:
     """Return deterministic Henry Hub sample market context for a scenario."""
-    _find_scenario(scenario_id)
+    scenario = _find_scenario(scenario_id)
     points = _SAMPLE_PRICE_POINTS.get(scenario_id)
     if points is None:
         raise KeyError(f"No market context is configured for scenario '{scenario_id}'.")
 
+    requested_source = _normalize_source(source)
+    requested_source_label = _source_label(requested_source)
+    is_fallback = requested_source not in {"sample", _SIMULATED_SOURCE}
+    price_series = deepcopy(points)
     context: dict[str, Any] = {
         "scenario_id": scenario_id,
-        "source": "sample",
-        "symbol": "NG=F",
+        "source": requested_source,
+        "source_label": requested_source_label,
+        "data_source": _SIMULATED_SOURCE,
+        "data_source_label": _SIMULATED_SOURCE_LABEL,
+        "symbol": scenario["default_symbol"],
         "instrument": "Henry Hub Natural Gas Futures",
         "unit": "USD/MMBtu",
-        "price_points": deepcopy(points),
+        "price_series": price_series,
+        "price_points": deepcopy(price_series),
+        "latest_price": price_series[-1]["close"],
         "metadata": {
-            "provider": "sample",
-            "is_fallback": source != "sample",
-            "requested_source": source,
+            "provider": requested_source,
+            "requested_source": requested_source,
+            "requested_source_label": requested_source_label,
+            "returned_source": _SIMULATED_SOURCE,
+            "returned_source_label": _SIMULATED_SOURCE_LABEL,
+            "is_fallback": is_fallback,
         },
     }
-    if source != "sample":
+    if is_fallback:
         context["metadata"]["fallback_reason"] = "Only deterministic sample data is available in V1."
     return context
 
 
 def get_capacity_context(scenario_id: str) -> dict[str, Any]:
     """Return sample capacity and flow context for pipeline-aware scenarios."""
-    _find_scenario(scenario_id)
+    scenario = _find_scenario(scenario_id)
     context = _CAPACITY_CONTEXTS.get(scenario_id)
-    if context is None:
-        raise KeyError(f"No capacity context is configured for scenario '{scenario_id}'.")
-    return deepcopy(context)
+    if context is not None:
+        return deepcopy(context)
+    return _build_default_capacity_context(scenario)
 
 
 def _normalize_locale(locale: str) -> str:
@@ -386,12 +477,26 @@ def _localize_scenario(scenario: dict[str, Any], locale: str) -> dict[str, Any]:
         "id": scenario["id"],
         "status": scenario["status"],
         "commodity_id": scenario["commodity_id"],
+        "commodity": scenario.get("commodity", scenario["commodity_id"]),
+        "enabled": scenario.get("enabled", scenario["status"] == "enabled"),
         "commodity_label": category["label"][locale],
         "difficulty": scenario["difficulty"],
         "title": scenario["title"][locale],
         "summary": scenario["summary"][locale],
+        "exposure": _localize_exposure(scenario["exposure"], locale),
+        "recommended_hedge_type": scenario["recommended_hedge_type"],
+        "recommended_side": scenario["recommended_side"],
+        "default_symbol": scenario["default_symbol"],
         "guided_steps": _localize_guided_steps(locale),
         "learning_objectives": deepcopy(scenario["learning_objectives"][locale]),
+    }
+
+
+def _localize_exposure(exposure: dict[str, Any], locale: str) -> dict[str, Any]:
+    return {
+        "direction": exposure["direction"],
+        "volume_mmbtu": exposure["volume_mmbtu"],
+        "risk": exposure["risk"][locale],
     }
 
 
@@ -418,3 +523,51 @@ def _find_scenario(scenario_id: str) -> dict[str, Any]:
         if scenario["id"] == scenario_id:
             return scenario
     raise KeyError(f"Unknown scenario '{scenario_id}'.")
+
+
+def _is_enabled_natural_gas_scenario(scenario: dict[str, Any]) -> bool:
+    enabled = scenario.get("enabled", scenario.get("status") == "enabled")
+    commodity = scenario.get("commodity", scenario.get("commodity_id"))
+    return enabled is True and scenario.get("status") == "enabled" and commodity == "natural_gas"
+
+
+def _normalize_source(source: str) -> str:
+    return source.strip().lower() if source else "sample"
+
+
+def _source_label(source: str) -> str:
+    return _SOURCE_LABELS.get(source, source)
+
+
+def _build_default_capacity_context(scenario: dict[str, Any]) -> dict[str, Any]:
+    nominated_mmbtu = int(scenario["exposure"]["volume_mmbtu"])
+    available_capacity_mmbtu = max(1, int(round(nominated_mmbtu * 1.25)))
+    utilization_pct = round((nominated_mmbtu / available_capacity_mmbtu) * 100, 1)
+    if utilization_pct >= 95:
+        congestion_status = "constrained"
+    elif utilization_pct >= 85:
+        congestion_status = "watch"
+    else:
+        congestion_status = "normal"
+
+    receipt_point = "Henry Hub Receipt"
+    delivery_point = "Scenario Delivery"
+    return {
+        "scenario_id": scenario["id"],
+        "receipt_point": receipt_point,
+        "delivery_point": delivery_point,
+        "pipeline_name": "Sample Natural Gas Flow",
+        "available_capacity_mmbtu": available_capacity_mmbtu,
+        "nominated_mmbtu": nominated_mmbtu,
+        "utilization_pct": utilization_pct,
+        "congestion_status": congestion_status,
+        "flow_nodes": [
+            {"id": "receipt", "label": receipt_point, "role": "receipt"},
+            {"id": "nomination", "label": "Scheduled Nomination", "role": "nomination"},
+            {"id": "delivery", "label": delivery_point, "role": "delivery"},
+        ],
+        "flow_edges": [
+            {"from": "receipt", "to": "nomination", "mmbtu": nominated_mmbtu},
+            {"from": "nomination", "to": "delivery", "mmbtu": nominated_mmbtu},
+        ],
+    }
