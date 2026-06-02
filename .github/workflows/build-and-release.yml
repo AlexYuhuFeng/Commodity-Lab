@@ -64,6 +64,7 @@ jobs:
           pyinstaller --onefile --windowed --name "${{ env.APP_NAME }}" `
             --add-data "app;app" `
             --add-data "core;core" `
+            --add-data "data;data" `
             --collect-all streamlit `
             app/desktop_launcher.py
 
@@ -80,9 +81,43 @@ jobs:
           name: Commodity-Lab-windows
           path: release/*
 
+  build_linux:
+    name: Build Linux artifacts
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      VERSION: '0.9.0-preview'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev fakeroot
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Debian package
+        run: |
+          chmod +x build_deb.sh
+          bash build_deb.sh --clean
+
+      - name: Upload Linux package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Commodity-Lab-linux
+          path: dist/*.deb
+
   release:
     name: Publish release
-    needs: build_windows
+    needs: [build_windows, build_linux]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
