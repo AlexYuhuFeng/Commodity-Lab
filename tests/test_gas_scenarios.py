@@ -100,6 +100,14 @@ def test_producer_short_hedge_includes_task_two_contract_fields():
     assert scenario["exposure"]["risk"]
 
 
+def test_pipeline_capacity_constraint_uses_sell_basis_hedge_contract():
+    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
+
+    assert scenario["recommended_side"] == "sell"
+    assert scenario["recommended_hedge_type"] == "basis_hedge"
+    assert scenario["exposure"]["volume_mmbtu"] == 60000
+
+
 def test_capacity_context_for_pipeline_constraint_has_visual_flow_fields():
     context = get_capacity_context("pipeline_capacity_constraint")
 
