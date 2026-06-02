@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+import types
+
 import pytest
 
 from core.haineng_client import (
@@ -100,7 +103,7 @@ def test_prompt_scrubbing_redacts_settings_objects() -> None:
         locale="en",
         scenario={"id": "producer_short_hedge", "settings": settings},
         evaluation={"baseline_score": 90},
-        user_rationale="I sell futures.",
+        user_rationale="I pasted token=secret-key into the rationale.",
     )
     exam_messages = build_exam_messages(
         locale="en",
@@ -110,5 +113,51 @@ def test_prompt_scrubbing_redacts_settings_objects() -> None:
 
     assert "secret-key" not in str(advisor_messages)
     assert "secret-key" not in str(exam_messages)
+    assert "http://local/v1" not in str(advisor_messages)
+    assert "http://local/v1" not in str(exam_messages)
     assert "[REDACTED]" in str(advisor_messages)
     assert "[REDACTED]" in str(exam_messages)
+
+
+def test_complete_raises_when_model_requests_tool_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_payload: dict[str, object] = {}
+
+    class Message:
+        content = ""
+        tool_calls = [{"id": "call_1"}]
+
+    class Choice:
+        message = Message()
+
+    class Response:
+        choices = [Choice()]
+
+    class Completions:
+        def create(self, **payload):
+            captured_payload.update(payload)
+            return Response()
+
+    class Chat:
+        completions = Completions()
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str, base_url: str) -> None:
+            assert api_key == "secret-key"
+            assert base_url == "http://local/v1"
+            self.chat = Chat()
+
+    fake_openai = types.SimpleNamespace(OpenAI=FakeOpenAI)
+    monkeypatch.setitem(sys.modules, "openai", fake_openai)
+    client = HainengClient(
+        HainengSettings(api_key="secret-key", base_url="http://local/v1")
+    )
+
+    with pytest.raises(RuntimeError, match="tool call"):
+        client.complete(
+            [{"role": "user", "content": "review"}],
+            tools=build_haineng_tools(),
+        )
+
+    assert captured_payload["model"] == "DeepSeek-V4"
+    assert captured_payload["stream"] is False
+    assert captured_payload["tool_choice"] == "auto"
