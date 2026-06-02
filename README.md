@@ -51,6 +51,11 @@ Hedge Lab Terminal 是一个面向内部团队的商品对冲学习工作空间�
   bash build_nsis.sh
   ```
 
+  ### 构建 Linux DEB 安装包
+  ```bash
+  bash build_deb.sh --clean
+  ```
+
   ## 使用说明
 
   通过侧边栏导航应用。主要模块：
@@ -97,6 +102,7 @@ Hedge Lab Terminal 是一个面向内部团队的商品对冲学习工作空间�
 - 构建与发布工作流（`.github/workflows/build-and-release.yml`）在 GitHub 上执行测试 → 构建 → 发布。
 - 当前发布产物包括：
   - Windows：`Commodity-Lab.exe`、`Commodity-Lab-windows-x64.zip`
+  - Linux：`commodity-lab_0.9.0-preview_amd64.deb`
   - macOS：`Commodity-Lab-macos.dmg`
 - `main` 更新时会自动发布滚动预发布版本（`nightly-latest`）。
 - 打标签发布时（`v*.*.*`），会自动创建版本发布。
