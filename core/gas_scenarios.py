@@ -363,6 +363,16 @@ _SOURCE_LABELS: dict[str, str] = {
     "platts": "Platts",
 }
 
+_SOURCE_ALIASES: dict[str, str] = {
+    "sample": "sample",
+    "simulated": "simulated",
+    "yfinance": "yfinance",
+    "yahoo finance": "yfinance",
+    "yahoo_finance": "yfinance",
+    "yahoo-finance": "yfinance",
+    "platts": "platts",
+}
+
 _SIMULATED_SOURCE = "simulated"
 _SIMULATED_SOURCE_LABEL = "Simulated"
 
@@ -532,7 +542,8 @@ def _is_enabled_natural_gas_scenario(scenario: dict[str, Any]) -> bool:
 
 
 def _normalize_source(source: str) -> str:
-    return source.strip().lower() if source else "sample"
+    normalized = " ".join(source.strip().lower().split()) if source else "sample"
+    return _SOURCE_ALIASES.get(normalized, normalized)
 
 
 def _source_label(source: str) -> str:

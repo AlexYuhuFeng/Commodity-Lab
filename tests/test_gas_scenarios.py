@@ -161,3 +161,17 @@ def test_external_market_sources_are_labeled_with_simulated_fallback(source, sou
     assert context["metadata"]["returned_source"] == "simulated"
     assert context["metadata"]["returned_source_label"] == "Simulated"
     assert context["metadata"]["is_fallback"] is True
+
+
+def test_literal_yahoo_finance_source_uses_yahoo_finance_label_with_simulated_fallback():
+    context = get_market_context("winter_load_spike", source="Yahoo Finance")
+
+    assert context["source"] == "yfinance"
+    assert context["source_label"] == "Yahoo Finance"
+    assert context["data_source"] == "simulated"
+    assert context["data_source_label"] == "Simulated"
+    assert context["metadata"]["requested_source"] == "yfinance"
+    assert context["metadata"]["requested_source_label"] == "Yahoo Finance"
+    assert context["metadata"]["returned_source"] == "simulated"
+    assert context["metadata"]["returned_source_label"] == "Simulated"
+    assert context["metadata"]["is_fallback"] is True
