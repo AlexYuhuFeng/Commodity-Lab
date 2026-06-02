@@ -3,7 +3,6 @@
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use std::env;
-use std::path::PathBuf;
 use serde_json::Value;
 use reqwest::blocking::Client;
 
@@ -30,6 +29,36 @@ fn simulate_backend(payload: Value) -> Result<Value, String> {
         .map_err(|e| format!("request failed: {}", e))?
         .json()
         .map_err(|e| format!("json decode failed: {}", e))
+}
+
+#[tauri::command]
+fn backend_request(method: String, path: String, body: Option<Value>) -> Result<Value, String> {
+    let client = Client::new();
+    let normalized_path = if path.starts_with('/') {
+        path
+    } else {
+        format!("/{}", path)
+    };
+    let url = format!("http://127.0.0.1:8000{}", normalized_path);
+    let method_upper = method.to_uppercase();
+
+    let response = match method_upper.as_str() {
+        "GET" => client.get(&url).send(),
+        "POST" => client.post(&url).json(&body.unwrap_or(Value::Null)).send(),
+        _ => return Err(format!("unsupported method: {}", method)),
+    }
+    .map_err(|e| format!("request failed: {}", e))?;
+
+    let status = response.status();
+    let json: Value = response
+        .json()
+        .map_err(|e| format!("json decode failed: {}", e))?;
+
+    if !status.is_success() {
+        return Err(format!("backend status {}: {}", status.as_u16(), json));
+    }
+
+    Ok(json)
 }
 
 fn start_python_backend() -> Option<Child> {
@@ -81,13 +110,13 @@ fn main() {
     let bh = backend_handle.clone();
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![ping_backend, simulate_backend])
+        .invoke_handler(tauri::generate_handler![ping_backend, simulate_backend, backend_request])
         .setup(move |_app| {
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while running tauri")
-        .run(|_app_handle, event| match event {
+        .run(move |_app_handle, event| match event {
             tauri::RunEvent::Exit => {
                 if let Ok(mut lock) = bh.lock() {
                     kill_child(&mut *lock);

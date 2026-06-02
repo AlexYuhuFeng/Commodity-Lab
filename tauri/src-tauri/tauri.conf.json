@@ -1,1 +1,15 @@
-../tauri.conf.json
+{
+  "build": {
+    "distDir": "../tauri-frontend/dist",
+    "devPath": "http://localhost:5173"
+  },
+  "tauri": {
+    "bundle": {
+      "identifier": "com.alexyuhufeng.commoditylab",
+      "icon": [],
+      "resources": [
+        "../bundled/backend/*"
+      ]
+    }
+  }
+}

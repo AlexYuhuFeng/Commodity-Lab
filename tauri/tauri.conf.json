@@ -8,8 +8,7 @@
       "identifier": "com.alexyuhufeng.commoditylab",
       "icon": [],
       "resources": [
-        "bundled/backend/commodity_lab_backend",
-        "bundled/backend/commodity_lab_backend.exe"
+        "bundled/backend/*"
       ]
     }
   }
