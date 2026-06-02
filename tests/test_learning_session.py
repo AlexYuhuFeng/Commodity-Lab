@@ -115,3 +115,60 @@ def test_evaluate_attempt_scores_recommended_pipeline_basis_hedge() -> None:
     assert "ignores_capacity" not in result["mistake_tags"]
     assert result["metrics"]["hedge_ratio"] == 1.0
     assert result["baseline_score"] >= 90
+
+
+def test_pipeline_basis_answer_must_mention_capacity_context() -> None:
+    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
+    result = evaluate_attempt(
+        scenario=scenario,
+        capacity_context=get_capacity_context("pipeline_capacity_constraint"),
+        order={
+            "side": "sell",
+            "quantity": 60000,
+            "hedge_type": "basis_hedge",
+            "price": 3.4,
+        },
+        rationale="I sell a basis hedge.",
+    )
+
+    assert "ignores_capacity" in result["mistake_tags"]
+
+
+def test_capacity_rationale_handles_punctuation_and_hyphenation() -> None:
+    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
+
+    for rationale in ("Pipeline.", "pipeline-capacity risk"):
+        result = evaluate_attempt(
+            scenario=scenario,
+            capacity_context=get_capacity_context("pipeline_capacity_constraint"),
+            order={
+                "side": "sell",
+                "quantity": 60000,
+                "hedge_type": "basis_hedge",
+                "price": 3.4,
+            },
+            rationale=rationale,
+        )
+
+        assert "ignores_capacity" not in result["mistake_tags"]
+
+
+def test_regional_basis_hedge_does_not_require_capacity_language() -> None:
+    scenario = get_scenario("regional_basis_blowout", locale="en")
+    result = evaluate_attempt(
+        scenario=scenario,
+        capacity_context=get_capacity_context("regional_basis_blowout"),
+        order={
+            "side": "sell",
+            "quantity": 90000,
+            "hedge_type": "basis_hedge",
+            "price": 2.55,
+        },
+        rationale="The local discount may widen versus Henry Hub.",
+    )
+
+    assert result["score_inputs"]["direction_match"] is True
+    assert result["score_inputs"]["hedge_type_match"] is True
+    assert result["score_inputs"]["capacity_sensitive"] is False
+    assert "ignores_capacity" not in result["mistake_tags"]
+    assert result["baseline_score"] >= 90
