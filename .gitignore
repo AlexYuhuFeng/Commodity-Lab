@@ -8,6 +8,7 @@ build/
 .env
 .DS_Store
 .superpowers/
+.worktrees/
 *.egg-info/
 *.sqlite
 commodity_lab.duckdb
