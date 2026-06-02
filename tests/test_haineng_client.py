@@ -80,10 +80,35 @@ def test_unconfigured_complete_raises() -> None:
 
 
 def test_health_check_reports_configuration_only() -> None:
-    assert HainengClient(HainengSettings()).health_check() is False
-    assert (
-        HainengClient(
-            HainengSettings(api_key="secret-key", base_url="http://local/v1")
-        ).health_check()
-        is True
+    missing = HainengClient(HainengSettings()).health_check()
+    configured = HainengClient(
+        HainengSettings(api_key="secret-key", base_url="http://local/v1")
+    ).health_check()
+
+    assert missing["ok"] is False
+    assert missing["reason"] == "missing_haineng_settings"
+    assert configured["ok"] is True
+    assert configured["configured"] is True
+    assert "secret-key" not in str(missing)
+    assert "secret-key" not in str(configured)
+
+
+def test_prompt_scrubbing_redacts_settings_objects() -> None:
+    settings = HainengSettings(api_key="secret-key", base_url="http://local/v1")
+
+    advisor_messages = build_advisor_messages(
+        locale="en",
+        scenario={"id": "producer_short_hedge", "settings": settings},
+        evaluation={"baseline_score": 90},
+        user_rationale="I sell futures.",
     )
+    exam_messages = build_exam_messages(
+        locale="en",
+        scenario={"id": "pipeline_capacity_constraint"},
+        attempt_history=[{"settings": settings}],
+    )
+
+    assert "secret-key" not in str(advisor_messages)
+    assert "secret-key" not in str(exam_messages)
+    assert "[REDACTED]" in str(advisor_messages)
+    assert "[REDACTED]" in str(exam_messages)

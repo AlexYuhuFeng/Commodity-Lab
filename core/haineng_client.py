@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 from dataclasses import dataclass
@@ -86,6 +87,8 @@ def build_haineng_tools() -> list[dict[str, Any]]:
 
 def _scrub_sensitive(value: Any) -> Any:
     sensitive_terms = ("api_key", "apikey", "authorization", "password", "secret", "token")
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        value = dataclasses.asdict(value)
     if isinstance(value, dict):
         scrubbed: dict[str, Any] = {}
         for key, item in value.items():
@@ -171,8 +174,11 @@ class HainengClient:
     def is_configured(self) -> bool:
         return _is_configured(self.settings)
 
-    def health_check(self) -> bool:
-        return self.is_configured()
+    def health_check(self) -> dict[str, Any]:
+        status = redact_settings(self.settings)
+        if not self.is_configured():
+            return {"ok": False, "reason": "missing_haineng_settings", **status}
+        return {"ok": True, **status}
 
     def complete(
         self,
