@@ -1,9 +1,10 @@
 from pathlib import Path
+import re
 import os
 from typing import Any, List, Dict
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import pandas as pd
 
@@ -40,7 +41,7 @@ class AdvisorRequest(AttemptRequest):
 class ExamRequest(BaseModel):
     scenario_id: str
     locale: str = "en"
-    attempt_history: list[dict[str, Any]] = []
+    attempt_history: list[dict[str, Any]] = Field(default_factory=list)
 
 
 @app.get("/api/ping", response_model=PingResp)
@@ -151,7 +152,24 @@ def _platts_is_configured() -> bool:
 
 
 def _unknown_scenario(exc: KeyError) -> HTTPException:
-    return HTTPException(status_code=404, detail=str(exc))
+    detail = exc.args[0] if exc.args else str(exc)
+    return HTTPException(status_code=404, detail=str(detail))
+
+
+def _haineng_failure(exc: Exception) -> HTTPException:
+    message = re.sub(
+        r"(?i)\b(api[_-]?key|apikey|authorization|password|secret|token)\s*[:=]\s*[^,\s;]+",
+        r"\1=[REDACTED]",
+        str(exc),
+    )
+    return HTTPException(
+        status_code=502,
+        detail={
+            "code": "haineng_request_failed",
+            "message": "海能 request failed.",
+            "provider_message": message,
+        },
+    )
 
 
 @app.get("/api/v1/provider-status")
@@ -218,7 +236,7 @@ def v1_evaluate_attempt(payload: AttemptRequest):
 @app.post("/api/v1/advisor/review")
 def v1_advisor_review(payload: AdvisorRequest):
     from core.gas_scenarios import get_scenario
-    from core.haineng_client import HainengClient, build_advisor_messages, build_haineng_tools
+    from core.haineng_client import HainengClient, build_advisor_messages
 
     client = HainengClient()
     if not client.is_configured():
@@ -238,7 +256,10 @@ def v1_advisor_review(payload: AdvisorRequest):
         payload.evaluation,
         payload.rationale,
     )
-    answer = client.complete(messages, tools=build_haineng_tools())
+    try:
+        answer = client.complete(messages)
+    except Exception as exc:
+        raise _haineng_failure(exc) from exc
     return {"answer": answer}
 
 
@@ -260,7 +281,10 @@ def v1_generate_exam(payload: ExamRequest):
         raise _unknown_scenario(exc)
 
     messages = build_exam_messages(payload.locale, scenario, payload.attempt_history)
-    exam = client.complete(messages)
+    try:
+        exam = client.complete(messages)
+    except Exception as exc:
+        raise _haineng_failure(exc) from exc
     return {"exam": exam}
 
 
