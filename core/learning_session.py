@@ -1,18 +1,20 @@
 """Deterministic evaluation helpers for natural gas hedging practice."""
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
 _VALID_SIDES = {"buy", "sell", "spread"}
-_OUTRIGHT_HEDGE_TYPES = {"long_hedge", "short_hedge"}
 _CAPACITY_TERMS = {
-    "basis",
     "capacity",
+    "constrained",
     "constraint",
     "congestion",
     "flow",
+    "flows",
     "nomination",
+    "nominations",
     "pipeline",
     "transport",
 }
@@ -219,18 +221,16 @@ def _is_capacity_sensitive(
     capacity_context: dict[str, Any],
 ) -> bool:
     scenario_id = _normalized_text(scenario.get("id"))
-    recommended_hedge_type = _normalized_text(scenario.get("recommended_hedge_type"))
     congestion_status = _normalized_text(capacity_context.get("congestion_status"))
 
     return (
         "capacity" in scenario_id
-        or recommended_hedge_type == "basis_hedge"
         or congestion_status in {"watch", "constrained"}
     )
 
 
 def _mentions_capacity(rationale: str) -> bool:
-    words = set(_normalized_text(rationale).replace("/", " ").split())
+    words = set(re.findall(r"[a-z0-9]+", _normalized_text(rationale)))
     return bool(words & _CAPACITY_TERMS)
 
 
