@@ -1,5 +1,6 @@
 from pathlib import Path
-from typing import List, Dict
+import os
+from typing import Any, List, Dict
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -23,6 +24,23 @@ class OrderSpec(BaseModel):
     open_price: float | None = None
     close_price: float | None = None
     hedge_type: str | None = "short_hedge"
+
+
+class AttemptRequest(BaseModel):
+    scenario_id: str
+    locale: str = "en"
+    order: dict[str, Any]
+    rationale: str = ""
+
+
+class AdvisorRequest(AttemptRequest):
+    evaluation: dict[str, Any]
+
+
+class ExamRequest(BaseModel):
+    scenario_id: str
+    locale: str = "en"
+    attempt_history: list[dict[str, Any]] = []
 
 
 @app.get("/api/ping", response_model=PingResp)
@@ -123,6 +141,127 @@ def assistant_query(payload: Dict):
         return {"answer": answer}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+def _platts_is_configured() -> bool:
+    return any(
+        bool(os.getenv(name, "").strip())
+        for name in ("PLATTS_API_KEY", "PLATTS_KEY", "SPGLOBAL_API_KEY", "SP_GLOBAL_API_KEY")
+    )
+
+
+def _unknown_scenario(exc: KeyError) -> HTTPException:
+    return HTTPException(status_code=404, detail=str(exc))
+
+
+@app.get("/api/v1/provider-status")
+def v1_provider_status():
+    from core.haineng_client import HainengClient
+
+    platts_configured = _platts_is_configured()
+    return {
+        "haineng": HainengClient().health_check(),
+        "platts": {"configured": platts_configured},
+        "data_sources": [
+            {"id": "platts", "label": "Platts", "configured": platts_configured},
+            {"id": "yfinance", "label": "Yahoo Finance", "configured": True},
+            {"id": "simulated", "label": "Simulated", "configured": True},
+        ],
+    }
+
+
+@app.get("/api/v1/scenarios")
+def v1_list_scenarios(locale: str = "en"):
+    from core.gas_scenarios import list_categories, list_scenarios
+
+    return {
+        "categories": list_categories(locale=locale),
+        "scenarios": list_scenarios(locale=locale),
+    }
+
+
+@app.get("/api/v1/scenarios/{scenario_id}/context")
+def v1_scenario_context(scenario_id: str, locale: str = "en", source: str = "sample"):
+    from core.gas_scenarios import get_capacity_context, get_market_context, get_scenario
+
+    try:
+        scenario = get_scenario(scenario_id, locale=locale)
+        market = get_market_context(scenario_id, source=source)
+        capacity = get_capacity_context(scenario_id)
+    except KeyError as exc:
+        raise _unknown_scenario(exc)
+
+    return {"scenario": scenario, "market": market, "capacity": capacity}
+
+
+@app.post("/api/v1/attempts/evaluate")
+def v1_evaluate_attempt(payload: AttemptRequest):
+    from core.gas_scenarios import get_capacity_context, get_scenario
+    from core.learning_session import evaluate_attempt
+
+    try:
+        scenario = get_scenario(payload.scenario_id, locale=payload.locale)
+        capacity = get_capacity_context(payload.scenario_id)
+    except KeyError as exc:
+        raise _unknown_scenario(exc)
+
+    return {
+        "evaluation": evaluate_attempt(
+            scenario,
+            capacity,
+            payload.order,
+            payload.rationale,
+        )
+    }
+
+
+@app.post("/api/v1/advisor/review")
+def v1_advisor_review(payload: AdvisorRequest):
+    from core.gas_scenarios import get_scenario
+    from core.haineng_client import HainengClient, build_advisor_messages, build_haineng_tools
+
+    client = HainengClient()
+    if not client.is_configured():
+        raise HTTPException(
+            status_code=428,
+            detail="海能 is required before advisor review.",
+        )
+
+    try:
+        scenario = get_scenario(payload.scenario_id, locale=payload.locale)
+    except KeyError as exc:
+        raise _unknown_scenario(exc)
+
+    messages = build_advisor_messages(
+        payload.locale,
+        scenario,
+        payload.evaluation,
+        payload.rationale,
+    )
+    answer = client.complete(messages, tools=build_haineng_tools())
+    return {"answer": answer}
+
+
+@app.post("/api/v1/exam/generate")
+def v1_generate_exam(payload: ExamRequest):
+    from core.gas_scenarios import get_scenario
+    from core.haineng_client import HainengClient, build_exam_messages
+
+    client = HainengClient()
+    if not client.is_configured():
+        raise HTTPException(
+            status_code=428,
+            detail="海能 is required before exam generation.",
+        )
+
+    try:
+        scenario = get_scenario(payload.scenario_id, locale=payload.locale)
+    except KeyError as exc:
+        raise _unknown_scenario(exc)
+
+    messages = build_exam_messages(payload.locale, scenario, payload.attempt_history)
+    exam = client.complete(messages)
+    return {"exam": exam}
 
 
 if __name__ == "__main__":
