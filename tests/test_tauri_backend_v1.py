@@ -132,6 +132,78 @@ def test_advisor_and_exam_require_haineng_when_missing(monkeypatch) -> None:
     assert "海能 is required before exam generation." in exam_response.json()["detail"]
 
 
+def test_advisor_and_exam_return_haineng_answers_when_configured(monkeypatch) -> None:
+    monkeypatch.setenv("HAINENG_API_KEY", "secret-key")
+    monkeypatch.setenv("HAINENG_BASE_URL", "http://local/v1")
+
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def complete(self, messages, tools=None):
+            assert tools is None
+            assert messages
+            return "provider answer"
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+
+    advisor_response = client.post(
+        "/api/v1/advisor/review",
+        json={
+            "scenario_id": "producer_short_hedge",
+            "locale": "en",
+            "order": {"side": "sell", "quantity": 80000, "hedge_type": "short_hedge"},
+            "rationale": "Sell futures to hedge production.",
+            "evaluation": {"valid": True, "baseline_score": 95},
+        },
+    )
+    exam_response = client.post(
+        "/api/v1/exam/generate",
+        json={
+            "scenario_id": "producer_short_hedge",
+            "locale": "en",
+            "attempt_history": [{"baseline_score": 95, "mistake_tags": []}],
+        },
+    )
+
+    assert advisor_response.status_code == 200
+    assert advisor_response.json()["answer"] == "provider answer"
+    assert exam_response.status_code == 200
+    assert exam_response.json()["exam"] == "provider answer"
+
+
+def test_haineng_provider_failure_returns_structured_502(monkeypatch) -> None:
+    monkeypatch.setenv("HAINENG_API_KEY", "secret-key")
+    monkeypatch.setenv("HAINENG_BASE_URL", "http://local/v1")
+
+    class FailingClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def complete(self, messages, tools=None):
+            raise RuntimeError("provider rejected token=secret-key")
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FailingClient())
+
+    response = client.post(
+        "/api/v1/advisor/review",
+        json={
+            "scenario_id": "producer_short_hedge",
+            "locale": "en",
+            "order": {"side": "sell", "quantity": 80000, "hedge_type": "short_hedge"},
+            "rationale": "Sell futures to hedge production.",
+            "evaluation": {"valid": True, "baseline_score": 95},
+        },
+    )
+
+    assert response.status_code == 502
+    detail = response.json()["detail"]
+    assert detail["code"] == "haineng_request_failed"
+    assert detail["message"] == "海能 request failed."
+    assert "secret-key" not in str(detail)
+    assert "token=[REDACTED]" in detail["provider_message"]
+
+
 def test_unknown_scenario_returns_404() -> None:
     response = client.get("/api/v1/scenarios/not-a-scenario/context")
 
