@@ -405,6 +405,13 @@ def delete_instruments(con: duckdb.DuckDBPyConnection, tickers: Iterable[str], d
     con.execute("DELETE FROM strategy_profiles WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM strategy_runs WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
     con.execute("DELETE FROM derived_recipes WHERE derived_ticker IN (SELECT * FROM UNNEST(?))", [tickers])
+    # Also remove any derived recipes that reference the deleted tickers as sources
+    # `source_tickers_json` is stored as a JSON array string; remove rows where the JSON
+    # contains the ticker string (quoted) to avoid partial matches.
+    like_clauses = [f'%"{t}"%' for t in tickers]
+    if like_clauses:
+        sql = "DELETE FROM derived_recipes WHERE " + " OR ".join(["source_tickers_json LIKE ?" for _ in like_clauses])
+        con.execute(sql, like_clauses)
     con.execute("DELETE FROM instruments WHERE ticker IN (SELECT * FROM UNNEST(?))", [tickers])
 
 
@@ -623,7 +630,8 @@ def upsert_derived_recipe(con: duckdb.DuckDBPyConnection, derived_ticker: str, s
     dt = (derived_ticker or "").strip().upper()
     if not dt:
         raise ValueError("derived_ticker is required")
-    payload = json.dumps([str(x).strip() for x in (source_tickers or []) if str(x).strip()], ensure_ascii=False)
+    # canonicalize source tickers to uppercase so lookups/deletes are consistent
+    payload = json.dumps([_canon_ticker(x) for x in (source_tickers or []) if str(x).strip()], ensure_ascii=False)
     con.execute(
         """
         INSERT INTO derived_recipes (derived_ticker, source_tickers_json, expression, created_at, updated_at)
