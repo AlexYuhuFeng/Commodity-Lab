@@ -202,14 +202,14 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "difficulty": "intermediate",
         "exposure": {
             "direction": "short",
-            "volume_mmbtu": 111000,
+            "volume_mmbtu": 60000,
             "risk": {
                 "en": "Tight pipeline space can raise delivered costs and widen regional basis.",
                 "zh": "管道空间紧张可能抬高到岸成本并扩大区域基差。",
             },
         },
         "recommended_hedge_type": "basis_hedge",
-        "recommended_side": "buy",
+        "recommended_side": "sell",
         "default_symbol": "NG=F",
         "title": {
             "en": "Pipeline Capacity Constraint",

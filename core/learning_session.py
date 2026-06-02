@@ -107,14 +107,10 @@ def _build_score_inputs(
     actual_hedge_type = _normalized_text(order.get("hedge_type"))
     capacity_sensitive = _is_capacity_sensitive(scenario, capacity_context)
 
-    direction_match = bool(expected_side and actual_side == expected_side)
-    if capacity_sensitive and actual_hedge_type in _OUTRIGHT_HEDGE_TYPES:
-        direction_match = False
-
     return {
         "expected_side": expected_side,
         "actual_side": actual_side,
-        "direction_match": direction_match,
+        "direction_match": bool(expected_side and actual_side == expected_side),
         "expected_hedge_type": expected_hedge_type,
         "actual_hedge_type": actual_hedge_type,
         "hedge_type_match": bool(

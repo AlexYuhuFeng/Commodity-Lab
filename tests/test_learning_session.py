@@ -3,10 +3,10 @@ from __future__ import annotations
 import pytest
 
 from core.gas_scenarios import get_capacity_context, get_scenario
-from core.learning_session import evaluate_attempt, validate_order
+from core.learning_session import classify_mistakes, evaluate_attempt, validate_order
 
 
-def test_validate_order_rejects_missing_quantity() -> None:
+def test_validate_order_rejects_zero_quantity() -> None:
     errors = validate_order({"side": "sell", "quantity": 0, "hedge_type": "short_hedge"})
     assert "quantity" in errors
 
@@ -17,6 +17,7 @@ def test_validate_order_rejects_missing_quantity() -> None:
         {"side": "hold", "quantity": 1000, "hedge_type": "short_hedge"},
         {"side": "sell", "quantity": "many", "hedge_type": "short_hedge"},
         {"side": "sell", "quantity": 1000},
+        {"side": "sell", "hedge_type": "short_hedge"},
     ],
 )
 def test_validate_order_rejects_invalid_required_fields(order: dict[str, object]) -> None:
@@ -76,3 +77,41 @@ def test_evaluate_attempt_tags_capacity_blind_spot() -> None:
     assert "ignores_capacity" in result["mistake_tags"]
     assert result["metrics"]["basis_impact_usd"] == pytest.approx(4500.0)
     assert result["baseline_score"] < 70
+
+
+def test_classify_mistakes_tags_capacity_blind_spot_directly() -> None:
+    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
+    capacity = get_capacity_context("pipeline_capacity_constraint")
+    tags = classify_mistakes(
+        scenario=scenario,
+        capacity_context=capacity,
+        order={"side": "buy", "quantity": 60000, "hedge_type": "long_hedge"},
+        rationale="I buy futures because prices may rise.",
+    )
+
+    assert "wrong_direction" in tags
+    assert "wrong_hedge_type" in tags
+    assert "ignores_capacity" in tags
+
+
+def test_evaluate_attempt_scores_recommended_pipeline_basis_hedge() -> None:
+    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
+    result = evaluate_attempt(
+        scenario=scenario,
+        capacity_context=get_capacity_context("pipeline_capacity_constraint"),
+        order={
+            "side": "sell",
+            "quantity": 60000,
+            "hedge_type": "basis_hedge",
+            "price": 3.4,
+        },
+        rationale="I sell a basis hedge because pipeline capacity is constrained.",
+    )
+
+    assert result["valid"] is True
+    assert result["score_inputs"]["direction_match"] is True
+    assert result["score_inputs"]["hedge_type_match"] is True
+    assert "wrong_direction" not in result["mistake_tags"]
+    assert "ignores_capacity" not in result["mistake_tags"]
+    assert result["metrics"]["hedge_ratio"] == 1.0
+    assert result["baseline_score"] >= 90
