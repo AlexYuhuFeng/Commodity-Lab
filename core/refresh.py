@@ -5,13 +5,14 @@ from datetime import timedelta, date
 import pandas as pd
 
 from core.db import get_last_price_date, upsert_prices_daily, log_refresh
-from core.yf_prices import fetch_history_daily
+from core.data_source import fetch_price_history
 from core.transforms import update_derived_for_tickers
 
 
 def refresh_one(
     con,
     ticker: str,
+    source: str = "yfinance",
     first_period: str = "max",
     backfill_days: int = 7,
     derived_backfill_days: int = 7,
@@ -26,10 +27,10 @@ def refresh_one(
 
     try:
         if last_dt is None:
-            px = fetch_history_daily(ticker, start=None, period_if_no_start=first_period)
+            px = fetch_price_history(ticker, source=source, start=None, period_if_no_start=first_period)
         else:
             start = last_dt - timedelta(days=backfill_days)
-            px = fetch_history_daily(ticker, start=start, period_if_no_start=first_period)
+            px = fetch_price_history(ticker, source=source, start=start, end=None, period_if_no_start=first_period)
 
         if px is None or px.empty:
             log_refresh(con, ticker, status="empty", message="no data returned by provider", last_success_date=last_dt)
@@ -52,6 +53,7 @@ def refresh_one(
 def refresh_many(
     con,
     tickers: list[str],
+    source: str = "yfinance",
     first_period: str = "max",
     backfill_days: int = 7,
     derived_backfill_days: int = 7,
@@ -70,6 +72,7 @@ def refresh_many(
         r = refresh_one(
             con,
             tk,
+            source=source,
             first_period=first_period,
             backfill_days=backfill_days,
             derived_backfill_days=0,  # 这里先不触发，最后统一触发
