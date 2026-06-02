@@ -1,32 +1,33 @@
-# Commodity Lab — Private (Internal Use Only)
+# Commodity Lab — 私有（仅限内部使用）
 
   ![Private](https://img.shields.io/badge/Status-Private-red) ![Internal Use](https://img.shields.io/badge/Access-Selected%20Individuals-orange)
 
-  > NOTICE: This repository is proprietary and intended for use by authorized personnel only. Do not distribute or publish.
+  > 注意：该仓库为专有代码，仅限授权人员使用。请勿分发或公开发布。
 
   --
 
-  <!-- Navigation (simple tab-like anchors) -->
-  [Overview](#overview) • [Getting Started](#getting-started) • [Usage](#usage) • [Documentation](#documentation) • [Support & Access](#support--access)
+  <!-- 导航 -->
+  [概述](#概述) • [快速开始](#快速开始) • [使用说明](#使用说明) • [文档](#文档) • [支持与访问](#支持与访问)
 
   ---
 
-  ## Overview
+  ## 概述
 
-  Commodity Lab is an internal commodity data analytics platform for selected teams. It provides data ingestion, quality control, feature engineering, backtesting, and monitoring. All access is restricted; do not clone or share outside authorized groups.
+Hedge Lab Terminal 是一个面向内部团队的商品对冲学习工作空间，提供合约发现、虚拟对冲模拟和 AI 反馈。应用可使用 Yahoo Finance 或 Platts 的真实行情数据。所有访问权限受限，未经授权请勿克隆或分享。
 
-  Key highlights:
-  - Streamlit-based UI for quick inspection and management
-  - DuckDB for local, lightweight analytics
-  - Alerting system and backtest support
+主要亮点：
+- 基于 Streamlit 的 Windows 风格终端 UI，用于对冲训练
+- 使用 DuckDB 存储本地观察合约和价格历史
+- 虚拟订单模拟与盈亏回测
+- 侧边栏持久 AI 助手，提供对冲指导、问题解答和提示建议
 
-  ## Getting Started
+  ## 快速开始
 
-  ### Requirements
+  ### 要求
   - Python 3.12+
-  - Access to internal data feeds and credentials (not provided here)
+  - 访问内部数据源和凭证（本仓库中不提供）
 
-  ### Quick install
+  ### 快速安装
   ```bash
   git clone <internal-repo-url>
   cd Commodity-Lab
@@ -35,85 +36,85 @@
   pip install -r requirements.txt
   ```
 
-  ### Run the app (local test)
+  ### 本地运行应用
   ```bash
   streamlit run app/main.py
   ```
 
-  ## Usage
+  ### 桌面终端启动
+  ```bash
+  python app/desktop_launcher.py
+  ```
 
-  Navigate the app using the sidebar. Primary pages:
-  - Data Management — search & ingest
-  - Data Showcase — product detail (multi-tab view)
-  - Monitoring & Alerts — create and test rules
-  - Analytics & Backtest — advanced features (internal)
-- Getting Started Guide — onboarding for new users
-- Auto Strategy Lab — automated strategy generation, search, and ranking
+  ### 使用 NSIS 构建 Windows 安装包
+  ```bash
+  bash build_nsis.sh
+  ```
 
-  ## Documentation
+  ## 使用说明
 
-  Use the links below to jump to detailed sections.
+  通过侧边栏导航应用。主要模块：
+  - Welcome — 快速终端引导
+  - Market Explorer — 从 Yahoo Finance 或 Platts 搜索并导入合约
+  - Hedge Simulator — 下虚拟对冲单并查看模拟盈亏
+  - AI Assistant — 持久侧边栏教练，用于对冲问题、指导和提示
+  - Practice — 各类对冲场景练习题
+  - Settings — 配置 Platts 和 DEEPSEEK 凭证
 
-  - [Data Management](#data-management)
-  - [Data Showcase (Tabs)](#data-showcase-tabs)
-  - [Monitoring & Alerts](#monitoring--alerts)
-  - [Developer Notes](#developer-notes)
+  ## 文档
 
-  ### Data Management
-  - Database: DuckDB at `data/commodity_lab.duckdb`
-  - Tables: `instruments`, `prices_daily`, `derived_daily`, `alert_rules`, `alert_events`, etc.
+  本仓库当前聚焦于虚拟对冲训练。
 
-  ### Data Showcase (Tabs)
-  The product detail UI presents multiple tabs: Overview, Price Chart, QC, Attributes, Derived Series, Actions. These are accessible in the Streamlit UI and are not separate files.
+  - `data/commodity_lab.duckdb` 存储已关注合约和历史行情
+  - `core/data_source.py` 将行情查询路由到 Yahoo Finance 或 Platts
+  - `core/hedge.py` 包含虚拟订单模拟和盈亏计算
+  - `core/deepseek.py` 集成 DEEPSEEK AI 反馈
+  - UI 页面位于 `app/pages/`
 
-  ### Monitoring & Alerts
-  - Seven built-in rule types (price threshold, z-score, volatility, staleness, missing data, correlation break, custom expressions)
-  - Rules can be tested and toggled in-app
+  ### 开发人员说明
+  - 核心模块位于 `core/`
+  - UI 页面位于 `app/pages/`
+  - 应用入口为 `app/main.py`，并使用终端风格 Streamlit 主题
 
-  ### Developer Notes
-  - Core modules live under `core/` (db, qc, transforms, refresh, yf_provider)
-  - UI pages are under `app/pages/`
-  - To add an alert type: update `app/pages/3_MonitoringAlerts.py` and i18n entries
+  ## 支持与访问
 
-  ## Support & Access
+  如果需要访问或支持，请联系内部开发团队。请勿创建公共 issue。
 
-  If you need access or support, contact the internal dev team. Do not open public issues.
+  - 主要联系人：Commodity Lab 开发团队（内部）
+  - 文档： [UI_REDESIGN_GUIDE.md](UI_REDESIGN_GUIDE.md)
 
-  - Primary contact: Commodity Lab Development Team (internal)
-  - Docs: [UI_REDESIGN_GUIDE.md](UI_REDESIGN_GUIDE.md)
+  ## 许可与分发
 
-  ## License & Distribution
+  专有软件——仅限内部使用。禁止重新分发、公开发布或开源。
 
-  Proprietary — Internal Use Only. Redistribution, public posting, or open-sourcing is prohibited.
+  ## 更新日志
 
-  ## Changelog
+  - v1.0 — 内部发布；UI 重构与核心功能（2026-02-25）
 
-  - v1.0 — Internal release; UI refactor and core features (2026-02-25)
+## CI/CD 与发布
 
-## CI/CD & Release
-
-- CI workflow (`.github/workflows/ci.yml`) runs tests on pushes/PRs to `main`.
-- Build & Release workflow (`.github/workflows/build-and-release.yml`) runs on GitHub (not local) and performs test → build → release.
-- Release artifacts are currently:
-  - Windows: `Commodity-Lab.exe`, `Commodity-Lab-windows-x64.zip`
-  - macOS: `Commodity-Lab-macos.dmg`
-- On `main` updates, a rolling prerelease (`nightly-latest`) is updated automatically.
-- On version tags (`v*.*.*`), a versioned release is created automatically.
-
-
-## Automated Strategy Operations
-
-- `Auto Strategy Lab` provides automated parameter search across strategy families and stores each run in DB (`strategy_runs`).
-- Includes candidate leaderboard with risk-adjusted scoring (return, Sharpe, win-rate, drawdown penalty).
-- Intended as continuous idea generation for trader workflows; combine with Monitoring rules before deployment.
-- Hardware acceleration readiness is surfaced in-app (Numba/CuPy detection) for heavy workloads.
+- CI 工作流（`.github/workflows/ci.yml`）在推送/PR 到 `main` 时运行测试。
+- 构建与发布工作流（`.github/workflows/build-and-release.yml`）在 GitHub 上执行测试 → 构建 → 发布。
+- 当前发布产物包括：
+  - Windows：`Commodity-Lab.exe`、`Commodity-Lab-windows-x64.zip`
+  - macOS：`Commodity-Lab-macos.dmg`
+- `main` 更新时会自动发布滚动预发布版本（`nightly-latest`）。
+- 打标签发布时（`v*.*.*`），会自动创建版本发布。
 
 
-## Project Structure
+## 自动策略操作
 
-- `app/` — Streamlit UI entry (`app/main.py`) and page modules under `app/pages/`.
-- `core/` — data access, indicator/strategy logic, backtest, scheduler/monitoring utilities.
-- `tests/` — pytest test cases for core behaviors.
-- `.github/workflows/` — GitHub CI/CD pipelines.
-- `scripts/` — utility/demo scripts.
-- `reports/` — generated demo outputs.
+- `Auto Strategy Lab` 提供策略族参数搜索，并将每次运行结果存储在数据库表 `strategy_runs` 中。
+- 包括候选排行榜和风险调整评分（收益、Sharpe、胜率、回撤惩罚）。
+- 旨在为交易工作流提供持续的思路生成；部署前建议结合监控规则。
+- 应用内可检测硬件加速就绪状态（Numba/CuPy），以支持重度计算场景。
+
+
+## 项目结构
+
+- `app/` — Streamlit UI 入口（`app/main.py`）和页面模块（`app/pages/`）
+- `core/` — 数据访问、指标/策略逻辑、回测、调度/监控工具
+- `tests/` — pytest 核心行为测试用例
+- `.github/workflows/` — GitHub CI/CD 管道
+- `scripts/` — 实用/示例脚本
+- `reports/` — 生成的演示输出

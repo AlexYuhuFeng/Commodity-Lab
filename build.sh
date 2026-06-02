@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 # 参数
 CLEAN=${1:-"--clean"}
 OUTPUT_DIR="dist"
-APP_NAME="Commodity-Lab"
+APP_NAME="Commodity-Lab.exe"
 
 echo -e "${BLUE}🔨 Commodity Lab 构建脚本${NC}"
 echo "========================================"
@@ -62,6 +62,7 @@ fi
 BUILD_ARGS=(
     "--onefile"
     "--windowed"
+    "--name" "$APP_NAME"
     "--distpath" "$OUTPUT_DIR"
     "--workpath" "build"
     "--specpath" "."
