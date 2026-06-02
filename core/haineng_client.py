@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -87,6 +88,8 @@ def build_haineng_tools() -> list[dict[str, Any]]:
 
 def _scrub_sensitive(value: Any) -> Any:
     sensitive_terms = ("api_key", "apikey", "authorization", "password", "secret", "token")
+    if isinstance(value, HainengSettings):
+        return "[REDACTED]"
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         value = dataclasses.asdict(value)
     if isinstance(value, dict):
@@ -102,11 +105,25 @@ def _scrub_sensitive(value: Any) -> Any:
         return [_scrub_sensitive(item) for item in value]
     if isinstance(value, tuple):
         return [_scrub_sensitive(item) for item in value]
+    if isinstance(value, str):
+        return _redact_sensitive_text(value)
     return value
+
+
+def _redact_sensitive_text(value: str) -> str:
+    return re.sub(
+        r"(?i)\b(api[_-]?key|apikey|authorization|password|secret|token)\s*[:=]\s*[^,\s;]+",
+        lambda match: f"{match.group(1)}=[REDACTED]",
+        value,
+    )
 
 
 def _to_json_text(value: Any) -> str:
     return json.dumps(_scrub_sensitive(value), ensure_ascii=False, sort_keys=True, default=str)
+
+
+def _scrub_text(value: str) -> str:
+    return _to_json_text({"text": value or ""})
 
 
 def _locale_instruction(locale: str) -> str:
@@ -133,7 +150,7 @@ def build_advisor_messages(
         "Coach the learner on this natural gas hedging attempt.\n\n"
         f"Scenario:\n{_to_json_text(scenario)}\n\n"
         f"Evaluation:\n{_to_json_text(evaluation)}\n\n"
-        f"User rationale:\n{user_rationale or ''}\n\n"
+        f"User rationale:\n{_scrub_text(user_rationale)}\n\n"
         "Explain the main hedge risk, connect feedback to the deterministic evaluation, "
         "and give concise next-step guidance."
     )
@@ -201,4 +218,7 @@ class HainengClient:
             payload["tool_choice"] = "auto"
 
         response = client.chat.completions.create(**payload)
-        return response.choices[0].message.content or ""
+        message = response.choices[0].message
+        if getattr(message, "tool_calls", None):
+            raise RuntimeError("海能 requested a tool call, but tool execution is not enabled.")
+        return message.content or ""
