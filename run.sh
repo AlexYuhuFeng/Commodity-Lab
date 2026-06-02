@@ -20,13 +20,12 @@ source "$VENV_PATH/bin/activate"
 # 检查依赖
 echo "✓ 虚拟环境已激活"
 
-# 启动Streamlit应用
-echo "🚀 启动 Commodity Lab..."
+# Start the Tauri-friendly Python backend for local development
+echo "🚀 Starting Commodity Lab backend (FastAPI)..."
 echo ""
-echo "应用已启动，请在浏览器打开:"
-echo "  📍 Local: http://localhost:8501"
+echo "Developer notes:"
+echo " - Start the Python backend: python tauri/backend/main.py"
+echo " - Start the frontend dev server: cd tauri/tauri-frontend && npm install && npm run dev"
+echo " - Or run the full Tauri dev workflow from the tauri/ directory: npm run tauri:dev"
 echo ""
-echo "按 Ctrl+C 停止应用"
-echo ""
-
-streamlit run "$PROJECT_ROOT/app/main.py"
+python tauri/backend/main.py

@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-import glob
-import runpy
+import ast
+from pathlib import Path
 
 
-def test_all_streamlit_pages_import_and_execute_without_crash() -> None:
-    """Smoke test for page-level runtime exceptions.
-
-    This executes each page module in bare mode (without `streamlit run`) to catch
-    import/runtime regressions early in CI.
-    """
-
-    for path in sorted(glob.glob("app/pages/*.py")):
-        runpy.run_path(path, run_name="__main__")
+def test_tauri_backend_syntax_valid() -> None:
+    """Ensure the Tauri Python backend module is syntactically valid (no runtime imports executed)."""
+    backend = Path("tauri/backend/main.py")
+    assert backend.exists(), "Tauri backend missing"
+    src = backend.read_text(encoding="utf-8")
+    ast.parse(src)
