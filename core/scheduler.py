@@ -6,7 +6,12 @@ import threading
 import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Callable, List
-import streamlit as st
+# `streamlit` was previously used for session-state integration in the UI.
+# Make the import optional so core background services do not depend on Streamlit.
+try:
+    import streamlit as st  # type: ignore
+except Exception:
+    st = None  # type: ignore
 from pathlib import Path
 import sys
 

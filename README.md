@@ -16,7 +16,8 @@
 Hedge Lab Terminal 是一个面向内部团队的商品对冲学习工作空间，提供合约发现、虚拟对冲模拟和 AI 反馈。应用可使用 Yahoo Finance 或 Platts 的真实行情数据。所有访问权限受限，未经授权请勿克隆或分享。
 
 主要亮点：
-- 基于 Streamlit 的 Windows 风格终端 UI，用于对冲训练
+  - 基于 Streamlit 的 Windows 风格终端 UI，用于对冲训练 (legacy)
+  - 新：Tauri + Python backend native desktop app (in `tauri/`) — primary migration target
 - 使用 DuckDB 存储本地观察合约和价格历史
 - 虚拟订单模拟与盈亏回测
 - 侧边栏持久 AI 助手，提供对冲指导、问题解答和提示建议
@@ -36,15 +37,13 @@ Hedge Lab Terminal 是一个面向内部团队的商品对冲学习工作空间�
   pip install -r requirements.txt
   ```
 
-  ### 本地运行应用
+  ### 本地运行（legacy Streamlit）
   ```bash
   streamlit run app/main.py
   ```
 
-  ### 桌面终端启动
-  ```bash
-  python app/desktop_launcher.py
-  ```
+  ### 新桌面应用（Tauri prototype）
+  See `tauri/README.md` and `tauri_prototype/README.md` for setup and packaging notes.
 
   ### 使用 NSIS 构建 Windows 安装包
   ```bash

@@ -1,5 +1,8 @@
 # 🚀 Commodity Lab 打包方案选择指南
 
+> NOTE: The project migrated to a Tauri-based desktop architecture. Legacy PyInstaller/Streamlit packaging is no longer the primary build path. See `tauri/README.md` and `.github/workflows/tauri-build.yml` for the new packaging flow.
+
+
 ## 📊 方案对比
 
 ### 方案 A: GitHub Actions CI/CD (推荐 ✅)
