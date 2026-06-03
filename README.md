@@ -45,6 +45,39 @@ Hedge Lab Terminal 是一个面向内部团队的商品对冲学习工作空间�
   ### 新桌面应用（Tauri prototype）
   See `tauri/README.md` and `tauri_prototype/README.md` for setup and packaging notes.
 
+  ## Natural Gas Hedging Lab V1
+
+  V1 is a Tauri desktop learning workspace focused only on natural gas hedging. Other commodity tabs remain visible in the client and are marked `Constructing`. The training loop requires a user-provided 海能 API key and base URL. Platts is optional; Yahoo Finance and simulated sample data keep the natural gas scenarios usable when Platts is not configured. Data source labels in the client are `Platts`, `Yahoo Finance`, and `Simulated`.
+
+  ### Backend
+
+  ```bash
+  python -m venv .venv
+  .venv\Scripts\activate
+  pip install -r requirements.txt -r tauri/backend/requirements.txt
+  python tauri/backend/main.py
+  ```
+
+  ### Frontend
+
+  ```bash
+  cd tauri/tauri-frontend
+  npm install
+  npm run dev
+  ```
+
+  ### Checks
+
+  ```bash
+  pytest tests/test_gas_scenarios.py tests/test_learning_session.py tests/test_haineng_client.py tests/test_tauri_backend_v1.py tests/test_pages_smoke.py -q
+  cd tauri/tauri-frontend
+  npm install
+  npm run test
+  npm run build
+  cd ../src-tauri
+  cargo check
+  ```
+
   ### 使用 NSIS 构建 Windows 安装包
   ```bash
   bash build_nsis.sh
