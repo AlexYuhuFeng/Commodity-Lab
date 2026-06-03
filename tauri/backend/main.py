@@ -44,6 +44,14 @@ class ExamRequest(BaseModel):
     attempt_history: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class HainengProviderSettingsRequest(BaseModel):
+    api_key: str
+    base_url: str
+    model: str = "DeepSeek-V4"
+    streaming: bool = False
+    function_calling: bool = True
+
+
 @app.get("/api/ping", response_model=PingResp)
 async def ping():
     return {"message": "pong from Tauri Python backend"}
@@ -186,6 +194,25 @@ def v1_provider_status():
             {"id": "simulated", "label": "Simulated", "configured": True},
         ],
     }
+
+
+@app.post("/api/v1/provider-settings")
+def v1_provider_settings(payload: HainengProviderSettingsRequest):
+    from core.haineng_client import HainengClient, HainengSettings, set_runtime_settings
+
+    if not payload.api_key.strip() or not payload.base_url.strip():
+        raise HTTPException(status_code=400, detail="海能 API key and base URL are required.")
+
+    set_runtime_settings(
+        HainengSettings(
+            api_key=payload.api_key.strip(),
+            base_url=payload.base_url.strip(),
+            model=payload.model.strip() or "DeepSeek-V4",
+            streaming=payload.streaming,
+            function_calling=payload.function_calling,
+        )
+    )
+    return {"haineng": HainengClient().health_check()}
 
 
 @app.get("/api/v1/scenarios")
