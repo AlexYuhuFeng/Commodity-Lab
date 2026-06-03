@@ -17,6 +17,9 @@ class HainengSettings:
     function_calling: bool = True
 
 
+_runtime_settings: HainengSettings | None = None
+
+
 def _env_bool(name: str, default: bool) -> bool:
     value = os.getenv(name)
     if value is None:
@@ -40,6 +43,15 @@ def settings_from_env() -> HainengSettings:
         streaming=_env_bool("HAINENG_STREAMING", False),
         function_calling=_env_bool("HAINENG_FUNCTION_CALLING", True),
     )
+
+
+def set_runtime_settings(settings: HainengSettings | None) -> None:
+    global _runtime_settings
+    _runtime_settings = settings
+
+
+def effective_settings() -> HainengSettings:
+    return _runtime_settings or settings_from_env()
 
 
 def _is_configured(settings: HainengSettings) -> bool:
@@ -186,7 +198,7 @@ def build_exam_messages(
 
 class HainengClient:
     def __init__(self, settings: HainengSettings | None = None) -> None:
-        self.settings = settings or settings_from_env()
+        self.settings = settings or effective_settings()
 
     def is_configured(self) -> bool:
         return _is_configured(self.settings)

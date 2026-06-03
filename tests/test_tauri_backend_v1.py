@@ -9,6 +9,9 @@ client = TestClient(app)
 
 
 def _clear_haineng_env(monkeypatch) -> None:
+    from core.haineng_client import set_runtime_settings
+
+    set_runtime_settings(None)
     monkeypatch.delenv("HAINENG_API_KEY", raising=False)
     monkeypatch.delenv("HAINENG_BASE_URL", raising=False)
 
@@ -41,6 +44,28 @@ def test_scenarios_endpoint_returns_natural_gas_only() -> None:
     assert payload["categories"][0]["id"] == "natural_gas"
     assert payload["scenarios"]
     assert {scenario["commodity"] for scenario in payload["scenarios"]} == {"natural_gas"}
+
+
+def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monkeypatch) -> None:
+    _clear_haineng_env(monkeypatch)
+
+    response = client.post(
+        "/api/v1/provider-settings",
+        json={
+            "api_key": "user-secret-key",
+            "base_url": "http://localhost:9999/v1",
+            "model": "DeepSeek-V4-Flash",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["haineng"]["ok"] is True
+    assert payload["haineng"]["base_url"] == "http://localhost:9999/v1"
+    assert payload["haineng"]["model"] == "DeepSeek-V4-Flash"
+    assert "user-secret-key" not in str(payload)
+
+    _clear_haineng_env(monkeypatch)
 
 
 def test_context_endpoint_returns_market_and_capacity() -> None:
