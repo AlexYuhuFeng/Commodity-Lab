@@ -96,7 +96,7 @@ function SetupGate({ locale, providerStatus, onSaveSettings, saving, message }) 
   const [form, setForm] = useState({
     api_key: "",
     base_url: savedValue("commodity-lab-haineng-base-url", ""),
-    model: savedValue("commodity-lab-haineng-model", "DeepSeek-V4")
+    model: savedValue("commodity-lab-haineng-model", "V4-Flash")
   });
   const healthy = providerStatus?.haineng?.ok;
 
