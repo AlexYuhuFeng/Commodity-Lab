@@ -52,7 +52,7 @@ class ExamRequest(BaseModel):
 class HainengProviderSettingsRequest(BaseModel):
     api_key: str
     base_url: str
-    model: str = "DeepSeek-V4"
+    model: str = "V4-Flash"
     streaming: bool = False
     function_calling: bool = True
 
@@ -212,7 +212,7 @@ def v1_provider_settings(payload: HainengProviderSettingsRequest):
         HainengSettings(
             api_key=payload.api_key.strip(),
             base_url=payload.base_url.strip(),
-            model=payload.model.strip() or "DeepSeek-V4",
+            model=payload.model.strip() or "V4-Flash",
             streaming=payload.streaming,
             function_calling=payload.function_calling,
         )

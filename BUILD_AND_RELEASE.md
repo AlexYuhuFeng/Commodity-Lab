@@ -1,39 +1,57 @@
 # Build and Release Guide
 
-## CI/CD workflow (Tauri)
+Commodity Lab releases Windows desktop clients only.
 
-The project has migrated from a PyInstaller-based desktop to a Tauri-based native desktop with a bundled Python backend. The new CI workflow is `.github/workflows/tauri-build.yml`.
+## GitHub Workflow
 
-### What it does
-1. Runs tests (`pytest -q`).
-2. Builds the Python backend executable with PyInstaller (packaged into the Tauri bundle).
-3. Builds the frontend (Vite) and runs `tauri build` for platform bundles (Linux/Windows).
-4. Publishes artifacts to GitHub Releases when a tag is pushed.
+The release workflow is `.github/workflows/tauri-build.yml`.
 
-### Release steps
-```bash
+It runs:
+
+1. Python tests with `pytest -q`.
+2. Windows backend bundling with PyInstaller.
+3. Frontend build with Vite.
+4. Tauri Windows bundle generation.
+5. GitHub Release upload for tag builds.
+
+## Release
+
+```powershell
 git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-### Local build (dev)
-Start backend and frontend separately for development:
+## Local Windows Build
 
-```bash
-# Start Python backend
-python tauri/backend/main.py
-
-# Start frontend dev server (in another terminal)
-cd tauri/tauri-frontend
-npm install
-npm run dev
-
-# Or run Tauri dev from `tauri/` (requires Node + Rust):
-cd tauri
-npm install
-npm run tauri:dev
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\package_tauri.ps1
 ```
 
-### Expected release artifacts
-- Tauri platform bundles (installer, AppImage, MSI, etc.) under `src-tauri/target/release/bundle/`
+The bundle is written under:
+
+```text
+tauri\src-tauri\target\release\bundle\
+```
+
+## Development Run
+
+```powershell
+python tauri/backend/main.py
+```
+
+In another terminal:
+
+```powershell
+cd tauri\tauri-frontend
+npm ci
+npm run dev
+```
+
+Or run the Tauri dev shell:
+
+```powershell
+cd tauri
+npm ci
+npm run tauri:dev
+```
 

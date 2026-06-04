@@ -1,7 +1,7 @@
 [project]
 name = "commodity-lab"
 version = "1.0.0"
-description = "Private — Hedge Lab Terminal for virtual commodity hedging and AI-assisted analysis."
+description = "Private Commodity Lab workspace for virtual commodity hedging and AI-assisted analysis."
 requires-python = ">=3.12"
 
 [build-system]

@@ -54,7 +54,7 @@ def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monk
         json={
             "api_key": "user-secret-key",
             "base_url": "http://localhost:9999/v1",
-            "model": "DeepSeek-V4-Flash",
+            "model": "V4-Flash",
         },
     )
 
@@ -62,7 +62,7 @@ def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monk
     payload = response.json()
     assert payload["haineng"]["ok"] is True
     assert payload["haineng"]["base_url"] == "http://localhost:9999/v1"
-    assert payload["haineng"]["model"] == "DeepSeek-V4-Flash"
+    assert payload["haineng"]["model"] == "V4-Flash"
     assert "user-secret-key" not in str(payload)
 
     _clear_haineng_env(monkeypatch)

@@ -19,8 +19,8 @@ from core.haineng_client import (
 def test_redact_settings_never_returns_api_key() -> None:
     settings = HainengSettings(
         api_key="secret-key",
-        base_url="http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1",
-        model="DeepSeek-V4",
+        base_url="http://model.local/haineng/v1",
+        model="V4-Flash",
     )
     redacted = redact_settings(settings)
     assert redacted["configured"] is True
@@ -62,7 +62,7 @@ def test_function_tools_have_required_shape() -> None:
 def test_settings_from_env_parses_booleans(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HAINENG_API_KEY", "secret-key")
     monkeypatch.setenv("HAINENG_BASE_URL", "http://local/v1")
-    monkeypatch.setenv("HAINENG_MODEL", "DeepSeek-V4-Flash")
+    monkeypatch.setenv("HAINENG_MODEL", "V4-Flash")
     monkeypatch.setenv("HAINENG_STREAMING", "true")
     monkeypatch.setenv("HAINENG_FUNCTION_CALLING", "0")
 
@@ -70,7 +70,7 @@ def test_settings_from_env_parses_booleans(monkeypatch: pytest.MonkeyPatch) -> N
 
     assert settings.api_key == "secret-key"
     assert settings.base_url == "http://local/v1"
-    assert settings.model == "DeepSeek-V4-Flash"
+    assert settings.model == "V4-Flash"
     assert settings.streaming is True
     assert settings.function_calling is False
 
@@ -158,6 +158,6 @@ def test_complete_raises_when_model_requests_tool_call(monkeypatch: pytest.Monke
             tools=build_haineng_tools(),
         )
 
-    assert captured_payload["model"] == "DeepSeek-V4"
+    assert captured_payload["model"] == "V4-Flash"
     assert captured_payload["stream"] is False
     assert captured_payload["tool_choice"] == "auto"
