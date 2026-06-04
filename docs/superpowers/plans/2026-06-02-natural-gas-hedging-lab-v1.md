@@ -1,8 +1,8 @@
-# Natural Gas Hedging Lab V1 Implementation Plan
+# Commodity Lab V1 Natural Gas Hedging Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the V1 Natural Gas Hedging Lab in the existing Tauri app, with bilingual English/Mandarin UI, mandatory 海能 setup, natural-gas-only guided practice, deterministic hedge/capacity metrics, 海能 coaching, and exam generation.
+**Goal:** Build the V1 natural gas hedging module in Commodity Lab, with bilingual English/Mandarin UI, mandatory 海能 setup, natural-gas-only guided practice, deterministic hedge/capacity metrics, 海能 coaching, and exam generation.
 
 **Architecture:** Keep deterministic trading behavior in Python core modules, expose V1 endpoints from the existing FastAPI backend, bridge them through Tauri, and replace the current three-button React prototype with a professional guided terminal workspace. 海能 is treated as an OpenAI-compatible local provider branded only as 海能 in the client.
 
@@ -562,8 +562,8 @@ from core.haineng_client import (
 def test_redact_settings_never_returns_api_key() -> None:
     settings = HainengSettings(
         api_key="secret-key",
-        base_url="http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1",
-        model="DeepSeek-V4",
+        base_url="http://model.local/haineng/v1",
+        model="V4-Flash",
     )
     redacted = redact_settings(settings)
     assert redacted["configured"] is True
@@ -635,7 +635,7 @@ from typing import Any
 class HainengSettings:
     api_key: str = ""
     base_url: str = ""
-    model: str = "DeepSeek-V4"
+    model: str = "V4-Flash"
     streaming: bool = False
     function_calling: bool = True
 
@@ -644,7 +644,7 @@ def settings_from_env() -> HainengSettings:
     return HainengSettings(
         api_key=os.getenv("HAINENG_API_KEY", "").strip(),
         base_url=os.getenv("HAINENG_BASE_URL", "").strip(),
-        model=os.getenv("HAINENG_MODEL", "DeepSeek-V4").strip() or "DeepSeek-V4",
+        model=os.getenv("HAINENG_MODEL", "V4-Flash").strip() or "V4-Flash",
         streaming=os.getenv("HAINENG_STREAMING", "false").lower() == "true",
         function_calling=os.getenv("HAINENG_FUNCTION_CALLING", "true").lower() != "false",
     )
@@ -1136,7 +1136,7 @@ Create `tauri/tauri-frontend/src/i18n.js`:
 ```js
 export const dictionaries = {
   en: {
-    appTitle: "Natural Gas Hedging Lab",
+    appTitle: "Commodity Lab",
     setupTitle: "海能 Setup",
     setupSubtitle: "Configure 海能 before starting the guided training loop.",
     apiKey: "API Key",
@@ -1273,7 +1273,7 @@ import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import App from "./App";
 
-describe("Natural Gas Lab shell", () => {
+describe("Commodity Lab shell", () => {
   it("renders the setup gate when 海能 is not healthy", async () => {
     window.__COMMODITY_LAB_BACKEND__ = async () => ({
       haineng: { ok: false, configured: false },
@@ -1314,7 +1314,7 @@ cd tauri/tauri-frontend
 npm run test
 ```
 
-Expected: FAIL because the current `App.jsx` still renders `Hedge Lab (Tauri)`.
+Expected: FAIL because the current `App.jsx` has not yet rendered Commodity Lab with the required V1 module shell.
 
 - [ ] **Step 3: Replace App with V1 shell and visual-aid components**
 
@@ -1347,7 +1347,7 @@ function SetupGate({ locale, providerStatus }) {
       <div className="setup-grid">
         <label>{t("apiKey", locale)}<input type="password" aria-label={t("apiKey", locale)} /></label>
         <label>{t("baseUrl", locale)}<input aria-label={t("baseUrl", locale)} /></label>
-        <label>{t("model", locale)}<input defaultValue="DeepSeek-V4" aria-label={t("model", locale)} /></label>
+        <label>{t("model", locale)}<input defaultValue="V4-Flash" aria-label={t("model", locale)} /></label>
       </div>
       <div className={healthy ? "status ok" : "status warn"}>
         {healthy ? t("providerHealthy", locale) : t("providerRequired", locale)}
@@ -1821,9 +1821,9 @@ git commit -m "feat: wire haineng advisor and exam flow"
 Add a concise V1 section to `README.md`:
 
 ````markdown
-## Natural Gas Hedging Lab V1
+## Commodity Lab V1 Natural Gas Hedging
 
-V1 is a Tauri desktop Natural Gas Hedging Lab. The training loop requires a user-provided 海能 API key and base URL. Platts is optional; sample/yFinance data keeps the natural gas scenarios usable when Platts is not configured.
+V1 is Commodity Lab's Tauri desktop natural gas hedging module. The training loop requires a user-provided 海能 API key and base URL. Platts is optional; sample/Yahoo Finance data keeps the natural gas scenarios usable when Platts is not configured.
 
 ### Backend
 

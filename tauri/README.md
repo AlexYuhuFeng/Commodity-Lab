@@ -1,23 +1,31 @@
-Tauri desktop app for Commodity-Lab
+# Commodity Lab Tauri Client
 
-Quick start (dev):
+This directory contains the Commodity Lab Windows desktop client.
 
-Requirements: Rust toolchain, Node.js, Python
+## Dev Run
 
-1. Start the Python backend:
+Requirements: Rust toolchain, Node.js 20+, Python 3.12+.
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r tauri/backend/requirements.txt
+1. Start the Python backend from the repository root:
+
+```powershell
+pip install -r requirements.txt -r tauri/backend/requirements.txt
 python tauri/backend/main.py
 ```
 
-2. From `tauri/` run (requires Node + Rust):
+2. Run Tauri from this directory:
 
-```bash
-npm install
-npx tauri dev
+```powershell
+npm ci
+npm run tauri:dev
 ```
 
-Packaging notes: See `tauri/scripts/` for helper scripts.
+## Windows Package
+
+From the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\package_tauri.ps1
+```
+
+The generated bundle is under `tauri\src-tauri\target\release\bundle\`.

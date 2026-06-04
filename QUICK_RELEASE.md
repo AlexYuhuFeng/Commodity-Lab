@@ -1,27 +1,24 @@
-# Quick Release (EXE + DMG)
+# Quick Release
 
-## One-click automatic release
+Commodity Lab now publishes Windows desktop artifacts only.
 
-`build-and-release.yml` now automatically builds and publishes:
-- Windows: `Commodity-Lab.exe` and `Commodity-Lab-windows-x64.zip`
-- macOS: `Commodity-Lab-macos.dmg`
+## Official Release
 
-## Trigger methods
-
-### 1) Official version release (recommended)
-```bash
+```powershell
 git tag -a v1.2.0 -m "Release v1.2.0"
 git push origin v1.2.0
 ```
 
-### 2) Nightly pre-release
-Push to `main`, workflow updates `nightly-latest`.
+## Manual Workflow Run
 
-### 3) Manual run
-GitHub → **Actions** → **Build and Release** → **Run workflow**.
+Open GitHub Actions and run `Tauri Windows Build`.
 
-## Verify output
-After workflow success, check GitHub Releases assets include:
-- `Commodity-Lab.exe`
-- `Commodity-Lab-windows-x64.zip`
-- `Commodity-Lab-macos.dmg`
+Manual runs produce downloadable workflow artifacts. Tag pushes also publish a GitHub Release.
+
+## Expected Assets
+
+After the workflow succeeds, the GitHub Release should contain Windows Tauri bundle artifacts from:
+
+```text
+tauri\src-tauri\target\release\bundle\
+```
