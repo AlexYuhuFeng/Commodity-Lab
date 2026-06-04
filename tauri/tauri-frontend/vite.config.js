@@ -4,9 +4,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   root: '.',
-  build: {
-    rollupOptions: {
-      external: ['@tauri-apps/api/tauri', '@tauri-apps/api']
-    }
+  test: {
+    environment: 'jsdom'
   }
 })

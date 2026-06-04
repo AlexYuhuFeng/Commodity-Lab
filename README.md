@@ -1,125 +1,236 @@
-# Commodity Lab — 私有（仅限内部使用）
+# Commodity Lab
 
-  ![Private](https://img.shields.io/badge/Status-Private-red) ![Internal Use](https://img.shields.io/badge/Access-Selected%20Individuals-orange)
+Commodity Lab is a private desktop learning platform for commodity trading skills. V1 focuses on natural gas hedging: learners inspect market and pipeline-capacity context, place simulated hedge orders, receive deterministic scoring, and get live coaching from a user-provided 海能-compatible LLM endpoint.
 
-  > 注意：该仓库为专有代码，仅限授权人员使用。请勿分发或公开发布。
+Commodity Lab 是一个私有桌面端商品交易学习平台。V1 聚焦天然气套期保值训练：学习者可以查看市场与管道运力环境、提交模拟套保订单、获得确定性评分，并通过用户自备的海能兼容 LLM 端点获得实时辅导。
 
-  --
+![Status](https://img.shields.io/badge/status-V1%20active-1f6feb)
+![Desktop](https://img.shields.io/badge/client-Windows-2563eb)
+![Data](https://img.shields.io/badge/data-Platts%20%7C%20Yahoo%20Finance%20%7C%20Simulated-0f766e)
 
-  <!-- 导航 -->
-  [概述](#概述) • [快速开始](#快速开始) • [使用说明](#使用说明) • [文档](#文档) • [支持与访问](#支持与访问)
+## Overview / 项目概览
 
-  ---
+Commodity Lab is designed as a modern, terminal-like training client rather than a static course. The app combines structured scenarios, market data, pipeline-capacity visuals, simulated order placement, and LLM-driven feedback.
 
-  ## 概述
+Commodity Lab 的目标不是静态课程，而是现代化、交易终端风格的训练客户端。应用将结构化场景、市场数据、管道运力图示、模拟下单和 LLM 驱动反馈结合在一起。
 
-Hedge Lab Terminal 是一个面向内部团队的商品对冲学习工作空间，提供合约发现、虚拟对冲模拟和 AI 反馈。应用可使用 Yahoo Finance 或 Platts 的真实行情数据。所有访问权限受限，未经授权请勿克隆或分享。
+V1 includes:
 
-主要亮点：
-  - 基于 Streamlit 的 Windows 风格终端 UI，用于对冲训练 (legacy)
-  - 新：Tauri + Python backend native desktop app (in `tauri/`) — primary migration target
-- 使用 DuckDB 存储本地观察合约和价格历史
-- 虚拟订单模拟与盈亏回测
-- 侧边栏持久 AI 助手，提供对冲指导、问题解答和提示建议
+- Natural gas hedging scenarios only.
+- Pipeline capacity and congestion context.
+- Simulated hedge order tickets.
+- Deterministic hedge metrics and scoring.
+- 海能 advisor hints, action review, and exam generation.
+- English and Mandarin UI.
+- Data source labels: `Platts`, `Yahoo Finance`, `Simulated`.
+- Future commodity modules visible as `Constructing`.
 
-  ## 快速开始
+V1 包含：
 
-  ### 要求
-  - Python 3.12+
-  - 访问内部数据源和凭证（本仓库中不提供）
+- 仅天然气套保训练场景。
+- 管道运力与拥堵环境。
+- 模拟套保订单票据。
+- 确定性套保指标与评分。
+- 海能顾问提示、操作复盘与测验生成。
+- 英文与中文界面。
+- 数据来源标记：`Platts`、`Yahoo Finance`、`Simulated`。
+- 其他商品模块保持可见，并显示为 `Constructing`。
 
-  ### 快速安装
-  ```bash
-  git clone <internal-repo-url>
-  cd Commodity-Lab
-  python -m venv venv
-  source venv/bin/activate
-  pip install -r requirements.txt
-  ```
+## Architecture / 技术架构
 
-  ### 本地运行（legacy Streamlit）
-  ```bash
-  streamlit run app/main.py
-  ```
+```text
+Commodity Lab
+├── core/                         Python domain logic
+│   ├── gas_scenarios.py          Natural gas scenarios and sample data
+│   ├── learning_session.py       Attempt evaluation and scoring helpers
+│   └── haineng_client.py         OpenAI-compatible 海能 client
+├── tauri/backend/                FastAPI backend for the desktop client
+├── tauri/tauri-frontend/         React + Vite frontend
+├── tauri/src-tauri/              Tauri Rust shell and backend bridge
+└── tests/                        Python and frontend regression tests
+```
 
-  ### 新桌面应用（Tauri prototype）
-  See `tauri/README.md` and `tauri_prototype/README.md` for setup and packaging notes.
+```text
+Commodity Lab
+├── core/                         Python 领域逻辑
+│   ├── gas_scenarios.py          天然气场景与样例数据
+│   ├── learning_session.py       训练尝试评估与评分辅助逻辑
+│   └── haineng_client.py         OpenAI 兼容的海能客户端
+├── tauri/backend/                桌面客户端使用的 FastAPI 后端
+├── tauri/tauri-frontend/         React + Vite 前端
+├── tauri/src-tauri/              Tauri Rust 外壳与后端桥接
+└── tests/                        Python 与前端回归测试
+```
 
-  ### 使用 NSIS 构建 Windows 安装包
-  ```bash
-  bash build_nsis.sh
-  ```
+## Requirements / 环境要求
 
-  ### 构建 Linux DEB 安装包
-  ```bash
-  bash build_deb.sh --clean
-  ```
+- Python 3.12+
+- Node.js 20+
+- Rust stable
+- Windows for desktop packaging
+- User-provided 海能-compatible LLM API key and base URL
+- Optional user-provided Platts credentials
 
-  ## 使用说明
+环境要求：
 
-  通过侧边栏导航应用。主要模块：
-  - Welcome — 快速终端引导
-  - Market Explorer — 从 Yahoo Finance 或 Platts 搜索并导入合约
-  - Hedge Simulator — 下虚拟对冲单并查看模拟盈亏
-  - AI Assistant — 持久侧边栏教练，用于对冲问题、指导和提示
-  - Practice — 各类对冲场景练习题
-  - Settings — 配置 Platts 和 DEEPSEEK 凭证
+- Python 3.12+
+- Node.js 20+
+- Rust stable
+- Windows 桌面端打包环境
+- 用户自备海能兼容 LLM API Key 与 Base URL
+- 可选的用户自备 Platts 凭证
 
-  ## 文档
+## Quick Start / 快速开始
 
-  本仓库当前聚焦于虚拟对冲训练。
+Install backend dependencies and start the FastAPI service:
 
-  - `data/commodity_lab.duckdb` 存储已关注合约和历史行情
-  - `core/data_source.py` 将行情查询路由到 Yahoo Finance 或 Platts
-  - `core/hedge.py` 包含虚拟订单模拟和盈亏计算
-  - `core/deepseek.py` 集成 DEEPSEEK AI 反馈
-  - UI 页面位于 `app/pages/`
+安装后端依赖并启动 FastAPI 服务：
 
-  ### 开发人员说明
-  - 核心模块位于 `core/`
-  - UI 页面位于 `app/pages/`
-  - 应用入口为 `app/main.py`，并使用终端风格 Streamlit 主题
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt -r tauri/backend/requirements.txt
+python tauri/backend/main.py
+```
 
-  ## 支持与访问
+Start the frontend:
 
-  如果需要访问或支持，请联系内部开发团队。请勿创建公共 issue。
+启动前端：
 
-  - 主要联系人：Commodity Lab 开发团队（内部）
-  - 文档： [UI_REDESIGN_GUIDE.md](UI_REDESIGN_GUIDE.md)
+```powershell
+cd tauri\tauri-frontend
+npm ci
+npm run dev
+```
 
-  ## 许可与分发
+Run the Tauri desktop shell:
 
-  专有软件——仅限内部使用。禁止重新分发、公开发布或开源。
+运行 Tauri 桌面外壳：
 
-  ## 更新日志
+```powershell
+cd tauri
+npm ci
+npm run tauri:dev
+```
 
-  - v1.0 — 内部发布；UI 重构与核心功能（2026-02-25）
+## Configuration / 配置
 
-## CI/CD 与发布
+Commodity Lab does not ship with provider credentials. Users configure providers at runtime.
 
-- CI 工作流（`.github/workflows/ci.yml`）在推送/PR 到 `main` 时运行测试。
-- 构建与发布工作流（`.github/workflows/build-and-release.yml`）在 GitHub 上执行测试 → 构建 → 发布。
-- 当前发布产物包括：
-  - Windows：`Commodity-Lab.exe`、`Commodity-Lab-windows-x64.zip`
-  - Linux：`commodity-lab_0.9.0-preview_amd64.deb`
-  - macOS：`Commodity-Lab-macos.dmg`
-- `main` 更新时会自动发布滚动预发布版本（`nightly-latest`）。
-- 打标签发布时（`v*.*.*`），会自动创建版本发布。
+Commodity Lab 不内置任何服务商凭证。用户在运行时自行配置。
 
+海能:
 
-## 自动策略操作
+- `HAINENG_API_KEY`
+- `HAINENG_BASE_URL`
+- `HAINENG_MODEL` defaults to `V4-Flash`
 
-- `Auto Strategy Lab` 提供策略族参数搜索，并将每次运行结果存储在数据库表 `strategy_runs` 中。
-- 包括候选排行榜和风险调整评分（收益、Sharpe、胜率、回撤惩罚）。
-- 旨在为交易工作流提供持续的思路生成；部署前建议结合监控规则。
-- 应用内可检测硬件加速就绪状态（Numba/CuPy），以支持重度计算场景。
+Platts:
 
+- `PLATTS_API_KEY`
+- `PLATTS_KEY`
+- `SPGLOBAL_API_KEY`
+- `SP_GLOBAL_API_KEY`
 
-## 项目结构
+If Platts is unavailable, Commodity Lab can use Yahoo Finance or simulated sample data where available.
 
-- `app/` — Streamlit UI 入口（`app/main.py`）和页面模块（`app/pages/`）
-- `core/` — 数据访问、指标/策略逻辑、回测、调度/监控工具
-- `tests/` — pytest 核心行为测试用例
-- `.github/workflows/` — GitHub CI/CD 管道
-- `scripts/` — 实用/示例脚本
-- `reports/` — 生成的演示输出
+如果 Platts 不可用，Commodity Lab 可在可用场景下使用 Yahoo Finance 或模拟样例数据。
+
+## Windows Packaging / Windows 打包
+
+Commodity Lab V1 generates Windows desktop client artifacts only.
+
+Commodity Lab V1 仅生成 Windows 桌面客户端产物。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\package_tauri.ps1
+```
+
+Dry run:
+
+试运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\package_tauri.ps1 -DryRun
+```
+
+Generated bundles are written under:
+
+生成产物位于：
+
+```text
+tauri\src-tauri\target\release\bundle\
+```
+
+## Verification / 验证
+
+Python tests:
+
+Python 测试：
+
+```powershell
+pytest tests/test_gas_scenarios.py tests/test_learning_session.py tests/test_haineng_client.py tests/test_tauri_backend_v1.py tests/test_pages_smoke.py -q
+```
+
+Frontend tests and build:
+
+前端测试与构建：
+
+```powershell
+cd tauri\tauri-frontend
+npm ci
+npm run test
+npm run build
+```
+
+Tauri Rust check:
+
+Tauri Rust 检查：
+
+```powershell
+cd tauri\src-tauri
+cargo check
+```
+
+## Security / 安全
+
+- Do not commit 海能, Platts, Yahoo Finance, or other provider credentials.
+- API keys are accepted only through environment variables or runtime setup.
+- Backend responses redact configured secrets.
+- LLM prompts must not include provider credentials.
+
+安全要求：
+
+- 不要提交海能、Platts、Yahoo Finance 或其他服务商凭证。
+- API Key 仅通过环境变量或运行时设置输入。
+- 后端响应会隐藏已配置的密钥。
+- LLM 提示词不得包含服务商凭证。
+
+## Release / 发布
+
+GitHub Actions workflow:
+
+GitHub Actions 工作流：
+
+```text
+.github/workflows/tauri-build.yml
+```
+
+Create a release tag:
+
+创建发布标签：
+
+```powershell
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+Manual workflow runs produce downloadable Windows artifacts. Tag pushes also publish a GitHub Release.
+
+手动运行工作流会生成可下载的 Windows 产物。推送版本标签时还会创建 GitHub Release。
+
+## License / 许可
+
+Private software. Internal use only.
+
+私有软件，仅限内部使用。
