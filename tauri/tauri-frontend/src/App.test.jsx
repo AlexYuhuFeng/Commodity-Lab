@@ -70,7 +70,7 @@ describe("i18n catalog", () => {
   });
 });
 
-describe("Natural Gas Lab shell", () => {
+describe("Commodity Lab shell", () => {
   it("renders the setup gate when 海能 is not healthy", async () => {
     window.__COMMODITY_LAB_BACKEND__ = async () => ({
       haineng: { ok: false, configured: false },

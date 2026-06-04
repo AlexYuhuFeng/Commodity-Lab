@@ -1,14 +1,14 @@
-# Natural Gas Hedging Lab V1 Design
+# Commodity Lab V1 Natural Gas Hedging Design
 
 ## Context
 
-Commodity Lab is intended to become a learning hub for commodity trading skills. V1 will focus on hedging and will be delivered as native Windows and Linux clients through the existing Tauri desktop app.
+Commodity Lab is intended to become a learning hub for commodity trading skills. V1 will focus on hedging and will be delivered as a native Windows client through the existing Tauri desktop app.
 
-The current repository already contains a Python core, a FastAPI backend under `tauri/backend`, a Tauri/Rust bridge, and a React/Vite frontend prototype under `tauri/tauri-frontend`. Existing reusable modules include `core/hedge.py`, `core/practice.py`, `core/data_source.py`, `core/platts_connector.py`, and `core/deepseek.py`. The V1 design should evolve these pieces rather than restart the app.
+The current repository already contains a Python core, a FastAPI backend under `tauri/backend`, a Tauri/Rust bridge, and a React/Vite frontend prototype under `tauri/tauri-frontend`. Existing reusable modules include `core/hedge.py`, `core/practice.py`, `core/data_source.py`, and `core/platts_connector.py`. The V1 design should evolve these pieces rather than restart the app.
 
 ## Approved Direction
 
-V1 is a Natural Gas Hedging Lab with an LLM-led training experience. The first usable screen is a guided trading-terminal workspace:
+V1 is the Commodity Lab natural gas hedging module with an LLM-led training experience. The first usable screen is a guided trading-terminal workspace:
 
 - Left rail: natural gas scenario deck.
 - Center workspace: market context, pipeline capacity context, order ticket, order blotter, deterministic metrics, and results.
@@ -80,7 +80,7 @@ The in-app LLM provider is branded as `海能`. Implementation should use an Ope
 
 - Python package: `openai`
 - Client: `openai.OpenAI`
-- Model default: `DeepSeek-V4`
+- Model default: `V4-Flash`
 - Base URL shape: a local CNOOC-hosted OpenAI-compatible `/v1` endpoint
 - Supported modes: normal chat, streaming chat, streamed reasoning fields when present, and function/tool calling
 
@@ -88,11 +88,11 @@ The repository must not hardcode the sample API key or any user credential. The 
 
 - 海能 API key
 - 海能 base URL
-- Model name, defaulting to `DeepSeek-V4`
+- Model name, defaulting to `V4-Flash`
 - Optional streaming toggle
 - Optional function-calling capability check
 
-UI text says `海能`, not `DeepSeek`. Code may mention "OpenAI-compatible local DeepSeek deployment" only where it clarifies maintainability.
+UI text says `海能`; provider implementation details must not become product wording.
 
 ### Platts
 
@@ -253,7 +253,7 @@ Manual verification:
 
 ## Delivery
 
-V1 delivery remains Windows and Linux Tauri clients. The app should feel like a modern minimalist trading terminal, but prioritize a real training loop over broad unfinished functionality.
+V1 delivery is a Windows Tauri client. The app should feel like a modern minimalist trading terminal, but prioritize a real training loop over broad unfinished functionality.
 
 The final V1 acceptance criteria:
 

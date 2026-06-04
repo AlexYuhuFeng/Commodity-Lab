@@ -12,7 +12,7 @@ from typing import Any
 class HainengSettings:
     api_key: str = ""
     base_url: str = ""
-    model: str = "DeepSeek-V4"
+    model: str = "V4-Flash"
     streaming: bool = False
     function_calling: bool = True
 
@@ -39,7 +39,7 @@ def settings_from_env() -> HainengSettings:
     return HainengSettings(
         api_key=os.getenv("HAINENG_API_KEY", "").strip(),
         base_url=os.getenv("HAINENG_BASE_URL", "").strip(),
-        model=os.getenv("HAINENG_MODEL", "DeepSeek-V4").strip() or "DeepSeek-V4",
+        model=os.getenv("HAINENG_MODEL", "V4-Flash").strip() or "V4-Flash",
         streaming=_env_bool("HAINENG_STREAMING", False),
         function_calling=_env_bool("HAINENG_FUNCTION_CALLING", True),
     )
