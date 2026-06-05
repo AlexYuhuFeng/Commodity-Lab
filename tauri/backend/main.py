@@ -4,16 +4,19 @@ import os
 import sys
 from typing import Any, List, Dict
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_BACKEND_HOST = "127.0.0.1"
+DEFAULT_BACKEND_PORT = 8000
+
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-app = FastAPI()
+app = FastAPI(title="Commodity Lab Backend")
 
 
 class PingResp(BaseModel):
@@ -57,21 +60,42 @@ class HainengProviderSettingsRequest(BaseModel):
     function_calling: bool = True
 
 
+def _backend_host() -> str:
+    return os.getenv("COMMODITY_LAB_BACKEND_HOST", DEFAULT_BACKEND_HOST).strip() or DEFAULT_BACKEND_HOST
+
+
+def _backend_port() -> int:
+    raw_value = os.getenv("COMMODITY_LAB_BACKEND_PORT", str(DEFAULT_BACKEND_PORT)).strip()
+    try:
+        port = int(raw_value)
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid COMMODITY_LAB_BACKEND_PORT: {raw_value!r}") from exc
+    if not 1 <= port <= 65535:
+        raise RuntimeError(f"COMMODITY_LAB_BACKEND_PORT out of range: {port}")
+    return port
+
+
 @app.get("/api/ping", response_model=PingResp)
 async def ping():
     return {"message": "pong from Tauri Python backend"}
 
 
+@app.get("/api/health")
+def health():
+    return {"ok": True, "service": "commodity-lab-backend"}
+
+
 @app.get("/api/instruments")
-def list_instruments(limit: int = 100):
-    # Use project root to find the DuckDB database
-    project_root = Path(__file__).resolve().parents[3]
+def list_instruments(limit: int = Query(default=100, ge=1, le=1000)):
     from core.db import default_db_path, get_conn, init_db
 
-    db_path = default_db_path(project_root)
+    db_path = default_db_path(PROJECT_ROOT)
     con = get_conn(db_path)
     init_db(con)
-    df = con.execute(f"SELECT ticker, name, exchange, currency, unit, is_watched FROM instruments LIMIT {limit}").df()
+    df = con.execute(
+        "SELECT ticker, name, exchange, currency, unit, is_watched FROM instruments LIMIT ?",
+        [limit],
+    ).df()
     return df.to_dict(orient="records")
 
 
@@ -323,4 +347,4 @@ def v1_generate_exam(payload: ExamRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host=_backend_host(), port=_backend_port())
