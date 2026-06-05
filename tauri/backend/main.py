@@ -52,6 +52,23 @@ class ExamRequest(BaseModel):
     attempt_history: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class AITrainingRequest(BaseModel):
+    capability: str
+    locale: str = "en"
+    scenario_id: str | None = None
+    source: str = "yfinance"
+    evaluation: dict[str, Any] | None = None
+    order: dict[str, Any] | None = None
+    rationale: str = ""
+    attempt_history: list[dict[str, Any]] = Field(default_factory=list)
+    event_context: str = ""
+    concept: str = ""
+    commercial_goal: str = ""
+    learner_level: str = "intermediate"
+    market_context: dict[str, Any] | None = None
+    user_request: str = ""
+
+
 class HainengProviderSettingsRequest(BaseModel):
     api_key: str
     base_url: str
@@ -101,9 +118,6 @@ def list_instruments(limit: int = Query(default=100, ge=1, le=1000)):
 
 @app.post("/api/simulate")
 def simulate_portfolio(orders: List[OrderSpec], source: str = "yfinance"):
-    """Simulate a list of `OrderSpec`. For each order we fetch historical prices
-    (from Yahoo Finance or Platts) and compute the simulation per order. Returns
-    aggregated results and portfolio score."""
     from core.hedge import VirtualOrder, simulate_virtual_order, score_hedge_result
     from core.hedge import summarize_hedge_performance
 
@@ -112,17 +126,12 @@ def simulate_portfolio(orders: List[OrderSpec], source: str = "yfinance"):
         tk = (o.ticker or "").strip()
         if not tk:
             raise HTTPException(status_code=400, detail="Ticker missing in order")
-
-        # Fetch price series depending on source
-        prices = None
         try:
             if source == "platts":
                 from core.platts_connector import fetch_platts_history
-
                 prices = fetch_platts_history(tk)
             else:
                 from core.yf_prices import fetch_history_daily
-
                 prices = fetch_history_daily(tk)
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Price fetch failed for {tk}: {exc}")
@@ -138,18 +147,15 @@ def simulate_portfolio(orders: List[OrderSpec], source: str = "yfinance"):
             close_price=o.close_price,
             hedge_type=o.hedge_type or "short_hedge",
         )
-
         try:
             row = simulate_virtual_order(prices, vo)
         except Exception as exc:
             raise HTTPException(status_code=400, detail=str(exc))
-
         row["score"] = score_hedge_result(row)
         results.append(row)
 
     df = pd.DataFrame(results)
     perf = summarize_hedge_performance([], df)
-    # overall score: average of individual scores
     overall = float(df["score"].mean()) if not df.empty else 0.0
     return {"results": df.to_dict(orient="records"), "summary": perf, "score": overall}
 
@@ -174,7 +180,6 @@ def assistant_query(payload: Dict):
     history = payload.get("history")
     try:
         from core.deepseek import ask_deepseek
-
         answer = ask_deepseek(question, context=context, mode=mode, history=history)
         return {"answer": answer}
     except Exception as exc:
@@ -201,12 +206,32 @@ def _haineng_failure(exc: Exception) -> HTTPException:
     )
     return HTTPException(
         status_code=502,
-        detail={
-            "code": "haineng_request_failed",
-            "message": "海能 request failed.",
-            "provider_message": message,
-        },
+        detail={"code": "haineng_request_failed", "message": "海能 request failed.", "provider_message": message},
     )
+
+
+def _require_haineng_client():
+    from core.haineng_client import HainengClient
+
+    client = HainengClient()
+    if not client.is_configured():
+        raise HTTPException(status_code=428, detail="海能 is required for AI Full Power Mode.")
+    return client
+
+
+def _scenario_bundle(scenario_id: str | None, locale: str, source: str, provided_market: dict[str, Any] | None):
+    from core.gas_scenarios import get_capacity_context, get_market_context, get_scenario, list_scenarios
+
+    sid = scenario_id or (list_scenarios(locale=locale)[0]["id"] if list_scenarios(locale=locale) else None)
+    if not sid:
+        raise HTTPException(status_code=404, detail="No scenario available.")
+    try:
+        scenario = get_scenario(sid, locale=locale)
+        market = provided_market or get_market_context(sid, source=source)
+        capacity = get_capacity_context(sid)
+    except KeyError as exc:
+        raise _unknown_scenario(exc)
+    return scenario, {"market": market, "capacity": capacity}
 
 
 @app.get("/api/v1/provider-status")
@@ -231,7 +256,6 @@ def v1_provider_settings(payload: HainengProviderSettingsRequest):
 
     if not payload.api_key.strip() or not payload.base_url.strip():
         raise HTTPException(status_code=400, detail="海能 API key and base URL are required.")
-
     set_runtime_settings(
         HainengSettings(
             api_key=payload.api_key.strip(),
@@ -248,10 +272,7 @@ def v1_provider_settings(payload: HainengProviderSettingsRequest):
 def v1_list_scenarios(locale: str = "en"):
     from core.gas_scenarios import list_categories, list_scenarios
 
-    return {
-        "categories": list_categories(locale=locale),
-        "scenarios": list_scenarios(locale=locale),
-    }
+    return {"categories": list_categories(locale=locale), "scenarios": list_scenarios(locale=locale)}
 
 
 @app.get("/api/v1/scenarios/{scenario_id}/context")
@@ -264,7 +285,6 @@ def v1_scenario_context(scenario_id: str, locale: str = "en", source: str = "sam
         capacity = get_capacity_context(scenario_id)
     except KeyError as exc:
         raise _unknown_scenario(exc)
-
     return {"scenario": scenario, "market": market, "capacity": capacity}
 
 
@@ -278,73 +298,74 @@ def v1_evaluate_attempt(payload: AttemptRequest):
         capacity = get_capacity_context(payload.scenario_id)
     except KeyError as exc:
         raise _unknown_scenario(exc)
-
-    return {
-        "evaluation": evaluate_attempt(
-            scenario,
-            capacity,
-            payload.order,
-            payload.rationale,
-        )
-    }
+    return {"evaluation": evaluate_attempt(scenario, capacity, payload.order, payload.rationale)}
 
 
-@app.post("/api/v1/advisor/review")
-def v1_advisor_review(payload: AdvisorRequest):
-    from core.gas_scenarios import get_scenario
-    from core.haineng_client import HainengClient, build_advisor_messages
-
-    client = HainengClient()
-    if not client.is_configured():
-        raise HTTPException(
-            status_code=428,
-            detail="海能 is required before advisor review.",
-        )
-
-    try:
-        scenario = get_scenario(payload.scenario_id, locale=payload.locale)
-    except KeyError as exc:
-        raise _unknown_scenario(exc)
-
-    messages = build_advisor_messages(
-        payload.locale,
-        scenario,
-        payload.evaluation,
-        payload.rationale,
+@app.post("/api/v1/ai/generate")
+def v1_ai_generate(payload: AITrainingRequest):
+    from core.haineng_client import (
+        build_advisor_messages,
+        build_case_generation_messages,
+        build_concept_tutor_messages,
+        build_event_drill_messages,
+        build_exam_messages,
+        build_trade_playbook_messages,
     )
+
+    client = _require_haineng_client()
+    scenario, context = _scenario_bundle(payload.scenario_id, payload.locale, payload.source, payload.market_context)
+    capability = payload.capability.strip().lower()
+
+    if capability == "advisor_review":
+        messages = build_advisor_messages(payload.locale, scenario, payload.evaluation or {}, payload.rationale)
+    elif capability == "exam":
+        messages = build_exam_messages(payload.locale, scenario, payload.attempt_history)
+    elif capability == "case_generation":
+        enriched_context = {**context, "user_request": payload.user_request}
+        messages = build_case_generation_messages(payload.locale, scenario, enriched_context, payload.learner_level)
+    elif capability == "event_drill":
+        messages = build_event_drill_messages(payload.locale, scenario, payload.event_context or payload.user_request, context)
+    elif capability == "concept_tutor":
+        messages = build_concept_tutor_messages(payload.locale, payload.concept or payload.user_request, scenario, payload.learner_level)
+    elif capability == "trade_playbook":
+        messages = build_trade_playbook_messages(payload.locale, scenario, context, payload.commercial_goal or payload.user_request)
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported AI capability: {payload.capability}")
+
     try:
         answer = client.complete(messages)
     except Exception as exc:
         raise _haineng_failure(exc) from exc
-    return {"answer": answer}
+    return {"capability": capability, "scenario": scenario, "answer": answer}
+
+
+@app.post("/api/v1/advisor/review")
+def v1_advisor_review(payload: AdvisorRequest):
+    return v1_ai_generate(
+        AITrainingRequest(
+            capability="advisor_review",
+            locale=payload.locale,
+            scenario_id=payload.scenario_id,
+            evaluation=payload.evaluation,
+            order=payload.order,
+            rationale=payload.rationale,
+        )
+    )
 
 
 @app.post("/api/v1/exam/generate")
 def v1_generate_exam(payload: ExamRequest):
-    from core.gas_scenarios import get_scenario
-    from core.haineng_client import HainengClient, build_exam_messages
-
-    client = HainengClient()
-    if not client.is_configured():
-        raise HTTPException(
-            status_code=428,
-            detail="海能 is required before exam generation.",
+    result = v1_ai_generate(
+        AITrainingRequest(
+            capability="exam",
+            locale=payload.locale,
+            scenario_id=payload.scenario_id,
+            attempt_history=payload.attempt_history,
         )
-
-    try:
-        scenario = get_scenario(payload.scenario_id, locale=payload.locale)
-    except KeyError as exc:
-        raise _unknown_scenario(exc)
-
-    messages = build_exam_messages(payload.locale, scenario, payload.attempt_history)
-    try:
-        exam = client.complete(messages)
-    except Exception as exc:
-        raise _haineng_failure(exc) from exc
-    return {"exam": exam}
+    )
+    return {"exam": result["answer"]}
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host=_backend_host(), port=_backend_port())
