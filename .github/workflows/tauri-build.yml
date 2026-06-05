@@ -12,6 +12,7 @@ env:
   PYTHON_VERSION: '3.12'
   NODE_VERSION: '20'
   APP_NAME: 'Commodity-Lab'
+  ARTIFACT_NAME: 'commodity-lab-windows'
 
 jobs:
   test:
@@ -102,10 +103,10 @@ jobs:
         run: |
           Get-ChildItem -Recurse .\tauri\src-tauri\target\release\bundle | Select-Object FullName, Length
 
-      - name: Upload artifacts
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-windows
+          name: ${{ env.ARTIFACT_NAME }}
           path: tauri\src-tauri\target\release\bundle\*
           if-no-files-found: error
           retention-days: 14
@@ -118,22 +119,31 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Download windows artifacts
+      - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
-          name: tauri-windows
-          path: artifacts
+          name: ${{ env.ARTIFACT_NAME }}
+          path: artifacts/windows
 
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
-          echo "Publishing $TAG_NAME"
-          gh release create "$TAG_NAME" --title "$TAG_NAME" --notes "Tauri release artifacts" || true
-          mapfile -t files < <(find artifacts -type f)
+          NOTES_FILE="release-notes.md"
+          cat > "$NOTES_FILE" <<'EOF'
+          Commodity Lab Windows release.
+
+          This build packages the AI-powered energy trading training terminal for Windows. It includes Base Mode market training and supports 海能-compatible AI Full Power Mode when users provide their own endpoint credentials.
+          EOF
+
+          mapfile -t files < <(find artifacts/windows -type f)
           if [ "${#files[@]}" -eq 0 ]; then
             echo "No release artifacts found" >&2
             exit 1
           fi
-          gh release upload "$TAG_NAME" "${files[@]}" --clobber
+
+          gh release create "$TAG_NAME" "${files[@]}" \
+            --title "Commodity Lab $TAG_NAME" \
+            --notes-file "$NOTES_FILE" \
+            --latest
