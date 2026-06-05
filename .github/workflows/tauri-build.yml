@@ -5,6 +5,9 @@ on:
     tags: ['v*.*.*']
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   PYTHON_VERSION: '3.12'
   NODE_VERSION: '20'
@@ -13,68 +16,114 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install deps
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tauri/backend/requirements.txt
+
+      - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r tauri/backend/requirements.txt
           pip install pytest
-      - name: Run tests
+
+      - name: Run Python tests
         run: pytest -q
 
-  build_tauri_windows:
-    runs-on: windows-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v5
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tauri/tauri-frontend/package-lock.json
+
+      - name: Run frontend tests and build
+        run: |
+          cd tauri/tauri-frontend
+          npm ci
+          npm run test
+          npm run build
+
+  build_tauri_windows:
+    runs-on: windows-latest
+    needs: test
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tauri/backend/requirements.txt
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            tauri/package-lock.json
+            tauri/tauri-frontend/package-lock.json
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: stable
-      - name: Build backend
+
+      - name: Cache Cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            tauri/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('tauri/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Package Tauri desktop app
         shell: pwsh
-        run: .\tauri\scripts\build_backend.ps1
-      - name: Build frontend
-        run: |
-          cd tauri\tauri-frontend
-          npm ci
-          npm run build
-      - name: Build Tauri (Windows)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\package_tauri.ps1
+
+      - name: Show generated bundle files
         shell: pwsh
         run: |
-          cd tauri
-          npm ci
-          npm run tauri:build
+          Get-ChildItem -Recurse .\tauri\src-tauri\target\release\bundle | Select-Object FullName, Length
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: tauri-windows
           path: tauri\src-tauri\target\release\bundle\*
+          if-no-files-found: error
+          retention-days: 14
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: [build_tauri_windows]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+
       - name: Download windows artifacts
         uses: actions/download-artifact@v4
         with:
           name: tauri-windows
           path: artifacts
+
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -83,6 +132,8 @@ jobs:
           echo "Publishing $TAG_NAME"
           gh release create "$TAG_NAME" --title "$TAG_NAME" --notes "Tauri release artifacts" || true
           mapfile -t files < <(find artifacts -type f)
-          if [ "${#files[@]}" -gt 0 ]; then
-            gh release upload "$TAG_NAME" "${files[@]}" --clobber
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No release artifacts found" >&2
+            exit 1
           fi
+          gh release upload "$TAG_NAME" "${files[@]}" --clobber
