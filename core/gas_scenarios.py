@@ -1,4 +1,4 @@
-"""Natural gas scenario catalog and market context for V1."""
+"""Energy scenario catalog and market context for Commodity Lab V1."""
 from __future__ import annotations
 
 import math
@@ -10,37 +10,37 @@ _CATEGORY_DATA: list[dict[str, Any]] = [
     {
         "id": "natural_gas",
         "status": "enabled",
-        "label": {
-            "en": "Natural Gas",
-            "zh": "天然气",
-        },
+        "label": {"en": "Natural Gas", "zh": "天然气"},
         "description": {
-            "en": "V1 scenarios for natural gas price, basis, storage, and pipeline risk.",
-            "zh": "V1 天然气价格、基差、储气和管道风险场景。",
+            "en": "Enabled V1 training scenarios for European and North American gas hedging.",
+            "zh": "V1 已启用模块，聚焦欧洲和北美天然气套保训练。",
+        },
+    },
+    {
+        "id": "crude_oil",
+        "status": "constructing",
+        "label": {"en": "Crude Oil", "zh": "原油"},
+        "description": {
+            "en": "Crude oil workflows are visible but not enabled in V1.",
+            "zh": "原油工作流仅作为后续方向展示，V1 暂未启用。",
         },
     },
     {
         "id": "oil_products",
         "status": "constructing",
-        "label": {
-            "en": "Oil Products",
-            "zh": "油品",
-        },
+        "label": {"en": "Oil Products", "zh": "成品油"},
         "description": {
-            "en": "Oil products workflows are visible but still under construction.",
-            "zh": "油品工作流已展示，但仍在建设中。",
+            "en": "Oil products workflows are visible but not enabled in V1.",
+            "zh": "成品油工作流仅作为后续方向展示，V1 暂未启用。",
         },
     },
     {
-        "id": "metals",
+        "id": "carbon",
         "status": "constructing",
-        "label": {
-            "en": "Metals",
-            "zh": "金属",
-        },
+        "label": {"en": "Carbon", "zh": "碳"},
         "description": {
-            "en": "Metals workflows are visible but still under construction.",
-            "zh": "金属工作流已展示，但仍在建设中。",
+            "en": "Carbon market workflows are visible but not enabled in V1.",
+            "zh": "碳市场工作流仅作为后续方向展示，V1 暂未启用。",
         },
     },
 ]
@@ -48,67 +48,92 @@ _CATEGORY_DATA: list[dict[str, Any]] = [
 _GUIDED_STEPS: list[dict[str, Any]] = [
     {
         "id": "understand_exposure",
-        "label": {
-            "en": "Understand exposure",
-            "zh": "识别风险敞口",
-        },
+        "label": {"en": "Understand exposure", "zh": "识别风险敞口"},
         "description": {
-            "en": "Identify the physical exposure, hedge horizon, and risk driver.",
-            "zh": "识别现货风险敞口、套保期限和主要风险驱动因素。",
+            "en": "Identify physical exposure, pricing index, delivery region, tenor, and risk driver.",
+            "zh": "识别现货敞口、计价指数、交付区域、期限和主要风险驱动因素。",
         },
     },
     {
         "id": "inspect_market",
-        "label": {
-            "en": "Inspect market",
-            "zh": "观察市场",
-        },
+        "label": {"en": "Inspect market", "zh": "观察市场"},
         "description": {
-            "en": "Review futures, basis, and operating context before hedging.",
-            "zh": "在套保前观察期货、基差和运营背景。",
+            "en": "Review price, basis, spread, capacity, and source quality before hedging.",
+            "zh": "在套保前观察价格、基差、价差、运力和数据来源质量。",
         },
     },
     {
         "id": "place_hedge",
-        "label": {
-            "en": "Place hedge",
-            "zh": "建立套保",
-        },
+        "label": {"en": "Place hedge", "zh": "建立套保"},
         "description": {
-            "en": "Select the hedge side, size, instrument, and execution timing.",
-            "zh": "选择套保方向、规模、工具和执行时点。",
+            "en": "Select the hedge side, hedge type, hedge ratio, and execution timing.",
+            "zh": "选择套保方向、套保类型、套保比例和执行时点。",
         },
     },
     {
         "id": "review_score",
-        "label": {
-            "en": "Review score",
-            "zh": "复盘评分",
-        },
+        "label": {"en": "Review score", "zh": "复盘评分"},
         "description": {
-            "en": "Compare the hedge decision against the scenario objective.",
-            "zh": "对照场景目标复盘套保决策。",
+            "en": "Compare the decision against objective, exposure, market context, and risk tags.",
+            "zh": "对照目标、敞口、市场环境和风险标签复盘决策。",
         },
     },
     {
         "id": "exam",
-        "label": {
-            "en": "Exam",
-            "zh": "测验",
-        },
+        "label": {"en": "Exam", "zh": "测验"},
         "description": {
-            "en": "Answer a short assessment question to reinforce the lesson.",
-            "zh": "完成简短测验，巩固本场景要点。",
+            "en": "Use optional AI coaching to generate targeted assessment questions.",
+            "zh": "可使用可选 AI 辅导生成针对性测验题目。",
         },
     },
 ]
 
 _SCENARIO_DATA: list[dict[str, Any]] = [
     {
+        "id": "europe_ttf_nbp_spread",
+        "status": "enabled",
+        "commodity_id": "natural_gas",
+        "commodity": "natural_gas",
+        "region": "europe",
+        "region_label": {"en": "Europe", "zh": "欧洲"},
+        "enabled": True,
+        "difficulty": "intermediate",
+        "exposure": {
+            "direction": "long",
+            "volume_mmbtu": 70000,
+            "risk": {
+                "en": "A cross-border gas position is exposed to TTF/NBP spread, units, FX, and hub basis movement.",
+                "zh": "跨市场天然气头寸面临 TTF/NBP 价差、单位、汇率和枢纽基差变动风险。",
+            },
+        },
+        "recommended_hedge_type": "basis_hedge",
+        "recommended_side": "sell",
+        "default_symbol": "NG=F",
+        "title": {"en": "Europe TTF/NBP Spread", "zh": "欧洲 TTF/NBP 价差"},
+        "summary": {
+            "en": "A trader manages hub-spread risk before locking a delivered European gas margin.",
+            "zh": "交易员在锁定欧洲天然气到岸利润前，管理不同枢纽之间的价差风险。",
+        },
+        "learning_objectives": {
+            "en": [
+                "Separate outright gas price risk from hub-spread risk.",
+                "Recognize why NBP and TTF need unit and FX normalization.",
+                "Use a basis hedge when the exposure is location or hub spread.",
+            ],
+            "zh": [
+                "区分单边气价风险与枢纽价差风险。",
+                "理解 NBP 与 TTF 比较需要单位和汇率归一化。",
+                "在商业敞口来自地点或枢纽价差时使用基差套保。",
+            ],
+        },
+    },
+    {
         "id": "producer_short_hedge",
         "status": "enabled",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
+        "region": "north_america",
+        "region_label": {"en": "North America", "zh": "北美"},
         "enabled": True,
         "difficulty": "intro",
         "exposure": {
@@ -122,10 +147,7 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "recommended_hedge_type": "short_hedge",
         "recommended_side": "sell",
         "default_symbol": "NG=F",
-        "title": {
-            "en": "Producer Short Hedge",
-            "zh": "生产商卖出套保",
-        },
+        "title": {"en": "North America Producer Short Hedge", "zh": "北美生产商卖出套保"},
         "summary": {
             "en": "A gas producer protects forward revenue from a Henry Hub price decline.",
             "zh": "天然气生产商通过卖出套保，保护远期收入免受亨利港价格下跌影响。",
@@ -148,6 +170,8 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "status": "enabled",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
+        "region": "north_america",
+        "region_label": {"en": "North America", "zh": "北美"},
         "enabled": True,
         "difficulty": "intro",
         "exposure": {
@@ -161,10 +185,7 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "recommended_hedge_type": "long_hedge",
         "recommended_side": "buy",
         "default_symbol": "NG=F",
-        "title": {
-            "en": "Winter Load Spike",
-            "zh": "冬季负荷上升",
-        },
+        "title": {"en": "North America Winter Load Spike", "zh": "北美冬季负荷上升"},
         "summary": {
             "en": "A utility hedges rising winter fuel costs as heating demand accelerates.",
             "zh": "公用事业企业在采暖需求上升时，对冲冬季燃料成本上涨风险。",
@@ -187,6 +208,8 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "status": "enabled",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
+        "region": "north_america",
+        "region_label": {"en": "North America", "zh": "北美"},
         "enabled": True,
         "difficulty": "intermediate",
         "exposure": {
@@ -200,10 +223,7 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "recommended_hedge_type": "basis_hedge",
         "recommended_side": "sell",
         "default_symbol": "NG=F",
-        "title": {
-            "en": "Pipeline Capacity Constraint",
-            "zh": "管道运力约束",
-        },
+        "title": {"en": "North America Pipeline Capacity Constraint", "zh": "北美管道运力约束"},
         "summary": {
             "en": "A shipper manages basis and nomination risk when pipeline capacity tightens.",
             "zh": "托运人在管道运力趋紧时管理基差和提名量风险。",
@@ -226,6 +246,8 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "status": "enabled",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
+        "region": "north_america",
+        "region_label": {"en": "North America", "zh": "北美"},
         "enabled": True,
         "difficulty": "intermediate",
         "exposure": {
@@ -239,10 +261,7 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "recommended_hedge_type": "basis_hedge",
         "recommended_side": "sell",
         "default_symbol": "NG=F",
-        "title": {
-            "en": "Regional Basis Blowout",
-            "zh": "区域基差扩大",
-        },
+        "title": {"en": "North America Regional Basis Blowout", "zh": "北美区域基差扩大"},
         "summary": {
             "en": "A marketer hedges a local price discount that widens versus Henry Hub.",
             "zh": "贸易商对冲本地价格相对亨利港贴水扩大的风险。",
@@ -265,6 +284,8 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "status": "enabled",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
+        "region": "europe",
+        "region_label": {"en": "Europe", "zh": "欧洲"},
         "enabled": True,
         "difficulty": "advanced",
         "exposure": {
@@ -278,10 +299,7 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "recommended_hedge_type": "calendar_spread",
         "recommended_side": "spread",
         "default_symbol": "NG=F",
-        "title": {
-            "en": "Storage Calendar Spread",
-            "zh": "储气库月差套保",
-        },
+        "title": {"en": "Europe Storage Calendar Spread", "zh": "欧洲储气库月差套保"},
         "summary": {
             "en": "A storage operator hedges injection and withdrawal economics with calendar spreads.",
             "zh": "储气库运营商使用月差套保管理注气和采气经济性。",
@@ -302,6 +320,14 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
 ]
 
 _SAMPLE_PRICE_POINTS: dict[str, list[dict[str, Any]]] = {
+    "europe_ttf_nbp_spread": [
+        {"date": "2026-01-05", "close": 3.02},
+        {"date": "2026-01-06", "close": 3.08},
+        {"date": "2026-01-07", "close": 3.13},
+        {"date": "2026-01-08", "close": 3.07},
+        {"date": "2026-01-09", "close": 3.16},
+        {"date": "2026-01-12", "close": 3.21},
+    ],
     "producer_short_hedge": [
         {"date": "2026-01-05", "close": 3.42},
         {"date": "2026-01-06", "close": 3.38},
@@ -368,6 +394,25 @@ _YFINANCE_SOURCE = "yfinance"
 _YFINANCE_SOURCE_LABEL = "Yahoo Finance"
 
 _CAPACITY_CONTEXTS: dict[str, dict[str, Any]] = {
+    "europe_ttf_nbp_spread": {
+        "scenario_id": "europe_ttf_nbp_spread",
+        "receipt_point": "TTF Virtual Point",
+        "delivery_point": "NBP Virtual Point",
+        "pipeline_name": "Interconnector / LNG optionality corridor",
+        "available_capacity_mmbtu": 90000,
+        "nominated_mmbtu": 70000,
+        "utilization_pct": 77.8,
+        "congestion_status": "watch",
+        "flow_nodes": [
+            {"id": "ttf", "label": "TTF", "role": "receipt"},
+            {"id": "interconnector", "label": "Cross-border capacity", "role": "constraint"},
+            {"id": "nbp", "label": "NBP", "role": "delivery"},
+        ],
+        "flow_edges": [
+            {"from": "ttf", "to": "interconnector", "mmbtu": 70000},
+            {"from": "interconnector", "to": "nbp", "mmbtu": 70000},
+        ],
+    },
     "pipeline_capacity_constraint": {
         "scenario_id": "pipeline_capacity_constraint",
         "receipt_point": "Permian Receipt",
@@ -386,7 +431,7 @@ _CAPACITY_CONTEXTS: dict[str, dict[str, Any]] = {
             {"from": "receipt", "to": "constraint", "mmbtu": 111000},
             {"from": "constraint", "to": "delivery", "mmbtu": 111000},
         ],
-    }
+    },
 }
 
 
@@ -418,7 +463,7 @@ def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, An
 
     Priority is explicit:
     - sample/simulated: deterministic built-in sample data.
-    - yfinance/Yahoo Finance: live Yahoo Finance data first, simulated fallback only if unavailable.
+    - yfinance/Yahoo Finance: Yahoo Finance data first, simulated fallback only if unavailable.
     - platts: reserved source; simulated fallback until a Platts adapter is implemented.
     """
     scenario = _find_scenario(scenario_id)
@@ -507,7 +552,7 @@ def _build_yfinance_market_context(
         "data_source": _YFINANCE_SOURCE,
         "data_source_label": _YFINANCE_SOURCE_LABEL,
         "symbol": symbol,
-        "instrument": "Henry Hub Natural Gas Futures",
+        "instrument": _instrument_name(scenario),
         "unit": "USD/MMBtu",
         "price_series": price_series,
         "price_points": deepcopy(price_series),
@@ -541,7 +586,7 @@ def _build_simulated_market_context(
         "data_source": _SIMULATED_SOURCE,
         "data_source_label": _SIMULATED_SOURCE_LABEL,
         "symbol": scenario["default_symbol"],
-        "instrument": "Henry Hub Natural Gas Futures",
+        "instrument": _instrument_name(scenario),
         "unit": "USD/MMBtu",
         "price_series": price_series,
         "price_points": deepcopy(price_series),
@@ -607,6 +652,8 @@ def _localize_scenario(scenario: dict[str, Any], locale: str) -> dict[str, Any]:
         "commodity": scenario.get("commodity", scenario["commodity_id"]),
         "enabled": scenario.get("enabled", scenario["status"] == "enabled"),
         "commodity_label": category["label"][locale],
+        "region": scenario.get("region", "global"),
+        "region_label": scenario.get("region_label", {"en": "Global", "zh": "全球"})[locale],
         "difficulty": scenario["difficulty"],
         "title": scenario["title"][locale],
         "summary": scenario["summary"][locale],
@@ -667,6 +714,12 @@ def _source_label(source: str) -> str:
     return _SOURCE_LABELS.get(source, source)
 
 
+def _instrument_name(scenario: dict[str, Any]) -> str:
+    if scenario.get("region") == "europe":
+        return "European Gas Hub Spread Proxy"
+    return "Henry Hub Natural Gas Futures"
+
+
 def _build_default_capacity_context(scenario: dict[str, Any]) -> dict[str, Any]:
     nominated_mmbtu = int(scenario["exposure"]["volume_mmbtu"])
     available_capacity_mmbtu = max(1, int(round(nominated_mmbtu * 1.25)))
@@ -678,13 +731,20 @@ def _build_default_capacity_context(scenario: dict[str, Any]) -> dict[str, Any]:
     else:
         congestion_status = "normal"
 
-    receipt_point = "Henry Hub Receipt"
-    delivery_point = "Scenario Delivery"
+    if scenario.get("region") == "europe":
+        receipt_point = "European Hub Receipt"
+        delivery_point = "European Hub Delivery"
+        pipeline_name = "European Gas Route Proxy"
+    else:
+        receipt_point = "Henry Hub Receipt"
+        delivery_point = "Scenario Delivery"
+        pipeline_name = "Sample Natural Gas Flow"
+
     return {
         "scenario_id": scenario["id"],
         "receipt_point": receipt_point,
         "delivery_point": delivery_point,
-        "pipeline_name": "Sample Natural Gas Flow",
+        "pipeline_name": pipeline_name,
         "available_capacity_mmbtu": available_capacity_mmbtu,
         "nominated_mmbtu": nominated_mmbtu,
         "utilization_pct": utilization_pct,
