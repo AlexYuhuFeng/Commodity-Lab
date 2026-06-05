@@ -18,6 +18,13 @@ if str(PROJECT_ROOT) not in sys.path:
 
 app = FastAPI(title="Commodity Lab Backend")
 
+try:
+    from core.learner_profile import LearnerProfile
+
+    _LEARNER_PROFILE = LearnerProfile.create_default()
+except Exception:
+    _LEARNER_PROFILE = None
+
 
 class PingResp(BaseModel):
     message: str
@@ -92,6 +99,12 @@ def _backend_port() -> int:
     return port
 
 
+def _apply_profile_update(evaluation: dict[str, Any]) -> dict[str, Any] | None:
+    if _LEARNER_PROFILE is None:
+        return None
+    return _LEARNER_PROFILE.apply_evaluation(evaluation)
+
+
 @app.get("/api/ping", response_model=PingResp)
 async def ping():
     return {"message": "pong from Tauri Python backend"}
@@ -100,6 +113,27 @@ async def ping():
 @app.get("/api/health")
 def health():
     return {"ok": True, "service": "commodity-lab-backend"}
+
+
+@app.get("/api/v1/catalog")
+def v1_catalog(locale: str = "en"):
+    from core.energy_models import list_ai_capabilities, list_energy_modules
+
+    return {
+        "modules": list_energy_modules(locale=locale),
+        "ai_capabilities": list_ai_capabilities(locale=locale),
+        "current_focus": {
+            "commodity": "natural_gas",
+            "region": "europe",
+            "status": "enabled",
+        },
+        "future_modules": ["crude_oil", "oil_products", "carbon", "power"],
+    }
+
+
+@app.get("/api/v1/learner-profile")
+def v1_learner_profile():
+    return _LEARNER_PROFILE.as_dict() if _LEARNER_PROFILE is not None else {"profile_available": False}
 
 
 @app.get("/api/instruments")
@@ -222,7 +256,8 @@ def _require_haineng_client():
 def _scenario_bundle(scenario_id: str | None, locale: str, source: str, provided_market: dict[str, Any] | None):
     from core.gas_scenarios import get_capacity_context, get_market_context, get_scenario, list_scenarios
 
-    sid = scenario_id or (list_scenarios(locale=locale)[0]["id"] if list_scenarios(locale=locale) else None)
+    scenario_list = list_scenarios(locale=locale)
+    sid = scenario_id or (scenario_list[0]["id"] if scenario_list else None)
     if not sid:
         raise HTTPException(status_code=404, detail="No scenario available.")
     try:
@@ -298,7 +333,9 @@ def v1_evaluate_attempt(payload: AttemptRequest):
         capacity = get_capacity_context(payload.scenario_id)
     except KeyError as exc:
         raise _unknown_scenario(exc)
-    return {"evaluation": evaluate_attempt(scenario, capacity, payload.order, payload.rationale)}
+    evaluation = evaluate_attempt(scenario, capacity, payload.order, payload.rationale)
+    profile = _apply_profile_update(evaluation)
+    return {"evaluation": evaluation, "profile": profile}
 
 
 @app.post("/api/v1/ai/generate")
