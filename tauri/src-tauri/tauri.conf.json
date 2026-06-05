@@ -16,7 +16,10 @@
         "height": 900,
         "minWidth": 1180,
         "minHeight": 720,
-        "resizable": true
+        "resizable": true,
+        "decorations": true,
+        "transparent": false,
+        "center": true
       }
     ],
     "bundle": {
