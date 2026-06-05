@@ -74,6 +74,7 @@ class AITrainingRequest(BaseModel):
     learner_level: str = "intermediate"
     market_context: dict[str, Any] | None = None
     user_request: str = ""
+    learner_message: str = ""
 
 
 class HainengProviderSettingsRequest(BaseModel):
@@ -105,6 +106,10 @@ def _apply_profile_update(evaluation: dict[str, Any]) -> dict[str, Any] | None:
     return _LEARNER_PROFILE.apply_evaluation(evaluation)
 
 
+def _profile_payload() -> dict[str, Any]:
+    return _LEARNER_PROFILE.as_dict() if _LEARNER_PROFILE is not None else {"profile_available": False}
+
+
 @app.get("/api/ping", response_model=PingResp)
 async def ping():
     return {"message": "pong from Tauri Python backend"}
@@ -122,18 +127,21 @@ def v1_catalog(locale: str = "en"):
     return {
         "modules": list_energy_modules(locale=locale),
         "ai_capabilities": list_ai_capabilities(locale=locale),
-        "current_focus": {
-            "commodity": "natural_gas",
-            "region": "europe",
-            "status": "enabled",
-        },
+        "current_focus": {"commodity": "natural_gas", "region": "europe", "status": "enabled"},
         "future_modules": ["crude_oil", "oil_products", "carbon", "power"],
     }
 
 
 @app.get("/api/v1/learner-profile")
 def v1_learner_profile():
-    return _LEARNER_PROFILE.as_dict() if _LEARNER_PROFILE is not None else {"profile_available": False}
+    return _profile_payload()
+
+
+@app.get("/api/v1/learning-journey")
+def v1_learning_journey(locale: str = "en"):
+    from core.learning_journey import build_learning_journey
+
+    return build_learning_journey(_profile_payload(), locale=locale)
 
 
 @app.get("/api/instruments")
@@ -335,7 +343,11 @@ def v1_evaluate_attempt(payload: AttemptRequest):
         raise _unknown_scenario(exc)
     evaluation = evaluate_attempt(scenario, capacity, payload.order, payload.rationale)
     profile = _apply_profile_update(evaluation)
-    return {"evaluation": evaluation, "profile": profile}
+    journey = None
+    if profile is not None:
+        from core.learning_journey import build_learning_journey
+        journey = build_learning_journey(profile, locale=payload.locale)
+    return {"evaluation": evaluation, "profile": profile, "journey": journey}
 
 
 @app.post("/api/v1/ai/generate")
@@ -346,6 +358,7 @@ def v1_ai_generate(payload: AITrainingRequest):
         build_concept_tutor_messages,
         build_event_drill_messages,
         build_exam_messages,
+        build_socratic_coach_messages,
         build_trade_playbook_messages,
     )
 
@@ -366,6 +379,14 @@ def v1_ai_generate(payload: AITrainingRequest):
         messages = build_concept_tutor_messages(payload.locale, payload.concept or payload.user_request, scenario, payload.learner_level)
     elif capability == "trade_playbook":
         messages = build_trade_playbook_messages(payload.locale, scenario, context, payload.commercial_goal or payload.user_request)
+    elif capability == "socratic_coach":
+        messages = build_socratic_coach_messages(
+            payload.locale,
+            scenario,
+            payload.learner_message or payload.user_request or payload.rationale,
+            context,
+            _profile_payload(),
+        )
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported AI capability: {payload.capability}")
 
