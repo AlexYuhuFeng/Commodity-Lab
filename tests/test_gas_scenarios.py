@@ -16,10 +16,11 @@ from core.gas_scenarios import (
 def test_list_scenarios_returns_enabled_natural_gas_only():
     scenarios = list_scenarios(locale="en")
 
-    assert len(scenarios) >= 5
+    assert len(scenarios) >= 6
     assert {scenario["status"] for scenario in scenarios} == {"enabled"}
     assert {scenario["commodity_id"] for scenario in scenarios} == {"natural_gas"}
     assert {scenario["commodity"] for scenario in scenarios} == {"natural_gas"}
+    assert {scenario["region"] for scenario in scenarios} >= {"europe", "north_america"}
     assert all(scenario["enabled"] is True for scenario in scenarios)
 
 
@@ -29,29 +30,28 @@ def test_list_scenarios_filters_disabled_or_non_natural_gas_entries(monkeypatch)
     disabled_gas["status"] = "constructing"
     disabled_gas["enabled"] = False
 
-    enabled_metals = deepcopy(gas_scenarios._SCENARIO_DATA[0])
-    enabled_metals["id"] = "enabled_metals"
-    enabled_metals["commodity_id"] = "metals"
-    enabled_metals["commodity"] = "metals"
+    enabled_crude = deepcopy(gas_scenarios._SCENARIO_DATA[0])
+    enabled_crude["id"] = "enabled_crude"
+    enabled_crude["commodity_id"] = "crude_oil"
+    enabled_crude["commodity"] = "crude_oil"
 
     monkeypatch.setattr(
         gas_scenarios,
         "_SCENARIO_DATA",
-        [*gas_scenarios._SCENARIO_DATA, disabled_gas, enabled_metals],
+        [*gas_scenarios._SCENARIO_DATA, disabled_gas, enabled_crude],
     )
 
     scenario_ids = {scenario["id"] for scenario in list_scenarios(locale="en")}
 
     assert "disabled_gas" not in scenario_ids
-    assert "enabled_metals" not in scenario_ids
+    assert "enabled_crude" not in scenario_ids
 
 
-def test_list_categories_excludes_grains_and_marks_non_gas_constructing():
+def test_list_categories_matches_energy_scope():
     categories = list_categories(locale="en")
     by_id = {category["id"]: category for category in categories}
 
-    assert "grains" not in by_id
-    assert set(by_id) == {"natural_gas", "oil_products", "metals"}
+    assert set(by_id) == {"natural_gas", "crude_oil", "oil_products", "carbon"}
     assert by_id["natural_gas"]["status"] == "enabled"
     for category_id, category in by_id.items():
         if category_id != "natural_gas":
@@ -62,9 +62,9 @@ def test_get_pipeline_capacity_scenario_is_localized_in_mandarin():
     scenario = get_scenario("pipeline_capacity_constraint", locale="zh")
 
     assert scenario["id"] == "pipeline_capacity_constraint"
-    assert scenario["title"] == "管道运力约束"
+    assert scenario["title"] == "北美管道运力约束"
     assert scenario["commodity_label"] == "天然气"
-    assert scenario["title"]
+    assert scenario["region_label"] == "北美"
     assert scenario["guided_steps"][0]["id"] == "understand_exposure"
     assert scenario["guided_steps"][0]["label"] == "识别风险敞口"
     assert scenario["guided_steps"][1]["label"] == "观察市场"
@@ -74,25 +74,40 @@ def test_get_pipeline_capacity_scenario_is_localized_in_mandarin():
     assert scenario["learning_objectives"]
 
 
-def test_mandarin_catalog_labels_are_available_without_grains():
+def test_mandarin_catalog_labels_are_available_for_energy_scope():
     categories = {category["id"]: category for category in list_categories(locale="zh")}
     scenarios = {scenario["id"]: scenario for scenario in list_scenarios(locale="zh")}
 
     assert categories["natural_gas"]["label"] == "天然气"
-    assert categories["oil_products"]["label"] == "油品"
-    assert categories["metals"]["label"] == "金属"
-    assert "grains" not in categories
-    assert scenarios["producer_short_hedge"]["title"] == "生产商卖出套保"
-    assert scenarios["winter_load_spike"]["title"] == "冬季负荷上升"
-    assert scenarios["pipeline_capacity_constraint"]["title"] == "管道运力约束"
-    assert scenarios["regional_basis_blowout"]["title"] == "区域基差扩大"
-    assert scenarios["storage_calendar_spread"]["title"] == "储气库月差套保"
+    assert categories["crude_oil"]["label"] == "原油"
+    assert categories["oil_products"]["label"] == "成品油"
+    assert categories["carbon"]["label"] == "碳"
+    assert scenarios["europe_ttf_nbp_spread"]["title"] == "欧洲 TTF/NBP 价差"
+    assert scenarios["producer_short_hedge"]["title"] == "北美生产商卖出套保"
+    assert scenarios["winter_load_spike"]["title"] == "北美冬季负荷上升"
+    assert scenarios["pipeline_capacity_constraint"]["title"] == "北美管道运力约束"
+    assert scenarios["regional_basis_blowout"]["title"] == "北美区域基差扩大"
+    assert scenarios["storage_calendar_spread"]["title"] == "欧洲储气库月差套保"
 
 
-def test_producer_short_hedge_includes_task_two_contract_fields():
+def test_europe_scenario_includes_region_and_spread_context():
+    scenario = get_scenario("europe_ttf_nbp_spread", locale="en")
+    capacity = get_capacity_context("europe_ttf_nbp_spread")
+
+    assert scenario["region"] == "europe"
+    assert scenario["region_label"] == "Europe"
+    assert scenario["recommended_hedge_type"] == "basis_hedge"
+    assert scenario["recommended_side"] == "sell"
+    assert "TTF" in scenario["title"]
+    assert capacity["receipt_point"] == "TTF Virtual Point"
+    assert capacity["delivery_point"] == "NBP Virtual Point"
+
+
+def test_producer_short_hedge_includes_contract_fields():
     scenario = get_scenario("producer_short_hedge", locale="en")
 
     assert scenario["commodity"] == "natural_gas"
+    assert scenario["region"] == "north_america"
     assert scenario["enabled"] is True
     assert scenario["recommended_side"] == "sell"
     assert scenario["recommended_hedge_type"] == "short_hedge"
