@@ -1,64 +1,131 @@
 # Commodity Lab
 
-Commodity Lab is a private desktop learning platform for commodity trading skills. V1 focuses on natural gas hedging: learners inspect market and pipeline-capacity context, place simulated hedge orders, receive deterministic scoring, and get live coaching from a user-provided 海能-compatible LLM endpoint.
+**Commodity Lab** is an AI-powered desktop training terminal for energy trading practice. It combines market data, structured trading scenarios, deterministic scoring, and an optional 海能-compatible LLM coach. Users can enter the terminal immediately in Base Mode with Yahoo Finance and simulated data; connecting 海能 unlocks Full Power Mode with AI case generation, event-driven drills, concept tutoring, scoring explanations, trade playbooks, and adaptive exams.
 
-Commodity Lab 是一个私有桌面端商品交易学习平台。V1 聚焦天然气套期保值训练：学习者可以查看市场与管道运力环境、提交模拟套保订单、获得确定性评分，并通过用户自备的海能兼容 LLM 端点获得实时辅导。
+**Commodity Lab** 是一个 AI 驱动的能源交易训练终端。系统将市场数据、结构化业务场景、确定性评分和海能兼容 LLM 教练结合起来。用户无需先配置海能即可进入基础训练模式，使用 Yahoo Finance 和模拟数据完成训练；连接海能后进入 AI 全功能模式，解锁案例生成、事件演练、概念教学、评分解释、交易实务建议和自适应测验。
 
 ![Status](https://img.shields.io/badge/status-V1%20active-1f6feb)
 ![Desktop](https://img.shields.io/badge/client-Windows-2563eb)
-![Data](https://img.shields.io/badge/data-Platts%20%7C%20Yahoo%20Finance%20%7C%20Simulated-0f766e)
+![AI](https://img.shields.io/badge/AI-%E6%B5%B7%E8%83%BD%20compatible-0f766e)
+![Data](https://img.shields.io/badge/data-Yahoo%20Finance%20%7C%20Simulated%20%7C%20Platts%20reserved-0e7490)
 
-## Overview / 项目概览
+Suggested GitHub repository description:
 
-Commodity Lab is designed as a modern, terminal-like training client rather than a static course. The app combines structured scenarios, market data, pipeline-capacity visuals, simulated order placement, and LLM-driven feedback.
+```text
+AI-powered desktop training terminal for energy trading, combining market data, structured scenarios, deterministic scoring, and 海能 LLM coaching.
+```
 
-Commodity Lab 的目标不是静态课程，而是现代化、交易终端风格的训练客户端。应用将结构化场景、市场数据、管道运力图示、模拟下单和 LLM 驱动反馈结合在一起。
+## Product Goal / 产品目标
 
-V1 includes:
+Commodity Lab is not intended to be a static course or a simple hedge calculator. The goal is to build a professional training terminal that teaches energy trading judgment through repeated practice:
 
-- Natural gas hedging scenarios only.
-- Pipeline capacity and congestion context.
-- Simulated hedge order tickets.
-- Deterministic hedge metrics and scoring.
-- 海能 advisor hints, action review, and exam generation.
-- English and Mandarin UI.
-- Data source labels: `Platts`, `Yahoo Finance`, `Simulated`.
-- Future commodity modules visible as `Constructing`.
+- read the market context;
+- understand the commercial exposure;
+- choose an appropriate financial tool;
+- submit a trade or hedge decision;
+- receive deterministic scoring;
+- use AI to generate cases, challenge reasoning, explain concepts, and produce exams.
 
-V1 包含：
+Commodity Lab 不是静态课程，也不是简单套保计算器。项目目标是构建一个专业训练终端，通过反复训练提升能源交易判断能力：
 
-- 仅天然气套保训练场景。
-- 管道运力与拥堵环境。
-- 模拟套保订单票据。
-- 确定性套保指标与评分。
-- 海能顾问提示、操作复盘与测验生成。
-- 英文与中文界面。
-- 数据来源标记：`Platts`、`Yahoo Finance`、`Simulated`。
-- 其他商品模块保持可见，并显示为 `Constructing`。
+- 阅读市场环境；
+- 识别商业敞口；
+- 选择合适金融工具；
+- 提交交易或套保决策；
+- 获得确定性评分；
+- 使用 AI 生成案例、追问逻辑、解释概念并生成测验。
+
+## Scope / 范围
+
+V1 enables natural gas training and shows the future energy scope as disabled modules.
+
+V1 启用天然气训练，并将其他能源模块作为后续方向展示。
+
+| Module | Status | Notes |
+|---|---|---|
+| Natural Gas / 天然气 | Enabled | Europe and North America scenarios |
+| Crude Oil / 原油 | Constructing | Future module |
+| Oil Products / 成品油 | Constructing | Future module |
+| Carbon / 碳 | Constructing | Future module |
+
+Natural gas scenarios are organized by region:
+
+- **Europe**: hub spread, storage spread, route/capacity logic, TTF/NBP-style thinking.
+- **North America**: Henry Hub outright hedge, winter demand, pipeline basis, regional basis risk.
+
+天然气场景按区域组织：
+
+- **欧洲**：枢纽价差、储气月差、路径/运力逻辑、TTF/NBP 类思路。
+- **北美**：亨利港单边套保、冬季需求、管道基差、区域基差风险。
+
+## Experience Modes / 体验模式
+
+### Base Mode
+
+Base Mode is available immediately. No 海能 key is required at startup.
+
+基础模式进入即用，启动时不要求提供海能 Key。
+
+Base Mode includes:
+
+- Yahoo Finance / simulated market data;
+- scenario selection;
+- exposure and route/capacity context;
+- order decision ticket;
+- deterministic scoring;
+- bilingual UI.
+
+### AI Full Power Mode
+
+Connecting a user-provided 海能-compatible endpoint unlocks the full AI training workflow.
+
+连接用户自备的海能兼容端点后，系统进入 AI 全功能模式。
+
+AI Full Power Mode is designed to support:
+
+- **Business case generation**: generate realistic trading cases from commodity, region, exposure, and market setting.
+- **Event-driven drills**: use international events, weather, supply disruption, sanctions, maintenance, storage, or shipping context to create scenario tests.
+- **Concept tutoring**: explain futures, basis, spreads, storage optionality, route cost, nomination, and risk controls.
+- **Scoring explanation**: translate deterministic scoring into a human-readable coaching review.
+- **Trade playbook advice**: suggest what a trader should check before acting.
+- **Adaptive exams**: generate targeted questions based on the learner's mistakes.
+
+AI 全功能模式用于：
+
+- **业务案例生成**：基于商品、区域、敞口和市场环境生成接近实务的训练案例。
+- **事件驱动演练**：结合国际事件、天气、供应中断、制裁、检修、库存或航运信息生成测试题。
+- **概念教学**：讲解期货、基差、价差、储气库可选性、路径成本、提名量和风控逻辑。
+- **评分解释**：将确定性评分转换为可读的教练式复盘。
+- **交易实务建议**：提示交易员在行动前应检查哪些信息。
+- **自适应测验**：根据用户错误生成针对性测验。
 
 ## Architecture / 技术架构
 
 ```text
 Commodity Lab
 ├── core/                         Python domain logic
-│   ├── gas_scenarios.py          Natural gas scenarios and sample data
-│   ├── learning_session.py       Attempt evaluation and scoring helpers
+│   ├── gas_scenarios.py          Energy scenario catalog, regions, market context
+│   ├── learning_session.py       Deterministic scoring and attempt evaluation
+│   ├── yf_prices.py              Yahoo Finance market data adapter
 │   └── haineng_client.py         OpenAI-compatible 海能 client
 ├── tauri/backend/                FastAPI backend for the desktop client
-├── tauri/tauri-frontend/         React + Vite frontend
-├── tauri/src-tauri/              Tauri Rust shell and backend bridge
+├── tauri/tauri-frontend/         React + Vite terminal UI
+├── tauri/src-tauri/              Tauri Rust shell and backend launcher
+├── tauri/scripts/                Backend and desktop packaging scripts
 └── tests/                        Python and frontend regression tests
 ```
 
 ```text
 Commodity Lab
 ├── core/                         Python 领域逻辑
-│   ├── gas_scenarios.py          天然气场景与样例数据
-│   ├── learning_session.py       训练尝试评估与评分辅助逻辑
+│   ├── gas_scenarios.py          能源场景目录、区域、市场环境
+│   ├── learning_session.py       确定性评分与训练评估
+│   ├── yf_prices.py              Yahoo Finance 市场数据适配器
 │   └── haineng_client.py         OpenAI 兼容的海能客户端
 ├── tauri/backend/                桌面客户端使用的 FastAPI 后端
-├── tauri/tauri-frontend/         React + Vite 前端
-├── tauri/src-tauri/              Tauri Rust 外壳与后端桥接
+├── tauri/tauri-frontend/         React + Vite 终端界面
+├── tauri/src-tauri/              Tauri Rust 外壳与后端启动器
+├── tauri/scripts/                后端和桌面端打包脚本
 └── tests/                        Python 与前端回归测试
 ```
 
@@ -68,7 +135,7 @@ Commodity Lab
 - Node.js 20+
 - Rust stable
 - Windows for desktop packaging
-- User-provided 海能-compatible LLM API key and base URL
+- Optional user-provided 海能-compatible LLM API key and base URL
 - Optional user-provided Platts credentials
 
 环境要求：
@@ -77,8 +144,8 @@ Commodity Lab
 - Node.js 20+
 - Rust stable
 - Windows 桌面端打包环境
-- 用户自备海能兼容 LLM API Key 与 Base URL
-- 可选的用户自备 Platts 凭证
+- 可选：用户自备海能兼容 LLM API Key 与 Base URL
+- 可选：用户自备 Platts 凭证
 
 ## Quick Start / 快速开始
 
@@ -119,28 +186,34 @@ Commodity Lab does not ship with provider credentials. Users configure providers
 
 Commodity Lab 不内置任何服务商凭证。用户在运行时自行配置。
 
-海能:
+海能 / AI:
 
 - `HAINENG_API_KEY`
 - `HAINENG_BASE_URL`
 - `HAINENG_MODEL` defaults to `V4-Flash`
 
-Platts:
+Backend runtime:
 
-- `PLATTS_API_KEY`
-- `PLATTS_KEY`
-- `SPGLOBAL_API_KEY`
-- `SP_GLOBAL_API_KEY`
+- `COMMODITY_LAB_BACKEND_HOST` defaults to `127.0.0.1`
+- `COMMODITY_LAB_BACKEND_PORT` defaults to `8000`
 
-If Platts is unavailable, Commodity Lab can use Yahoo Finance or simulated sample data where available.
+Data providers:
 
-如果 Platts 不可用，Commodity Lab 可在可用场景下使用 Yahoo Finance 或模拟样例数据。
+- Yahoo Finance is used first when selected and available.
+- Simulated data is always available as fallback.
+- Platts is reserved for future integration or user-provided credentials.
+
+数据来源：
+
+- 选择 Yahoo Finance 时优先调用 Yahoo Finance。
+- 模拟数据始终作为兜底。
+- Platts 作为后续集成或用户凭证接入方向预留。
 
 ## Windows Packaging / Windows 打包
 
-Commodity Lab V1 generates Windows desktop client artifacts only.
+Commodity Lab V1 generates Windows desktop client artifacts.
 
-Commodity Lab V1 仅生成 Windows 桌面客户端产物。
+Commodity Lab V1 生成 Windows 桌面客户端产物。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\package_tauri.ps1
@@ -192,6 +265,45 @@ cd tauri\src-tauri
 cargo check
 ```
 
+Full desktop package:
+
+完整桌面端打包：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\package_tauri.ps1
+```
+
+## Release / 发布
+
+GitHub Actions workflow:
+
+GitHub Actions 工作流：
+
+```text
+.github/workflows/tauri-build.yml
+```
+
+Manual online build:
+
+网页手动构建：
+
+```text
+Actions → Tauri Windows Build → Run workflow → main
+```
+
+Manual workflow runs upload the `commodity-lab-windows` artifact. Tag pushes also create a GitHub Release and upload the generated Windows bundle files.
+
+手动运行工作流会上传 `commodity-lab-windows` 产物。推送版本标签时还会创建 GitHub Release 并上传 Windows 构建产物。
+
+Create a release tag:
+
+创建发布标签：
+
+```powershell
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
 ## Security / 安全
 
 - Do not commit 海能, Platts, Yahoo Finance, or other provider credentials.
@@ -205,29 +317,6 @@ cargo check
 - API Key 仅通过环境变量或运行时设置输入。
 - 后端响应会隐藏已配置的密钥。
 - LLM 提示词不得包含服务商凭证。
-
-## Release / 发布
-
-GitHub Actions workflow:
-
-GitHub Actions 工作流：
-
-```text
-.github/workflows/tauri-build.yml
-```
-
-Create a release tag:
-
-创建发布标签：
-
-```powershell
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
-git push origin vX.Y.Z
-```
-
-Manual workflow runs produce downloadable Windows artifacts. Tag pushes also publish a GitHub Release.
-
-手动运行工作流会生成可下载的 Windows 产物。推送版本标签时还会创建 GitHub Release。
 
 ## License / 许可
 
