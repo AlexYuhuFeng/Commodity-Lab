@@ -10,9 +10,18 @@ const defaultOrder = {
 };
 
 const sourceOptions = [
-  { id: "sample", labelKey: "simulated" },
   { id: "yfinance", labelKey: "yahooFinance" },
+  { id: "sample", labelKey: "simulated" },
   { id: "platts", labelKey: "platts" }
+];
+
+const aiCapabilityKeys = [
+  "aiCaseGeneration",
+  "aiEventDrills",
+  "aiScoringCoach",
+  "aiConceptTutor",
+  "aiTradePlaybook",
+  "aiExaminer"
 ];
 
 function savedValue(key, fallback = "") {
@@ -64,13 +73,22 @@ function LanguageToggle({ locale, setLocale }) {
   );
 }
 
+function AiStatusBadge({ aiReady, locale }) {
+  return (
+    <div className={aiReady ? "ai-status online" : "ai-status offline"}>
+      <i />
+      <span>{aiReady ? t("aiFullPower", locale) : t("baseMode", locale)}</span>
+    </div>
+  );
+}
+
 function DataSourceStrip({ locale, sources = [], activeSource }) {
   const sourceRows = sources.length
     ? sources
     : [
-        { id: "platts", label: "Platts", configured: false },
         { id: "yfinance", label: "Yahoo Finance", configured: true },
-        { id: "simulated", label: "Simulated", configured: true }
+        { id: "simulated", label: "Simulated", configured: true },
+        { id: "platts", label: "Platts", configured: false }
       ];
 
   return (
@@ -92,13 +110,12 @@ function DataSourceStrip({ locale, sources = [], activeSource }) {
   );
 }
 
-function SetupGate({ locale, providerStatus, onSaveSettings, saving, message }) {
+function AiActivationPanel({ aiReady, locale, onSaveSettings, saving, message }) {
   const [form, setForm] = useState({
     api_key: "",
     base_url: savedValue("commodity-lab-haineng-base-url", ""),
     model: savedValue("commodity-lab-haineng-model", "V4-Flash")
   });
-  const healthy = providerStatus?.haineng?.ok;
 
   async function submit(event) {
     event.preventDefault();
@@ -107,19 +124,20 @@ function SetupGate({ locale, providerStatus, onSaveSettings, saving, message }) 
   }
 
   return (
-    <section className="setup-shell">
-      <div className="setup-copy">
-        <p className="eyebrow">{t("providerRequired", locale)}</p>
-        <h1>{t("setupTitle", locale)}</h1>
-        <p>{t("setupSubtitle", locale)}</p>
+    <section className={aiReady ? "ai-activation online" : "ai-activation"}>
+      <div className="ai-activation-copy">
+        <p className="eyebrow">{aiReady ? t("aiConnected", locale) : t("connectAi", locale)}</p>
+        <h2>{aiReady ? t("aiTerminalUnlocked", locale) : t("aiTerminalLocked", locale)}</h2>
+        <p>{aiReady ? t("aiUnlockedSubtitle", locale) : t("aiLockedSubtitle", locale)}</p>
       </div>
-      <form className="setup-form" onSubmit={submit}>
+      <form className="setup-form compact" onSubmit={submit}>
         <label>
           {t("apiKey", locale)}
           <input
             aria-label={t("apiKey", locale)}
             autoComplete="off"
             onChange={(event) => setForm({ ...form, api_key: event.target.value })}
+            placeholder={aiReady ? "••••••••" : t("enterKeyToUnlock", locale)}
             type="password"
             value={form.api_key}
           />
@@ -142,13 +160,24 @@ function SetupGate({ locale, providerStatus, onSaveSettings, saving, message }) 
           />
         </label>
         <button className="primary" disabled={saving} type="submit">
-          {saving ? t("loading", locale) : t("saveSettings", locale)}
+          {saving ? t("loading", locale) : aiReady ? t("refreshAi", locale) : t("unlockAi", locale)}
         </button>
       </form>
-      <div className={healthy ? "status-line ok" : "status-line warn"}>
-        {healthy ? t("providerHealthy", locale) : message || t("providerRequired", locale)}
-      </div>
-      <DataSourceStrip locale={locale} sources={providerStatus?.data_sources} />
+      {message ? <div className={aiReady ? "status-line ok" : "status-line warn"}>{message}</div> : null}
+    </section>
+  );
+}
+
+function AiCapabilityMatrix({ aiReady, locale }) {
+  return (
+    <section className={aiReady ? "ai-matrix online" : "ai-matrix"}>
+      {aiCapabilityKeys.map((key, index) => (
+        <div className="ai-card" key={key} style={{ animationDelay: `${index * 80}ms` }}>
+          <span>{`0${index + 1}`}</span>
+          <strong>{t(key, locale)}</strong>
+          <small>{aiReady ? t("enabled", locale) : t("connectToEnable", locale)}</small>
+        </div>
+      ))}
     </section>
   );
 }
@@ -161,6 +190,7 @@ function CategoryTabs({ categories, locale }) {
           className={category.status === "enabled" ? "category-tab active" : "category-tab"}
           disabled={category.status !== "enabled"}
           key={category.id}
+          title={category.description}
           type="button"
         >
           <span>{category.label}</span>
@@ -176,7 +206,7 @@ function ScenarioDeck({ locale, scenarios, selectedId, setSelectedId }) {
     <aside className="panel scenario-deck">
       <div className="panel-title">
         <span>{t("scenarioDeck", locale)}</span>
-        <strong>{t("naturalGasOnly", locale)}</strong>
+        <strong>{t("regionalGas", locale)}</strong>
       </div>
       <div className="scenario-list">
         {scenarios.map((scenario) => (
@@ -186,6 +216,7 @@ function ScenarioDeck({ locale, scenarios, selectedId, setSelectedId }) {
             onClick={() => setSelectedId(scenario.id)}
             type="button"
           >
+            <em>{scenario.region_label}</em>
             <strong>{scenario.title}</strong>
             <span>{scenario.summary}</span>
           </button>
@@ -232,13 +263,7 @@ function MarketChart({ locale, market, source, setSource }) {
       <div className="bar-chart" role="img" aria-label={t("marketContext", locale)}>
         {points.map((point) => {
           const height = 24 + ((Number(point.close) - min) / range) * 76;
-          return (
-            <span
-              key={point.date}
-              style={{ height: `${height}%` }}
-              title={`${point.date}: ${point.close}`}
-            />
-          );
+          return <span key={point.date} style={{ height: `${height}%` }} title={`${point.date}: ${point.close}`} />;
         })}
       </div>
       <div className="metric-strip">
@@ -266,7 +291,7 @@ function CapacityDiagram({ locale, capacity }) {
   return (
     <section className="panel capacity-panel">
       <div className="panel-title">
-        <span>{t("pipelineCapacity", locale)}</span>
+        <span>{t("routeAndCapacity", locale)}</span>
         <strong>{capacity?.congestion_status ?? "--"}</strong>
       </div>
       <div className="flow-line">
@@ -307,7 +332,7 @@ function ExposurePanel({ locale, scenario }) {
     <section className="panel exposure-panel">
       <div className="panel-title">
         <span>{t("exposure", locale)}</span>
-        <strong>{scenario?.default_symbol ?? "NG=F"}</strong>
+        <strong>{scenario?.region_label ?? "--"}</strong>
       </div>
       <div className="exposure-grid">
         <span>
@@ -322,7 +347,32 @@ function ExposurePanel({ locale, scenario }) {
           {t("hedgePlan", locale)}
           <strong>{optionLabel(scenario?.recommended_hedge_type, locale)}</strong>
         </span>
+        <span>
+          {t("instrument", locale)}
+          <strong>{scenario?.default_symbol ?? "--"}</strong>
+        </span>
       </div>
+      <p className="teaching-note">{exposure.risk}</p>
+    </section>
+  );
+}
+
+function TrainingGuide({ locale, scenario }) {
+  const steps = scenario?.guided_steps ?? [];
+  return (
+    <section className="panel training-guide">
+      <div className="panel-title">
+        <span>{t("learningPath", locale)}</span>
+        <strong>{t("guided", locale)}</strong>
+      </div>
+      <ol className="guide-list">
+        {steps.map((step) => (
+          <li key={step.id}>
+            <strong>{step.label}</strong>
+            <span>{step.description}</span>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
@@ -332,7 +382,7 @@ function OrderTicket({ locale, order, setOrder, rationale, setRationale, onSubmi
     <section className="panel order-ticket">
       <div className="panel-title">
         <span>{t("orderTicket", locale)}</span>
-        <strong>{t("hedgePlan", locale)}</strong>
+        <strong>{t("decisionLab", locale)}</strong>
       </div>
       <div className="ticket-grid">
         <label>
@@ -344,12 +394,7 @@ function OrderTicket({ locale, order, setOrder, rationale, setRationale, onSubmi
         </label>
         <label>
           {t("quantity", locale)}
-          <input
-            min="0"
-            onChange={(event) => setOrder({ ...order, quantity: Number(event.target.value) })}
-            type="number"
-            value={order.quantity}
-          />
+          <input min="0" onChange={(event) => setOrder({ ...order, quantity: Number(event.target.value) })} type="number" value={order.quantity} />
         </label>
         <label>
           {t("hedgeType", locale)}
@@ -362,13 +407,7 @@ function OrderTicket({ locale, order, setOrder, rationale, setRationale, onSubmi
         </label>
         <label>
           {t("price", locale)}
-          <input
-            min="0"
-            onChange={(event) => setOrder({ ...order, price: Number(event.target.value) })}
-            step="0.01"
-            type="number"
-            value={order.price}
-          />
+          <input min="0" onChange={(event) => setOrder({ ...order, price: Number(event.target.value) })} step="0.01" type="number" value={order.price} />
         </label>
       </div>
       <label>
@@ -390,7 +429,7 @@ function ScorePanel({ locale, evaluation }) {
     <section className="panel score-panel">
       <div className="panel-title">
         <span>{t("reviewScore", locale)}</span>
-        <strong>{t("metrics", locale)}</strong>
+        <strong>{t("deterministicCore", locale)}</strong>
       </div>
       <div className="score-readout">{evaluation?.baseline_score ?? "--"}</div>
       <div className="metric-strip">
@@ -411,15 +450,9 @@ function ScorePanel({ locale, evaluation }) {
   );
 }
 
-function GuidedStepper({ locale, evaluation }) {
-  const steps = [
-    "understandExposure",
-    "inspectMarket",
-    "placeHedge",
-    "reviewScore",
-    "exam"
-  ];
-  const activeIndex = evaluation ? 3 : 2;
+function GuidedStepper({ locale, evaluation, aiReady }) {
+  const steps = ["understandExposure", "inspectMarket", "placeHedge", "reviewScore", "exam"];
+  const activeIndex = evaluation ? (aiReady ? 4 : 3) : 2;
 
   return (
     <ol className="stepper">
@@ -432,31 +465,23 @@ function GuidedStepper({ locale, evaluation }) {
   );
 }
 
-function AdvisorRail({
-  advisorFeedback,
-  busy,
-  error,
-  evaluation,
-  exam,
-  generateExam,
-  locale,
-  requestAdvisorReview
-}) {
+function AdvisorRail({ aiReady, advisorFeedback, busy, error, evaluation, exam, generateExam, locale, requestAdvisorReview }) {
   return (
-    <aside className="panel advisor-rail">
+    <aside className={aiReady ? "panel advisor-rail online" : "panel advisor-rail"}>
       <div className="panel-title">
-        <span>{t("advisor", locale)}</span>
-        <strong>{evaluation?.baseline_score ?? "--"}</strong>
+        <span>{t("aiCoach", locale)}</span>
+        <strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong>
       </div>
-      <GuidedStepper evaluation={evaluation} locale={locale} />
+      <GuidedStepper aiReady={aiReady} evaluation={evaluation} locale={locale} />
       <div className="advisor-actions">
-        <button disabled={busy || !evaluation} onClick={() => requestAdvisorReview()} type="button">
+        <button disabled={busy || !evaluation || !aiReady} onClick={() => requestAdvisorReview()} type="button">
           {t("askHint", locale)}
         </button>
-        <button disabled={busy} onClick={generateExam} type="button">
+        <button disabled={busy || !aiReady} onClick={generateExam} type="button">
           {t("generateExam", locale)}
         </button>
       </div>
+      {!aiReady ? <p className="service-error muted">{t("aiDisabledHint", locale)}</p> : null}
       {error ? <p className="service-error">{error}</p> : null}
       {advisorFeedback ? (
         <section className="response-block">
@@ -481,14 +506,16 @@ export default function App() {
   const [scenarios, setScenarios] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [context, setContext] = useState(null);
-  const [source, setSource] = useState("sample");
+  const [source, setSource] = useState("yfinance");
   const [order, setOrder] = useState(defaultOrder);
-  const [rationale, setRationale] = useState("Sell futures to protect natural gas exposure.");
+  const [rationale, setRationale] = useState("Manage the energy exposure with a hedge that matches the risk driver, timing, and volume.");
   const [evaluation, setEvaluation] = useState(null);
   const [advisorFeedback, setAdvisorFeedback] = useState("");
   const [exam, setExam] = useState("");
   const [busyAction, setBusyAction] = useState("");
   const [serviceMessage, setServiceMessage] = useState("");
+
+  const aiReady = Boolean(providerStatus?.haineng?.ok);
 
   function setLocale(nextLocale) {
     localStorage.setItem("commodity-lab-locale", nextLocale);
@@ -512,7 +539,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!providerStatus?.haineng?.ok) return undefined;
     let active = true;
     backendRequest("GET", `/api/v1/scenarios?locale=${locale}`)
       .then((payload) => {
@@ -520,18 +546,16 @@ export default function App() {
         const nextScenarios = payload.scenarios ?? [];
         setCategories(payload.categories ?? []);
         setScenarios(nextScenarios);
-        setSelectedId((current) =>
-          nextScenarios.some((scenario) => scenario.id === current) ? current : nextScenarios[0]?.id ?? ""
-        );
+        setSelectedId((current) => (nextScenarios.some((scenario) => scenario.id === current) ? current : nextScenarios[0]?.id ?? ""));
       })
       .catch((error) => setServiceMessage(error.message));
     return () => {
       active = false;
     };
-  }, [providerStatus?.haineng?.ok, locale]);
+  }, [locale]);
 
   useEffect(() => {
-    if (!selectedId || !providerStatus?.haineng?.ok) return undefined;
+    if (!selectedId) return undefined;
     let active = true;
     setContext(null);
     backendRequest("GET", `/api/v1/scenarios/${selectedId}/context?locale=${locale}&source=${source}`)
@@ -546,12 +570,9 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [selectedId, locale, source, providerStatus?.haineng?.ok]);
+  }, [selectedId, locale, source]);
 
-  const selectedScenario = useMemo(
-    () => context?.scenario ?? scenarios.find((scenario) => scenario.id === selectedId),
-    [context?.scenario, scenarios, selectedId]
-  );
+  const selectedScenario = useMemo(() => context?.scenario ?? scenarios.find((scenario) => scenario.id === selectedId), [context?.scenario, scenarios, selectedId]);
 
   async function saveProviderSettings(form) {
     setBusyAction("provider");
@@ -570,7 +591,7 @@ export default function App() {
   }
 
   async function requestAdvisorReview(nextEvaluation = evaluation) {
-    if (!nextEvaluation || !selectedId) return;
+    if (!nextEvaluation || !selectedId || !aiReady) return;
     setBusyAction("advisor");
     setServiceMessage("");
     try {
@@ -601,7 +622,7 @@ export default function App() {
         rationale
       });
       setEvaluation(payload.evaluation);
-      if (payload.evaluation?.valid) {
+      if (payload.evaluation?.valid && aiReady) {
         await requestAdvisorReview(payload.evaluation);
       }
     } catch (error) {
@@ -612,7 +633,7 @@ export default function App() {
   }
 
   async function generateExam() {
-    if (!selectedId) return;
+    if (!selectedId || !aiReady) return;
     setBusyAction("exam");
     setServiceMessage("");
     try {
@@ -630,73 +651,68 @@ export default function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={aiReady ? "app-shell ai-ready" : "app-shell"}>
       <header className="topbar">
         <div>
           <p>{t("appKicker", locale)}</p>
           <h1>{t("appTitle", locale)}</h1>
         </div>
-        <LanguageToggle locale={locale} setLocale={setLocale} />
+        <div className="topbar-actions">
+          <AiStatusBadge aiReady={aiReady} locale={locale} />
+          <LanguageToggle locale={locale} setLocale={setLocale} />
+        </div>
       </header>
 
-      {!providerStatus?.haineng?.ok ? (
-        <SetupGate
-          locale={locale}
-          message={serviceMessage}
-          onSaveSettings={saveProviderSettings}
-          providerStatus={providerStatus}
-          saving={busyAction === "provider"}
-        />
-      ) : (
-        <div className="workspace-shell">
-          <CategoryTabs categories={categories} locale={locale} />
-          <div className="terminal-grid">
-            <ScenarioDeck
-              locale={locale}
-              scenarios={scenarios}
-              selectedId={selectedId}
-              setSelectedId={setSelectedId}
-            />
-            <section className="workspace-main">
-              <div className="scenario-header">
-                <span>{t("scenario", locale)}</span>
-                <h2>{selectedScenario?.title ?? t("loading", locale)}</h2>
-                <p>{selectedScenario?.summary ?? ""}</p>
-              </div>
-              <DataSourceStrip
-                activeSource={source === "sample" ? "simulated" : source}
+      <AiActivationPanel
+        aiReady={aiReady}
+        locale={locale}
+        message={serviceMessage}
+        onSaveSettings={saveProviderSettings}
+        saving={busyAction === "provider"}
+      />
+      <AiCapabilityMatrix aiReady={aiReady} locale={locale} />
+
+      <div className="workspace-shell">
+        <CategoryTabs categories={categories} locale={locale} />
+        <div className="terminal-grid">
+          <ScenarioDeck locale={locale} scenarios={scenarios} selectedId={selectedId} setSelectedId={setSelectedId} />
+          <section className="workspace-main">
+            <div className="scenario-header">
+              <span>{selectedScenario?.region_label ?? t("scenario", locale)}</span>
+              <h2>{selectedScenario?.title ?? t("loading", locale)}</h2>
+              <p>{selectedScenario?.summary ?? ""}</p>
+            </div>
+            <DataSourceStrip activeSource={source === "sample" ? "simulated" : source} locale={locale} sources={providerStatus?.data_sources} />
+            <div className="workspace-grid">
+              <MarketChart locale={locale} market={context?.market} setSource={setSource} source={source} />
+              <CapacityDiagram capacity={context?.capacity} locale={locale} />
+              <ExposurePanel locale={locale} scenario={selectedScenario} />
+              <TrainingGuide locale={locale} scenario={selectedScenario} />
+              <OrderTicket
+                busy={busyAction === "evaluate" || busyAction === "advisor"}
                 locale={locale}
-                sources={providerStatus?.data_sources}
+                onSubmit={submitOrder}
+                order={order}
+                rationale={rationale}
+                setOrder={setOrder}
+                setRationale={setRationale}
               />
-              <div className="workspace-grid">
-                <MarketChart locale={locale} market={context?.market} setSource={setSource} source={source} />
-                <CapacityDiagram capacity={context?.capacity} locale={locale} />
-                <ExposurePanel locale={locale} scenario={selectedScenario} />
-                <OrderTicket
-                  busy={busyAction === "evaluate" || busyAction === "advisor"}
-                  locale={locale}
-                  onSubmit={submitOrder}
-                  order={order}
-                  rationale={rationale}
-                  setOrder={setOrder}
-                  setRationale={setRationale}
-                />
-                <ScorePanel evaluation={evaluation} locale={locale} />
-              </div>
-            </section>
-            <AdvisorRail
-              advisorFeedback={advisorFeedback}
-              busy={Boolean(busyAction)}
-              error={serviceMessage}
-              evaluation={evaluation}
-              exam={exam}
-              generateExam={generateExam}
-              locale={locale}
-              requestAdvisorReview={requestAdvisorReview}
-            />
-          </div>
+              <ScorePanel evaluation={evaluation} locale={locale} />
+            </div>
+          </section>
+          <AdvisorRail
+            aiReady={aiReady}
+            advisorFeedback={advisorFeedback}
+            busy={Boolean(busyAction)}
+            error={serviceMessage && busyAction !== "provider" ? serviceMessage : ""}
+            evaluation={evaluation}
+            exam={exam}
+            generateExam={generateExam}
+            locale={locale}
+            requestAdvisorReview={requestAdvisorReview}
+          />
         </div>
-      )}
+      </div>
     </main>
   );
 }
