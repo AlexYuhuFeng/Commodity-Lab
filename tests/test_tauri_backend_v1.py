@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pandas as pd
 from fastapi.testclient import TestClient
 
 from tauri.backend.main import app
@@ -100,10 +101,42 @@ def test_context_endpoint_returns_market_and_capacity() -> None:
     assert payload["capacity"]["congestion_status"] == "constrained"
 
 
-def test_context_endpoint_supports_yahoo_finance_label_with_simulated_fallback() -> None:
+def test_context_endpoint_uses_yahoo_finance_when_available(monkeypatch) -> None:
+    def fake_fetch_history_daily(ticker, period_if_no_start="3mo", start=None):
+        assert ticker == "NG=F"
+        assert period_if_no_start == "3mo"
+        return pd.DataFrame(
+            [
+                {"date": pd.Timestamp("2026-05-01").date(), "close": 3.1111},
+                {"date": pd.Timestamp("2026-05-02").date(), "close": 3.2222},
+            ]
+        )
+
+    monkeypatch.setattr("core.yf_prices.fetch_history_daily", fake_fetch_history_daily)
+
     response = client.get(
         "/api/v1/scenarios/winter_load_spike/context",
         params={"locale": "en", "source": "Yahoo Finance"},
+    )
+
+    assert response.status_code == 200
+    market = response.json()["market"]
+    assert market["source"] == "yfinance"
+    assert market["source_label"] == "Yahoo Finance"
+    assert market["data_source"] == "yfinance"
+    assert market["data_source_label"] == "Yahoo Finance"
+    assert market["latest_price"] == 3.2222
+    assert market["metadata"]["requested_source_label"] == "Yahoo Finance"
+    assert market["metadata"]["returned_source_label"] == "Yahoo Finance"
+    assert market["metadata"]["is_fallback"] is False
+
+
+def test_context_endpoint_falls_back_when_yahoo_finance_is_empty(monkeypatch) -> None:
+    monkeypatch.setattr("core.yf_prices.fetch_history_daily", lambda *args, **kwargs: pd.DataFrame())
+
+    response = client.get(
+        "/api/v1/scenarios/winter_load_spike/context",
+        params={"locale": "en", "source": "yfinance"},
     )
 
     assert response.status_code == 200
