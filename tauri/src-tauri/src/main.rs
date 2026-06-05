@@ -1,17 +1,51 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::process::{Child, Command};
-use std::sync::{Arc, Mutex};
-use std::env;
-use serde_json::Value;
 use reqwest::blocking::Client;
+use serde_json::Value;
+use std::env;
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, Stdio};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
+
+const DEFAULT_BACKEND_HOST: &str = "127.0.0.1";
+const DEFAULT_BACKEND_PORT: u16 = 8000;
+
+fn backend_host() -> String {
+    env::var("COMMODITY_LAB_BACKEND_HOST")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| DEFAULT_BACKEND_HOST.to_string())
+}
+
+fn backend_port() -> u16 {
+    env::var("COMMODITY_LAB_BACKEND_PORT")
+        .ok()
+        .and_then(|value| value.trim().parse::<u16>().ok())
+        .filter(|port| *port > 0)
+        .unwrap_or(DEFAULT_BACKEND_PORT)
+}
+
+fn backend_base_url() -> String {
+    format!("http://{}:{}", backend_host(), backend_port())
+}
+
+fn backend_url(path: &str) -> String {
+    let normalized_path = if path.starts_with('/') {
+        path.to_string()
+    } else {
+        format!("/{}", path)
+    };
+    format!("{}{}", backend_base_url(), normalized_path)
+}
 
 #[tauri::command]
 fn ping_backend() -> Result<Value, String> {
     let client = Client::new();
-    let url = "http://127.0.0.1:8000/api/ping";
     client
-        .get(url)
+        .get(backend_url("/api/ping"))
         .send()
         .map_err(|e| format!("request failed: {}", e))?
         .json()
@@ -21,9 +55,8 @@ fn ping_backend() -> Result<Value, String> {
 #[tauri::command]
 fn simulate_backend(payload: Value) -> Result<Value, String> {
     let client = Client::new();
-    let url = "http://127.0.0.1:8000/api/simulate";
     client
-        .post(url)
+        .post(backend_url("/api/simulate"))
         .json(&payload)
         .send()
         .map_err(|e| format!("request failed: {}", e))?
@@ -33,13 +66,11 @@ fn simulate_backend(payload: Value) -> Result<Value, String> {
 
 #[tauri::command]
 fn backend_request(method: String, path: String, body: Option<Value>) -> Result<Value, String> {
-    let client = Client::new();
-    let normalized_path = if path.starts_with('/') {
-        path
-    } else {
-        format!("/{}", path)
-    };
-    let url = format!("http://127.0.0.1:8000{}", normalized_path);
+    let client = Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("http client init failed: {}", e))?;
+    let url = backend_url(&path);
     let method_upper = method.to_uppercase();
 
     let response = match method_upper.as_str() {
@@ -61,34 +92,91 @@ fn backend_request(method: String, path: String, body: Option<Value>) -> Result<
     Ok(json)
 }
 
-fn start_python_backend() -> Option<Child> {
-    // Prefer a bundled backend executable if present (commodity_lab_backend or .exe),
-    // otherwise fall back to invoking the Python script using system python.
+fn executable_names() -> [&'static str; 2] {
+    ["commodity_lab_backend.exe", "commodity_lab_backend"]
+}
+
+fn push_backend_candidates(base: &Path, candidates: &mut Vec<PathBuf>) {
+    for name in executable_names() {
+        candidates.push(base.join(name));
+        candidates.push(base.join("bundled").join("backend").join(name));
+    }
+}
+
+fn backend_executable_candidates(resource_dir: Option<PathBuf>) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+
+    if let Some(dir) = resource_dir {
+        push_backend_candidates(&dir, &mut candidates);
+    }
+
     if let Ok(exe_path) = env::current_exe() {
         if let Some(parent) = exe_path.parent() {
-            let candidate_unix = parent.join("commodity_lab_backend");
-            let candidate_win = parent.join("commodity_lab_backend.exe");
-            if candidate_unix.exists() {
-                return Command::new(candidate_unix).spawn().ok();
-            }
-            if candidate_win.exists() {
-                return Command::new(candidate_win).spawn().ok();
-            }
-            // also check for bundled path in a `bundled/backend` subdir
-            let bundled = parent.join("bundled").join("backend");
-            let b_unix = bundled.join("commodity_lab_backend");
-            let b_win = bundled.join("commodity_lab_backend.exe");
-            if b_unix.exists() {
-                return Command::new(b_unix).spawn().ok();
-            }
-            if b_win.exists() {
-                return Command::new(b_win).spawn().ok();
+            push_backend_candidates(parent, &mut candidates);
+        }
+    }
+
+    candidates
+}
+
+fn source_backend_script() -> Option<PathBuf> {
+    let current_dir = env::current_dir().ok()?;
+    let candidates = [
+        current_dir.join("tauri").join("backend").join("main.py"),
+        current_dir.join("backend").join("main.py"),
+        current_dir.join("..").join("tauri").join("backend").join("main.py"),
+    ];
+    candidates.into_iter().find(|path| path.exists())
+}
+
+fn spawn_backend_command(command: &mut Command) -> Option<Child> {
+    command
+        .env("COMMODITY_LAB_BACKEND_HOST", backend_host())
+        .env("COMMODITY_LAB_BACKEND_PORT", backend_port().to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()
+}
+
+fn start_python_backend(resource_dir: Option<PathBuf>) -> Option<Child> {
+    for candidate in backend_executable_candidates(resource_dir) {
+        if candidate.exists() {
+            let mut command = Command::new(candidate);
+            if let Some(child) = spawn_backend_command(&mut command) {
+                return Some(child);
             }
         }
     }
 
-    // Fallback to system python script
-    Command::new("python").arg("tauri/backend/main.py").spawn().ok()
+    if let Some(script) = source_backend_script() {
+        let mut command = Command::new("python");
+        command.arg(script);
+        return spawn_backend_command(&mut command);
+    }
+
+    None
+}
+
+fn wait_for_backend(timeout: Duration) -> Result<(), String> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| format!("http client init failed: {}", e))?;
+    let deadline = Instant::now() + timeout;
+    let health_url = backend_url("/api/health");
+
+    while Instant::now() < deadline {
+        if let Ok(response) = client.get(&health_url).send() {
+            if response.status().is_success() {
+                return Ok(());
+            }
+        }
+        thread::sleep(Duration::from_millis(250));
+    }
+
+    Err(format!("backend did not become ready at {}", health_url))
 }
 
 fn kill_child(child_opt: &mut Option<Child>) {
@@ -101,24 +189,26 @@ fn kill_child(child_opt: &mut Option<Child>) {
 
 fn main() {
     let backend_handle: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
-
-    {
-        let mut lock = backend_handle.lock().unwrap();
-        *lock = start_python_backend();
-    }
-
-    let bh = backend_handle.clone();
+    let setup_backend_handle = backend_handle.clone();
+    let exit_backend_handle = backend_handle.clone();
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![ping_backend, simulate_backend, backend_request])
-        .setup(move |_app| {
+        .setup(move |app| {
+            let child = start_python_backend(app.path_resolver().resource_dir());
+            if let Ok(mut lock) = setup_backend_handle.lock() {
+                *lock = child;
+            }
+            if let Err(error) = wait_for_backend(Duration::from_secs(20)) {
+                eprintln!("{}", error);
+            }
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while running tauri")
         .run(move |_app_handle, event| match event {
             tauri::RunEvent::Exit => {
-                if let Ok(mut lock) = bh.lock() {
+                if let Ok(mut lock) = exit_backend_handle.lock() {
                     kill_child(&mut *lock);
                 }
             }
