@@ -181,6 +181,37 @@ def build_advisor_messages(
     ]
 
 
+def build_socratic_coach_messages(
+    locale: str,
+    scenario: Any,
+    learner_message: str,
+    market_context: Any | None = None,
+    learner_profile: Any | None = None,
+) -> list[dict[str, str]]:
+    system = (
+        _base_system(locale)
+        + " In Socratic Coach mode, do not give the full answer immediately. "
+        "Ask targeted questions that force the learner to identify exposure, instrument, hub, tenor, unit, FX, basis, route, capacity, liquidity, and risk-limit assumptions. "
+        "Give at most one short hint per turn. If the learner is dangerously wrong, flag the risk briefly, then ask the next diagnostic question."
+    )
+    user = (
+        "Run a Socratic coaching turn for an energy trading learner.\n\n"
+        f"Scenario:\n{_to_json_text(scenario)}\n\n"
+        f"Market/capacity context:\n{_to_json_text(market_context or {})}\n\n"
+        f"Learner profile:\n{_to_json_text(learner_profile or {})}\n\n"
+        f"Learner message:\n{_scrub_text(learner_message)}\n\n"
+        "Required output:\n"
+        "1. One-sentence reflection of the learner's current reasoning.\n"
+        "2. Two to four probing questions, ordered from commercial exposure to execution/risk control.\n"
+        "3. One short hint only if needed.\n"
+        "4. Do not provide the final model answer unless the learner explicitly asks for a final answer."
+    )
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+
 def build_exam_messages(
     locale: str,
     scenario: Any,
