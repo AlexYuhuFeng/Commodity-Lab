@@ -16,6 +16,19 @@ def _clear_haineng_env(monkeypatch) -> None:
     monkeypatch.delenv("HAINENG_BASE_URL", raising=False)
 
 
+def test_health_endpoint_returns_ok() -> None:
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "service": "commodity-lab-backend"}
+
+
+def test_instruments_limit_is_bounded() -> None:
+    response = client.get("/api/instruments", params={"limit": 0})
+
+    assert response.status_code == 422
+
+
 def test_provider_status_reports_missing_haineng_without_secret(monkeypatch) -> None:
     _clear_haineng_env(monkeypatch)
     monkeypatch.setenv("PLATTS_API_KEY", "platts-secret-value")
