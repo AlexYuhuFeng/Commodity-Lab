@@ -1,6 +1,7 @@
-"""Natural gas scenario catalog and deterministic sample context for V1."""
+"""Natural gas scenario catalog and market context for V1."""
 from __future__ import annotations
 
+import math
 from copy import deepcopy
 from typing import Any
 
@@ -42,18 +43,6 @@ _CATEGORY_DATA: list[dict[str, Any]] = [
             "zh": "金属工作流已展示，但仍在建设中。",
         },
     },
-    {
-        "id": "grains",
-        "status": "constructing",
-        "label": {
-            "en": "Grains",
-            "zh": "谷物",
-        },
-        "description": {
-            "en": "Grains workflows are visible but still under construction.",
-            "zh": "谷物工作流已展示，但仍在建设中。",
-        },
-    },
 ]
 
 _GUIDED_STEPS: list[dict[str, Any]] = [
@@ -75,8 +64,8 @@ _GUIDED_STEPS: list[dict[str, Any]] = [
             "zh": "观察市场",
         },
         "description": {
-            "en": "Review sample futures, basis, and operating context before hedging.",
-            "zh": "在套保前观察样本期货、基差和运营背景。",
+            "en": "Review futures, basis, and operating context before hedging.",
+            "zh": "在套保前观察期货、基差和运营背景。",
         },
     },
     {
@@ -375,6 +364,8 @@ _SOURCE_ALIASES: dict[str, str] = {
 
 _SIMULATED_SOURCE = "simulated"
 _SIMULATED_SOURCE_LABEL = "Simulated"
+_YFINANCE_SOURCE = "yfinance"
+_YFINANCE_SOURCE_LABEL = "Yahoo Finance"
 
 _CAPACITY_CONTEXTS: dict[str, dict[str, Any]] = {
     "pipeline_capacity_constraint": {
@@ -423,7 +414,13 @@ def get_scenario(scenario_id: str, locale: str = "en") -> dict[str, Any]:
 
 
 def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, Any]:
-    """Return deterministic Henry Hub sample market context for a scenario."""
+    """Return market context for a scenario.
+
+    Priority is explicit:
+    - sample/simulated: deterministic built-in sample data.
+    - yfinance/Yahoo Finance: live Yahoo Finance data first, simulated fallback only if unavailable.
+    - platts: reserved source; simulated fallback until a Platts adapter is implemented.
+    """
     scenario = _find_scenario(scenario_id)
     points = _SAMPLE_PRICE_POINTS.get(scenario_id)
     if points is None:
@@ -431,7 +428,111 @@ def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, An
 
     requested_source = _normalize_source(source)
     requested_source_label = _source_label(requested_source)
+
+    if requested_source == _YFINANCE_SOURCE:
+        return _build_yfinance_market_context(
+            scenario_id,
+            scenario,
+            points,
+            requested_source,
+            requested_source_label,
+        )
+
     is_fallback = requested_source not in {"sample", _SIMULATED_SOURCE}
+    fallback_reason = None
+    if requested_source == "platts":
+        fallback_reason = "Platts adapter is not implemented in V1; using deterministic sample data."
+    elif is_fallback:
+        fallback_reason = "Requested market source is not available in V1; using deterministic sample data."
+
+    return _build_simulated_market_context(
+        scenario_id,
+        scenario,
+        points,
+        requested_source,
+        requested_source_label,
+        is_fallback=is_fallback,
+        fallback_reason=fallback_reason,
+    )
+
+
+def get_capacity_context(scenario_id: str) -> dict[str, Any]:
+    """Return sample capacity and flow context for pipeline-aware scenarios."""
+    scenario = _find_scenario(scenario_id)
+    context = _CAPACITY_CONTEXTS.get(scenario_id)
+    if context is not None:
+        return deepcopy(context)
+    return _build_default_capacity_context(scenario)
+
+
+def _build_yfinance_market_context(
+    scenario_id: str,
+    scenario: dict[str, Any],
+    sample_points: list[dict[str, Any]],
+    requested_source: str,
+    requested_source_label: str,
+) -> dict[str, Any]:
+    symbol = str(scenario["default_symbol"])
+    try:
+        from core.yf_prices import fetch_history_daily
+
+        history = fetch_history_daily(symbol, period_if_no_start="3mo")
+        price_series = _price_series_from_dataframe(history)
+    except Exception as exc:
+        return _build_simulated_market_context(
+            scenario_id,
+            scenario,
+            sample_points,
+            requested_source,
+            requested_source_label,
+            is_fallback=True,
+            fallback_reason=f"Yahoo Finance fetch failed: {exc}",
+        )
+
+    if not price_series:
+        return _build_simulated_market_context(
+            scenario_id,
+            scenario,
+            sample_points,
+            requested_source,
+            requested_source_label,
+            is_fallback=True,
+            fallback_reason="Yahoo Finance returned no usable close prices; using deterministic sample data.",
+        )
+
+    return {
+        "scenario_id": scenario_id,
+        "source": requested_source,
+        "source_label": requested_source_label,
+        "data_source": _YFINANCE_SOURCE,
+        "data_source_label": _YFINANCE_SOURCE_LABEL,
+        "symbol": symbol,
+        "instrument": "Henry Hub Natural Gas Futures",
+        "unit": "USD/MMBtu",
+        "price_series": price_series,
+        "price_points": deepcopy(price_series),
+        "latest_price": price_series[-1]["close"],
+        "metadata": {
+            "provider": requested_source,
+            "requested_source": requested_source,
+            "requested_source_label": requested_source_label,
+            "returned_source": _YFINANCE_SOURCE,
+            "returned_source_label": _YFINANCE_SOURCE_LABEL,
+            "is_fallback": False,
+        },
+    }
+
+
+def _build_simulated_market_context(
+    scenario_id: str,
+    scenario: dict[str, Any],
+    points: list[dict[str, Any]],
+    requested_source: str,
+    requested_source_label: str,
+    *,
+    is_fallback: bool,
+    fallback_reason: str | None = None,
+) -> dict[str, Any]:
     price_series = deepcopy(points)
     context: dict[str, Any] = {
         "scenario_id": scenario_id,
@@ -455,17 +556,33 @@ def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, An
         },
     }
     if is_fallback:
-        context["metadata"]["fallback_reason"] = "Only deterministic sample data is available in V1."
+        context["metadata"]["fallback_reason"] = (
+            fallback_reason or "Only deterministic sample data is available in V1."
+        )
     return context
 
 
-def get_capacity_context(scenario_id: str) -> dict[str, Any]:
-    """Return sample capacity and flow context for pipeline-aware scenarios."""
-    scenario = _find_scenario(scenario_id)
-    context = _CAPACITY_CONTEXTS.get(scenario_id)
-    if context is not None:
-        return deepcopy(context)
-    return _build_default_capacity_context(scenario)
+def _price_series_from_dataframe(history: Any) -> list[dict[str, Any]]:
+    if history is None or getattr(history, "empty", True):
+        return []
+    if "close" not in history.columns or "date" not in history.columns:
+        return []
+
+    rows = history.dropna(subset=["close"], how="all").tail(30)
+    price_series: list[dict[str, Any]] = []
+    for _, row in rows.iterrows():
+        try:
+            close = float(row["close"])
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(close):
+            continue
+
+        date_value = row["date"]
+        date_text = date_value.isoformat() if hasattr(date_value, "isoformat") else str(date_value)
+        price_series.append({"date": date_text, "close": round(close, 4)})
+
+    return price_series
 
 
 def _normalize_locale(locale: str) -> str:
