@@ -8,11 +8,53 @@ from dataclasses import dataclass
 from typing import Any
 
 
+DEFAULT_PROVIDER = "haineng"
+HAINENG_FLASH_BASE_URL = "http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1"
+HAINENG_PRO_BASE_URL = "http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1"
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+
+_PROVIDER_MODEL_CATALOG: dict[str, dict[str, Any]] = {
+    "haineng": {
+        "label": "Haineng",
+        "default_model": "V4-Flash",
+        "models": {
+            "V4-Flash": {
+                "resolved_model": "DeepSeek-V4-Flash",
+                "base_url": HAINENG_FLASH_BASE_URL,
+                "aliases": {"v4-flash", "v4flash", "deepseek-v4-flash", "deepseekv4flash"},
+            },
+            "V4-Pro": {
+                "resolved_model": "DeepSeek-V4",
+                "base_url": HAINENG_PRO_BASE_URL,
+                "aliases": {"v4-pro", "v4pro", "deepseek-v4", "deepseekv4", "deepseek-v4-pro", "deepseekv4pro"},
+            },
+        },
+    },
+    "deepseek": {
+        "label": "DeepSeek",
+        "default_model": "deepseek-v4-flash",
+        "models": {
+            "deepseek-v4-flash": {
+                "resolved_model": "deepseek-v4-flash",
+                "base_url": DEEPSEEK_BASE_URL,
+                "aliases": {"v4-flash", "v4flash", "deepseek-flash", "deepseekv4flash"},
+            },
+            "deepseek-v4-pro": {
+                "resolved_model": "deepseek-v4-pro",
+                "base_url": DEEPSEEK_BASE_URL,
+                "aliases": {"v4-pro", "v4pro", "deepseek-pro", "deepseekv4pro"},
+            },
+        },
+    },
+}
+
+
 @dataclass
 class HainengSettings:
     api_key: str = ""
     base_url: str = ""
     model: str = "V4-Flash"
+    provider: str = DEFAULT_PROVIDER
     streaming: bool = False
     function_calling: bool = True
 
@@ -36,10 +78,17 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def settings_from_env() -> HainengSettings:
+    provider = _provider_from_env()
+    api_key = _provider_env_value(provider, "API_KEY")
+    base_url = _provider_env_value(provider, "BASE_URL")
+    model = _provider_env_value(provider, "MODEL")
+    if not model:
+        model = _PROVIDER_MODEL_CATALOG[provider]["default_model"]
     return HainengSettings(
-        api_key=os.getenv("HAINENG_API_KEY", "").strip(),
-        base_url=os.getenv("HAINENG_BASE_URL", "").strip(),
-        model=os.getenv("HAINENG_MODEL", "V4-Flash").strip() or "V4-Flash",
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        provider=provider,
         streaming=_env_bool("HAINENG_STREAMING", False),
         function_calling=_env_bool("HAINENG_FUNCTION_CALLING", True),
     )
@@ -55,36 +104,119 @@ def effective_settings() -> HainengSettings:
 
 
 def _is_configured(settings: HainengSettings) -> bool:
-    return bool(settings.api_key.strip() and settings.base_url.strip())
+    return bool(settings.api_key.strip() and _provider_base_url(settings))
 
 
 def redact_settings(settings: HainengSettings) -> dict[str, Any]:
+    provider = _provider_name(settings)
     return {
         "configured": _is_configured(settings),
-        "base_url": settings.base_url,
-        "model": settings.model,
+        "provider": provider,
+        "provider_label": _PROVIDER_MODEL_CATALOG[provider]["label"],
+        "base_url": _provider_base_url(settings),
+        "model": _provider_model_key(settings),
         "resolved_model": _provider_model_name(settings),
         "streaming": settings.streaming,
         "function_calling": settings.function_calling,
     }
 
 
-def _provider_model_name(settings: HainengSettings) -> str:
-    model = (settings.model or "").strip() or "V4-Flash"
-    base_url = (settings.base_url or "").lower()
-    normalized = model.lower().replace("_", "-").replace(" ", "")
-    if "deepseek.com" in base_url:
-        aliases = {
-            "v4-flash": "deepseek-v4-flash",
-            "v4flash": "deepseek-v4-flash",
-            "deepseek-flash": "deepseek-v4-flash",
-            "deepseek-v4-flash": "deepseek-v4-flash",
-            "v4-pro": "deepseek-v4-pro",
-            "v4pro": "deepseek-v4-pro",
-            "deepseek-pro": "deepseek-v4-pro",
-            "deepseek-v4-pro": "deepseek-v4-pro",
+def provider_catalog() -> dict[str, Any]:
+    catalog: dict[str, Any] = {}
+    for provider, config in _PROVIDER_MODEL_CATALOG.items():
+        catalog[provider] = {
+            "label": config["label"],
+            "default_model": config["default_model"],
+            "models": [
+                {
+                    "id": model,
+                    "resolved_model": model_config["resolved_model"],
+                    "base_url": model_config["base_url"],
+                }
+                for model, model_config in config["models"].items()
+            ],
         }
-        return aliases.get(normalized, model)
+    return catalog
+
+
+def _compact_key(value: str) -> str:
+    return (value or "").strip().lower().replace("_", "-").replace(" ", "")
+
+
+def _provider_from_env() -> str:
+    explicit = (
+        os.getenv("COMMODITY_LAB_AI_PROVIDER", "")
+        or os.getenv("AI_PROVIDER", "")
+        or os.getenv("HAINENG_PROVIDER", "")
+        or os.getenv("DEEPSEEK_PROVIDER", "")
+    )
+    if explicit:
+        return normalize_provider(explicit)
+    if os.getenv("DEEPSEEK_API_KEY", "").strip() and not os.getenv("HAINENG_API_KEY", "").strip():
+        return "deepseek"
+    return DEFAULT_PROVIDER
+
+
+def _provider_env_value(provider: str, suffix: str) -> str:
+    prefix = "DEEPSEEK" if provider == "deepseek" else "HAINENG"
+    fallback_prefix = "HAINENG" if provider == "deepseek" else "DEEPSEEK"
+    return (
+        os.getenv(f"{prefix}_{suffix}", "").strip()
+        or os.getenv(f"{fallback_prefix}_{suffix}", "").strip()
+        or ""
+    )
+
+
+def normalize_provider(provider: str | None, base_url: str | None = None) -> str:
+    normalized = _compact_key(provider or "")
+    aliases = {
+        "haineng": "haineng",
+        "hai-neng": "haineng",
+        "hn": "haineng",
+        "海能": "haineng",
+        "deepseek": "deepseek",
+        "deep-seek": "deepseek",
+        "ds": "deepseek",
+    }
+    if normalized in aliases:
+        return aliases[normalized]
+    if not normalized and "api.deepseek.com" in (base_url or "").lower():
+        return "deepseek"
+    return DEFAULT_PROVIDER
+
+
+def _provider_name(settings: HainengSettings) -> str:
+    return normalize_provider(settings.provider, settings.base_url)
+
+
+def _provider_model_key(settings: HainengSettings) -> str:
+    provider = _provider_name(settings)
+    model = (settings.model or "").strip() or _PROVIDER_MODEL_CATALOG[provider]["default_model"]
+    normalized = _compact_key(model)
+    models = _PROVIDER_MODEL_CATALOG[provider]["models"]
+    for model_key, model_config in models.items():
+        if normalized == _compact_key(model_key) or normalized in model_config["aliases"]:
+            return model_key
+    return model
+
+
+def _provider_base_url(settings: HainengSettings) -> str:
+    if settings.base_url.strip():
+        return settings.base_url.strip()
+    provider = _provider_name(settings)
+    model = _provider_model_key(settings)
+    model_config = _PROVIDER_MODEL_CATALOG[provider]["models"].get(model)
+    if model_config:
+        return str(model_config["base_url"])
+    return ""
+
+
+def _provider_model_name(settings: HainengSettings) -> str:
+    provider = _provider_name(settings)
+    model = _provider_model_key(settings)
+    model_config = _PROVIDER_MODEL_CATALOG[provider]["models"].get(model)
+    if model_config:
+        return str(model_config["resolved_model"])
     return model
 
 
@@ -355,6 +487,74 @@ def build_trade_playbook_messages(
     ]
 
 
+def build_live_assistant_messages(
+    locale: str,
+    user_message: str,
+    workspace_state: Any,
+    available_actions: Any,
+) -> list[dict[str, str]]:
+    system = (
+        _base_system(locale)
+        + " You are also a live Commodity Lab workspace copilot. "
+        "You may recommend safe UI actions, but never claim they have been executed. "
+        "Return concise Markdown for the learner and a small list of optional actions when useful. "
+        "Allowed action types only: select_template, set_chart_fields, set_strategy_legs, fill_rationale, run_ai_capability. "
+        "Each action must be directly useful for the user's current learning goal."
+    )
+    user = (
+        "Help the learner inside Commodity Lab.\n\n"
+        f"Current workspace:\n{_to_json_text(workspace_state)}\n\n"
+        f"Allowed action schema and examples:\n{_to_json_text(available_actions)}\n\n"
+        f"Learner request:\n{_scrub_text(user_message)}\n\n"
+        "Return strict JSON only, with this shape:\n"
+        "{\n"
+        '  "answer": "Markdown answer for the learner",\n'
+        '  "actions": [\n'
+        '    {"type": "set_chart_fields", "label": "Show high/low/close", "payload": {"fields": ["high", "low", "close"]}}\n'
+        "  ]\n"
+        "}\n"
+        "If no UI action is needed, return an empty actions array. Keep actions safe and reversible."
+    )
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+
+def build_training_case_messages(
+    locale: str,
+    template: Any,
+    user_request: str = "",
+) -> list[dict[str, str]]:
+    system = (
+        _base_system(locale)
+        + " Generate a complete Commodity Lab training case from a business template. "
+        "The product no longer uses external market data; all market curves must be AI-generated training data. "
+        "Make the case concrete and commercially realistic. "
+        "The generated curves must include enough points for visual inspection and must not claim to be live market data."
+    )
+    user = (
+        "Generate one training case as strict JSON only.\n\n"
+        f"Business template:\n{_to_json_text(template)}\n\n"
+        f"Additional learner request:\n{_scrub_text(user_request)}\n\n"
+        "Required JSON shape:\n"
+        "{\n"
+        '  "scenario": {"id": "string", "title": "string", "summary": "string", "business_type": "string", "knowledge_points": ["string"], "exposure": {"direction": "long|short|spread", "volume_mmbtu": 0, "risk": "string"}},\n'
+        '  "market": {"unit": "string", "curves": [{"id": "TTF", "label": "TTF", "color": "#2563eb", "points": [{"date": "YYYY-MM-DD", "open": 0, "high": 0, "low": 0, "close": 0}]}], "events": [{"date": "YYYY-MM-DD", "label": "string"}]},\n'
+        '  "target_actions": [{"leg_type": "physical|swap|future|basis|fx|capacity", "market": "string", "side": "buy|sell|pay|receive", "quantity": 0, "price": 0, "tenor": "string", "rationale": "string"}],\n'
+        '  "rubric": [{"id": "string", "label": "string", "points": 0, "rule": "string"}],\n'
+        '  "prompt": "Decision task shown to the learner in Markdown"\n'
+        "}\n"
+        "Include two or more curves when the business type involves a spread such as TTF/NBP. "
+        "Use 8 to 16 price points per curve. Include high, low, and close on every point. "
+        "Use target_actions for the expected multi-leg physical/paper/FX/capacity strategy."
+    )
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+
 class HainengClient:
     def __init__(self, settings: HainengSettings | None = None) -> None:
         self.settings = settings or effective_settings()
@@ -378,7 +578,7 @@ class HainengClient:
 
         from openai import OpenAI
 
-        client = OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
+        client = OpenAI(api_key=self.settings.api_key, base_url=_provider_base_url(self.settings))
         payload: dict[str, Any] = {
             "model": _provider_model_name(self.settings),
             "messages": messages,

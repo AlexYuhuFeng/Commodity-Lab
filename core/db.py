@@ -82,7 +82,7 @@ def init_db(con: duckdb.DuckDBPyConnection) -> None:
             unit        VARCHAR,
             category    VARCHAR,
             is_watched  BOOLEAN DEFAULT FALSE,
-            source      VARCHAR DEFAULT 'yfinance',
+            source      VARCHAR DEFAULT 'ai_generated_training',
             created_at  TIMESTAMPTZ,
             updated_at  TIMESTAMPTZ
         );
@@ -293,7 +293,7 @@ def upsert_instruments(con: duckdb.DuckDBPyConnection, rows: pd.DataFrame) -> No
         "currency": "",
         "unit": "",
         "category": "",
-        "source": "yfinance",
+        "source": "ai_generated_training",
     }
     for col, default in defaults.items():
         if col not in rows.columns:
