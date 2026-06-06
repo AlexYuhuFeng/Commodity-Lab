@@ -4,10 +4,13 @@ import os
 import sys
 import threading
 import time
+import json
 from typing import Any, List, Dict
+from urllib.request import Request, urlopen
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 import pandas as pd
@@ -59,6 +62,7 @@ class AttemptRequest(BaseModel):
     scenario_id: str
     locale: str = "en"
     order: dict[str, Any]
+    strategy_legs: list[dict[str, Any]] = Field(default_factory=list)
     rationale: str = ""
 
 
@@ -76,7 +80,7 @@ class AITrainingRequest(BaseModel):
     capability: str
     locale: str = "en"
     scenario_id: str | None = None
-    source: str = "yfinance"
+    source: str = "ai_generated"
     evaluation: dict[str, Any] | None = None
     order: dict[str, Any] | None = None
     rationale: str = ""
@@ -90,9 +94,22 @@ class AITrainingRequest(BaseModel):
     learner_message: str = ""
 
 
+class TrainingCaseGenerateRequest(BaseModel):
+    template_id: str
+    locale: str = "en"
+    user_request: str = ""
+
+
+class LiveAssistantRequest(BaseModel):
+    locale: str = "en"
+    message: str
+    workspace_state: dict[str, Any] = Field(default_factory=dict)
+
+
 class HainengProviderSettingsRequest(BaseModel):
     api_key: str
-    base_url: str
+    provider: str = "haineng"
+    base_url: str = ""
     model: str = "V4-Flash"
     streaming: bool = False
     function_calling: bool = True
@@ -186,6 +203,41 @@ def health():
     return {"ok": True, "service": "commodity-lab-backend"}
 
 
+@app.get("/api/v1/version")
+def v1_version():
+    return {
+        "current_version": "1.0.9",
+        "organization": "天然气中心",
+        "project_lead": "杨敏",
+        "repository": "AlexYuhuFeng/Commodity-Lab",
+    }
+
+
+@app.get("/api/v1/update-check")
+def v1_update_check():
+    current_version = "1.0.9"
+    request = Request(
+        "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
+    )
+    try:
+        with urlopen(request, timeout=8) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Update check failed: {exc}") from exc
+
+    tag = str(payload.get("tag_name", "")).lstrip("v")
+    release_url = payload.get("html_url", "")
+    assets = [asset.get("name", "") for asset in payload.get("assets", []) if isinstance(asset, dict)]
+    return {
+        "current_version": current_version,
+        "latest_version": tag or current_version,
+        "up_to_date": not tag or tag == current_version,
+        "release_url": release_url,
+        "assets": assets,
+    }
+
+
 @app.get("/api/v1/catalog")
 def v1_catalog(locale: str = "en"):
     from core.energy_models import list_ai_capabilities, list_energy_modules
@@ -195,6 +247,17 @@ def v1_catalog(locale: str = "en"):
         "ai_capabilities": list_ai_capabilities(locale=locale),
         "current_focus": {"commodity": "natural_gas", "region": "europe", "status": "enabled"},
         "future_modules": ["crude_oil", "oil_products", "carbon", "power"],
+    }
+
+
+@app.get("/api/v1/business-templates")
+def v1_business_templates(locale: str = "en"):
+    from core.training_templates import list_business_groups, list_knowledge_points, list_templates
+
+    return {
+        "groups": list_business_groups(locale=locale),
+        "knowledge_points": list_knowledge_points(locale=locale),
+        "templates": list_templates(locale=locale),
     }
 
 
@@ -225,24 +288,26 @@ def list_instruments(limit: int = Query(default=100, ge=1, le=1000)):
 
 
 @app.post("/api/simulate")
-def simulate_portfolio(orders: List[OrderSpec], source: str = "yfinance"):
+def simulate_portfolio(orders: List[OrderSpec]):
     from core.hedge import VirtualOrder, simulate_virtual_order, score_hedge_result
     from core.hedge import summarize_hedge_performance
+    from core.db import default_db_path, get_conn
 
     results = []
+    con = get_conn(default_db_path(PROJECT_ROOT))
     for o in orders:
         tk = (o.ticker or "").strip()
         if not tk:
             raise HTTPException(status_code=400, detail="Ticker missing in order")
         try:
-            if source == "platts":
-                from core.platts_connector import fetch_platts_history
-                prices = fetch_platts_history(tk)
-            else:
-                from core.yf_prices import fetch_history_daily
-                prices = fetch_history_daily(tk)
+            prices = con.execute(
+                "SELECT date, open, high, low, close FROM prices WHERE ticker = ? ORDER BY date",
+                [tk],
+            ).df()
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Price fetch failed for {tk}: {exc}")
+            raise HTTPException(status_code=502, detail=f"Local training price fetch failed for {tk}: {exc}")
+        if prices.empty:
+            raise HTTPException(status_code=404, detail=f"No local training prices available for {tk}.")
 
         vo = VirtualOrder(
             order_id=o.order_id,
@@ -324,11 +389,23 @@ def assistant_query(payload: Dict):
         raise _haineng_failure(exc) from exc
 
 
-def _platts_is_configured() -> bool:
-    return any(
-        bool(os.getenv(name, "").strip())
-        for name in ("PLATTS_API_KEY", "PLATTS_KEY", "SPGLOBAL_API_KEY", "SP_GLOBAL_API_KEY")
-    )
+def _parse_json_response(text: str) -> dict[str, Any]:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*", "", stripped, flags=re.IGNORECASE)
+        stripped = re.sub(r"\s*```$", "", stripped)
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        start = stripped.find("{")
+        end = stripped.rfind("}")
+        if start >= 0 and end > start:
+            return json.loads(stripped[start : end + 1])
+        raise
+
+
+def _sse_event(event: str, data: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 def _unknown_scenario(exc: KeyError) -> HTTPException:
@@ -375,17 +452,13 @@ def _scenario_bundle(scenario_id: str | None, locale: str, source: str, provided
 
 @app.get("/api/v1/provider-status")
 def v1_provider_status():
-    from core.haineng_client import HainengClient
+    from core.haineng_client import HainengClient, provider_catalog
 
-    platts_configured = _platts_is_configured()
+    client = HainengClient()
     return {
-        "haineng": HainengClient().health_check(),
-        "platts": {"configured": platts_configured},
-        "data_sources": [
-            {"id": "platts", "label": "Platts", "configured": platts_configured},
-            {"id": "yfinance", "label": "Yahoo Finance", "configured": True},
-            {"id": "simulated", "label": "Simulated", "configured": True},
-        ],
+        "haineng": client.health_check(),
+        "ai_providers": provider_catalog(),
+        "training_data": {"mode": "ai_generated", "configured": client.is_configured()},
     }
 
 
@@ -393,17 +466,19 @@ def v1_provider_status():
 def v1_provider_settings(payload: HainengProviderSettingsRequest):
     from core.haineng_client import HainengClient, HainengSettings, set_runtime_settings
 
-    if not payload.api_key.strip() or not payload.base_url.strip():
-        raise HTTPException(status_code=400, detail="Haineng API key and base URL are required.")
-    set_runtime_settings(
-        HainengSettings(
-            api_key=payload.api_key.strip(),
-            base_url=payload.base_url.strip(),
-            model=payload.model.strip() or "V4-Flash",
-            streaming=payload.streaming,
-            function_calling=payload.function_calling,
-        )
+    if not payload.api_key.strip():
+        raise HTTPException(status_code=400, detail="AI provider API key is required.")
+    settings = HainengSettings(
+        api_key=payload.api_key.strip(),
+        provider=payload.provider.strip() or "haineng",
+        base_url=payload.base_url.strip(),
+        model=payload.model.strip() or "V4-Flash",
+        streaming=payload.streaming,
+        function_calling=payload.function_calling,
     )
+    if not HainengClient(settings).is_configured():
+        raise HTTPException(status_code=400, detail="AI provider base URL is required.")
+    set_runtime_settings(settings)
     return {"haineng": HainengClient().health_check()}
 
 
@@ -437,13 +512,65 @@ def v1_evaluate_attempt(payload: AttemptRequest):
         capacity = get_capacity_context(payload.scenario_id)
     except KeyError as exc:
         raise _unknown_scenario(exc)
-    evaluation = evaluate_attempt(scenario, capacity, payload.order, payload.rationale)
+    order = _primary_order_from_strategy(payload.order, payload.strategy_legs)
+    evaluation = evaluate_attempt(scenario, capacity, order, payload.rationale)
+    if payload.strategy_legs:
+        evaluation.setdefault("metrics", {}).update(_strategy_leg_metrics(payload.strategy_legs))
+        evaluation["strategy_legs"] = payload.strategy_legs
     profile = _apply_profile_update(evaluation)
     journey = None
     if profile is not None:
         from core.learning_journey import build_learning_journey
         journey = build_learning_journey(profile, locale=payload.locale)
     return {"evaluation": evaluation, "profile": profile, "journey": journey}
+
+
+def _primary_order_from_strategy(order: dict[str, Any], strategy_legs: list[dict[str, Any]]) -> dict[str, Any]:
+    if not strategy_legs:
+        return order
+    preferred_types = {"swap", "future", "basis", "paper"}
+    preferred_leg = next(
+        (
+            leg
+            for leg in strategy_legs
+            if str(leg.get("leg_type", leg.get("type", ""))).strip().lower() in preferred_types
+        ),
+        strategy_legs[0],
+    )
+    return {
+        "side": preferred_leg.get("side", order.get("side")),
+        "quantity": preferred_leg.get("quantity", order.get("quantity")),
+        "hedge_type": preferred_leg.get("hedge_type", order.get("hedge_type")),
+        "price": preferred_leg.get("price", order.get("price")),
+    }
+
+
+def _strategy_leg_metrics(strategy_legs: list[dict[str, Any]]) -> dict[str, Any]:
+    buckets = {"physical": 0, "paper": 0, "fx": 0, "capacity": 0}
+    total_quantity = 0.0
+    for leg in strategy_legs:
+        leg_type = str(leg.get("leg_type", leg.get("type", ""))).strip().lower()
+        quantity = leg.get("quantity")
+        try:
+            total_quantity += float(quantity)
+        except (TypeError, ValueError):
+            pass
+        if leg_type in {"physical", "gsa", "lng", "efet"}:
+            buckets["physical"] += 1
+        elif leg_type in {"swap", "future", "basis", "paper"}:
+            buckets["paper"] += 1
+        elif leg_type == "fx":
+            buckets["fx"] += 1
+        elif leg_type == "capacity":
+            buckets["capacity"] += 1
+    return {
+        "strategy_leg_count": len(strategy_legs),
+        "physical_leg_count": buckets["physical"],
+        "paper_leg_count": buckets["paper"],
+        "fx_leg_count": buckets["fx"],
+        "capacity_leg_count": buckets["capacity"],
+        "strategy_total_quantity": round(total_quantity, 4),
+    }
 
 
 @app.post("/api/v1/ai/generate")
@@ -491,6 +618,78 @@ def v1_ai_generate(payload: AITrainingRequest):
     except Exception as exc:
         raise _haineng_failure(exc) from exc
     return {"capability": capability, "scenario": scenario, "answer": answer}
+
+
+@app.post("/api/v1/ai/training-case")
+def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
+    from core.haineng_client import build_training_case_messages
+    from core.training_templates import get_template
+
+    client = _require_haineng_client()
+    try:
+        template = get_template(payload.template_id, locale=payload.locale)
+    except KeyError as exc:
+        raise _unknown_scenario(exc)
+    messages = build_training_case_messages(payload.locale, template, payload.user_request)
+    try:
+        answer = client.complete(messages)
+        case = _parse_json_response(answer)
+    except Exception as exc:
+        raise _haineng_failure(exc) from exc
+    return {"template": template, "case": case}
+
+
+@app.post("/api/v1/ai/training-case/stream")
+def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
+    def stream():
+        yield _sse_event("stage", {"id": "read_template", "label": "Reading business template"})
+        try:
+            from core.haineng_client import build_training_case_messages
+            from core.training_templates import get_template
+
+            client = _require_haineng_client()
+            template = get_template(payload.template_id, locale=payload.locale)
+            yield _sse_event("template", template)
+            yield _sse_event("stage", {"id": "generate_market", "label": "Generating AI training curves"})
+            messages = build_training_case_messages(payload.locale, template, payload.user_request)
+            answer = client.complete(messages)
+            yield _sse_event("stage", {"id": "parse_case", "label": "Building scenario, target actions, and rubric"})
+            case = _parse_json_response(answer)
+            yield _sse_event("case", {"template": template, "case": case})
+            yield _sse_event("done", {"ok": True})
+        except Exception as exc:
+            yield _sse_event("error", {"message": str(_haineng_failure(exc).detail)})
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+@app.post("/api/v1/ai/live-assistant")
+def v1_ai_live_assistant(payload: LiveAssistantRequest):
+    from core.haineng_client import build_live_assistant_messages
+
+    client = _require_haineng_client()
+    available_actions = {
+        "select_template": {"template_id": "procurement_beach_to_germany"},
+        "set_chart_fields": {"fields": ["high", "low", "close"]},
+        "set_strategy_legs": {"legs": [{"leg_type": "swap", "market": "TTF", "side": "sell", "quantity": 10000}]},
+        "fill_rationale": {"text": "string"},
+        "run_ai_capability": {"capability": "concept_tutor"},
+    }
+    messages = build_live_assistant_messages(
+        payload.locale,
+        payload.message,
+        payload.workspace_state,
+        available_actions,
+    )
+    try:
+        answer = client.complete(messages)
+        parsed = _parse_json_response(answer)
+    except Exception as exc:
+        raise _haineng_failure(exc) from exc
+    return {
+        "answer": parsed.get("answer", ""),
+        "actions": parsed.get("actions", []),
+    }
 
 
 @app.post("/api/v1/advisor/review")

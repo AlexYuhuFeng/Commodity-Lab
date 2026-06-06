@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pandas as pd
 from fastapi.testclient import TestClient
 
 from tauri.backend.main import app
@@ -30,7 +29,7 @@ def test_instruments_limit_is_bounded() -> None:
 
 def test_provider_status_reports_missing_haineng_without_secret(monkeypatch) -> None:
     _clear_haineng_env(monkeypatch)
-    monkeypatch.setenv("PLATTS_API_KEY", "platts-secret-value")
+    monkeypatch.setenv("UNRELATED_SECRET", "unrelated-secret-value")
     response = client.get("/api/v1/provider-status")
     assert response.status_code == 200
     payload = response.json()
@@ -38,8 +37,20 @@ def test_provider_status_reports_missing_haineng_without_secret(monkeypatch) -> 
     assert "haineng" in payload
     assert payload["haineng"]["ok"] is False
     assert "api_key" not in payload_text
-    assert "platts-secret-value" not in payload_text
-    assert {source["label"] for source in payload["data_sources"]} >= {"Platts", "Yahoo Finance", "Simulated"}
+    assert "unrelated-secret-value" not in payload_text
+    assert "data_sources" not in payload
+    assert payload["training_data"] == {"mode": "ai_generated", "configured": False}
+    assert set(payload["ai_providers"]) >= {"haineng", "deepseek"}
+
+
+def test_version_endpoint_exposes_developer_and_repo_metadata() -> None:
+    response = client.get("/api/v1/version")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_version"]
+    assert payload["organization"] == "天然气中心"
+    assert payload["project_lead"] == "杨敏"
+    assert payload["repository"] == "AlexYuhuFeng/Commodity-Lab"
 
 
 def test_scenarios_endpoint_returns_natural_gas_only() -> None:
@@ -52,17 +63,68 @@ def test_scenarios_endpoint_returns_natural_gas_only() -> None:
     assert {scenario["region"] for scenario in payload["scenarios"]} == {"europe"}
 
 
+def test_business_templates_endpoint_returns_procurement_and_sales_workflows() -> None:
+    response = client.get("/api/v1/business-templates", params={"locale": "en"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert {group["id"] for group in payload["groups"]} >= {"procurement", "sales"}
+    assert {template["group"] for template in payload["templates"]} >= {"procurement", "sales"}
+    assert any("beach" in template["business_type"].lower() for template in payload["templates"])
+    assert any("LNG" in template["business_type"] for template in payload["templates"])
+
+
 def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monkeypatch) -> None:
     _clear_haineng_env(monkeypatch)
     response = client.post(
         "/api/v1/provider-settings",
-        json={"api_key": "user-secret-key", "base_url": "http://localhost:9999/v1", "model": "V4-Flash"},
+        json={
+            "api_key": "user-secret-key",
+            "provider": "haineng",
+            "base_url": "http://localhost:9999/v1",
+            "model": "V4-Flash",
+        },
     )
     assert response.status_code == 200
     payload = response.json()
     assert payload["haineng"]["ok"] is True
+    assert payload["haineng"]["provider"] == "haineng"
     assert payload["haineng"]["base_url"] == "http://localhost:9999/v1"
     assert payload["haineng"]["model"] == "V4-Flash"
+    assert "user-secret-key" not in str(payload)
+    _clear_haineng_env(monkeypatch)
+
+
+def test_provider_settings_endpoint_defaults_haineng_model_url(monkeypatch) -> None:
+    _clear_haineng_env(monkeypatch)
+    response = client.post(
+        "/api/v1/provider-settings",
+        json={"api_key": "user-secret-key", "provider": "haineng", "base_url": "", "model": "V4-Pro"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["haineng"]["provider"] == "haineng"
+    assert payload["haineng"]["base_url"] == "http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1"
+    assert payload["haineng"]["resolved_model"] == "DeepSeek-V4"
+    assert "user-secret-key" not in str(payload)
+    _clear_haineng_env(monkeypatch)
+
+
+def test_provider_settings_endpoint_accepts_deepseek_contract(monkeypatch) -> None:
+    _clear_haineng_env(monkeypatch)
+    response = client.post(
+        "/api/v1/provider-settings",
+        json={
+            "api_key": "user-secret-key",
+            "provider": "deepseek",
+            "base_url": "",
+            "model": "deepseek-v4-flash",
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["haineng"]["provider"] == "deepseek"
+    assert payload["haineng"]["base_url"] == "https://api.deepseek.com"
+    assert payload["haineng"]["resolved_model"] == "deepseek-v4-flash"
     assert "user-secret-key" not in str(payload)
     _clear_haineng_env(monkeypatch)
 
@@ -76,46 +138,23 @@ def test_context_endpoint_returns_market_and_capacity() -> None:
     payload = response.json()
     assert payload["scenario"]["id"] == "europe_route_capacity_constraint"
     assert payload["market"]["scenario_id"] == "europe_route_capacity_constraint"
-    assert payload["market"]["data_source"] == "simulated"
+    assert payload["market"]["source"] == "ai_generated_training"
+    assert payload["market"]["data_source"] == "ai_generated_training"
     assert payload["market"]["symbol"] == "NG=F"
     assert payload["capacity"]["congestion_status"] == "constrained"
 
 
-def test_context_endpoint_uses_yahoo_finance_when_available(monkeypatch) -> None:
-    def fake_fetch_history_daily(ticker, period_if_no_start="3mo", start=None):
-        assert ticker == "NG=F"
-        assert period_if_no_start == "3mo"
-        return pd.DataFrame(
-            [
-                {"date": pd.Timestamp("2026-05-01").date(), "close": 3.1111},
-                {"date": pd.Timestamp("2026-05-02").date(), "close": 3.2222},
-            ]
-        )
-
-    monkeypatch.setattr("core.yf_prices.fetch_history_daily", fake_fetch_history_daily)
+def test_context_endpoint_ignores_removed_external_source_names() -> None:
     response = client.get(
         "/api/v1/scenarios/europe_route_capacity_constraint/context",
-        params={"locale": "en", "source": "Yahoo Finance"},
+        params={"locale": "en", "source": "legacy_external_provider"},
     )
     assert response.status_code == 200
     market = response.json()["market"]
-    assert market["source"] == "yfinance"
-    assert market["data_source"] == "yfinance"
-    assert market["latest_price"] == 3.2222
+    assert market["source"] == "ai_generated_training"
+    assert market["data_source"] == "ai_generated_training"
+    assert market["metadata"]["requested_source"] == "ai_generated_training"
     assert market["metadata"]["is_fallback"] is False
-
-
-def test_context_endpoint_falls_back_when_yahoo_finance_is_empty(monkeypatch) -> None:
-    monkeypatch.setattr("core.yf_prices.fetch_history_daily", lambda *args, **kwargs: pd.DataFrame())
-    response = client.get(
-        "/api/v1/scenarios/europe_route_capacity_constraint/context",
-        params={"locale": "en", "source": "yfinance"},
-    )
-    assert response.status_code == 200
-    market = response.json()["market"]
-    assert market["source"] == "yfinance"
-    assert market["data_source"] == "simulated"
-    assert market["metadata"]["is_fallback"] is True
 
 
 def test_evaluate_endpoint_returns_deterministic_result() -> None:
@@ -208,6 +247,80 @@ def test_ai_capabilities_cover_realistic_europe_gas_workflows(monkeypatch) -> No
     assert len(captured_prompts) == len(requests)
     assert any("Norwegian offshore maintenance" in prompt for prompt in captured_prompts)
     assert any("pre-trade checklist" in prompt for prompt in captured_prompts)
+
+
+def test_ai_training_case_endpoint_parses_generated_json(monkeypatch) -> None:
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def complete(self, messages, tools=None):
+            text = "\n".join(message["content"] for message in messages)
+            assert "Business template" in text
+            assert "AI-generated training data" in text
+            return """
+            {
+              "scenario": {
+                "id": "ai-case",
+                "title": "Generated gas case",
+                "summary": "Generated case summary",
+                "business_type": "Upstream beach delivery GSA",
+                "knowledge_points": ["basis_spread"],
+                "exposure": {"direction": "spread", "volume_mmbtu": 60000, "risk": "basis and FX"}
+              },
+              "market": {
+                "unit": "training index",
+                "curves": [
+                  {"id": "TTF", "label": "TTF", "color": "#38bdf8", "points": [{"date": "2026-01-01", "open": 1, "high": 2, "low": 1, "close": 1.5}]},
+                  {"id": "NBP", "label": "NBP", "color": "#f59e0b", "points": [{"date": "2026-01-01", "open": 3, "high": 4, "low": 3, "close": 3.5}]}
+                ],
+                "events": []
+              },
+              "target_actions": [{"leg_type": "basis", "market": "TTF/NBP", "side": "sell", "quantity": 60000, "tenor": "M+1", "rationale": "Lock spread"}],
+              "rubric": [{"id": "basis", "label": "Basis", "points": 40, "rule": "Use basis hedge"}],
+              "prompt": "### Decision task"
+            }
+            """
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post(
+        "/api/v1/ai/training-case",
+        json={"template_id": "procurement_beach_to_germany", "locale": "en", "user_request": "UK to Germany"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["template"]["id"] == "procurement_beach_to_germany"
+    assert payload["case"]["scenario"]["title"] == "Generated gas case"
+    assert [curve["id"] for curve in payload["case"]["market"]["curves"]] == ["TTF", "NBP"]
+
+
+def test_live_assistant_endpoint_returns_safe_action_cards(monkeypatch) -> None:
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def complete(self, messages, tools=None):
+            text = "\n".join(message["content"] for message in messages)
+            assert "Allowed action types" in text
+            return """
+            {
+              "answer": "### Plan\\nShow high/low/close and add an FX leg.",
+              "actions": [
+                {"type": "set_chart_fields", "label": "Show high/low/close", "payload": {"fields": ["high", "low", "close"]}},
+                {"type": "run_ai_capability", "label": "Explain basis", "payload": {"capability": "concept_tutor"}}
+              ]
+            }
+            """
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post(
+        "/api/v1/ai/live-assistant",
+        json={"locale": "en", "message": "Show more chart detail", "workspace_state": {"case": {"scenario": {"title": "x"}}}},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["answer"].startswith("### Plan")
+    assert [action["type"] for action in payload["actions"]] == ["set_chart_fields", "run_ai_capability"]
 
 
 def test_legacy_advisor_and_exam_return_haineng_answers_when_configured(monkeypatch) -> None:

@@ -1,20 +1,17 @@
 # Commodity Lab Product Roadmap
 
-Commodity Lab is built as an AI-powered energy trading learning platform. The roadmap keeps V1 commercially focused on European natural gas while preserving clean expansion paths for North America gas, LNG, crude oil, refined products, carbon, and power.
+Commodity Lab is built as an AI-powered energy trading learning platform. The roadmap keeps V1 commercially focused on natural gas hedging and AI-generated training while preserving clean expansion paths for North America gas, LNG, crude oil, refined products, carbon, and power.
 
 ## Product North Star
 
 Train energy traders through realistic, repeated decision practice:
 
 ```text
-Understand market context
-  -> identify commercial exposure
-  -> select financial or physical risk-management tool
-  -> submit decision
-  -> receive deterministic score
-  -> get AI coaching
-  -> update learner profile
-  -> receive next adaptive drill
+Choose business workflow
+  -> AI generates case, curves, events, target actions, and rubric
+  -> learner builds physical/paper/FX/capacity hedge
+  -> receive immediate local score
+  -> use AI for coaching, concepts, exams, and workspace actions
 ```
 
 ## V1: Europe Natural Gas First
@@ -29,16 +26,17 @@ Primary scope:
 - Storage calendar spreads.
 - Route and capacity thinking.
 - Nomination and operational context as training themes.
-- AI Socratic Coach and trade playbook for pre-trade reasoning.
+- AI-generated curves, target actions, rubrics, Socratic coaching, trade playbooks, exams, and safe workspace action cards.
 
 Required V1 experience:
 
-- User can open app without Haineng key.
-- User sees Base Mode immediately.
-- User can run a guided Europe gas scenario.
-- User can submit a decision and receive deterministic scoring.
-- User can see learner profile and next recommended training.
-- User can connect Haineng and see a visibly richer AI Full Power Mode.
+- User lands in a fullscreen Windows trading terminal.
+- User sees Mandarin by default and can switch language/theme from Settings.
+- User configures Haineng or DeepSeek separately in Settings.
+- User can generate a gas business case from procurement or sales templates.
+- User can inspect generated multi-series high/low/close curves and strategy overlays.
+- User can submit multi-leg hedges and receive immediate deterministic scoring.
+- User can use the floating AI assistant for case generation, concept Q&A, and safe workspace customization.
 
 Exit criteria:
 
@@ -46,7 +44,7 @@ Exit criteria:
 - Windows artifact builds.
 - First-run UX is understandable.
 - AI capabilities have mock tests.
-- Data-source status is explicit.
+- V1 contains no external market-data source selector or connector.
 - Secrets are redacted.
 
 ## V2: North America Gas and LNG

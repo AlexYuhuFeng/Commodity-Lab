@@ -43,8 +43,8 @@ tauri\src-tauri\target\release\bundle\
 
 ## Notes
 
-- Do not commit 海能, Platts, or Yahoo Finance credentials.
-- The UI labels data sources as `Platts`, `Yahoo Finance`, or `Simulated`.
+- Do not commit 海能/Haineng, DeepSeek, or other provider credentials.
+- Commodity Lab V1 uses AI-generated training data and does not package external market-data connectors.
 - The app name is Commodity Lab.
 - Windows Publisher/Manufacturer metadata must be `Commodity Lab`.
 - Unsigned builds are acceptable only for internal testing. Commercial release builds require a trusted Windows code-signing certificate and timestamping.

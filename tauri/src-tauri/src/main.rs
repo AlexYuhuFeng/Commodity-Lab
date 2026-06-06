@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use reqwest::blocking::Client;
+use reqwest::blocking::Client as BlockingClient;
+use reqwest::Client;
 use serde_json::Value;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -8,6 +9,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+use tauri::Manager;
 
 const DEFAULT_BACKEND_HOST: &str = "127.0.0.1";
 const DEFAULT_BACKEND_PORT: u16 = 8000;
@@ -43,7 +45,7 @@ fn backend_url(path: &str) -> String {
 
 #[tauri::command]
 fn ping_backend() -> Result<Value, String> {
-    let client = Client::new();
+    let client = BlockingClient::new();
     client
         .get(backend_url("/api/ping"))
         .send()
@@ -54,7 +56,7 @@ fn ping_backend() -> Result<Value, String> {
 
 #[tauri::command]
 fn simulate_backend(payload: Value) -> Result<Value, String> {
-    let client = Client::new();
+    let client = BlockingClient::new();
     client
         .post(backend_url("/api/simulate"))
         .json(&payload)
@@ -65,7 +67,7 @@ fn simulate_backend(payload: Value) -> Result<Value, String> {
 }
 
 #[tauri::command]
-fn backend_request(method: String, path: String, body: Option<Value>) -> Result<Value, String> {
+async fn backend_request(method: String, path: String, body: Option<Value>) -> Result<Value, String> {
     let client = Client::builder()
         .timeout(Duration::from_secs(60))
         .build()
@@ -74,8 +76,8 @@ fn backend_request(method: String, path: String, body: Option<Value>) -> Result<
     let method_upper = method.to_uppercase();
 
     let response = match method_upper.as_str() {
-        "GET" => client.get(&url).send(),
-        "POST" => client.post(&url).json(&body.unwrap_or(Value::Null)).send(),
+        "GET" => client.get(&url).send().await,
+        "POST" => client.post(&url).json(&body.unwrap_or(Value::Null)).send().await,
         _ => return Err(format!("unsupported method: {}", method)),
     }
     .map_err(|e| format!("request failed: {}", e))?;
@@ -83,6 +85,7 @@ fn backend_request(method: String, path: String, body: Option<Value>) -> Result<
     let status = response.status();
     let json: Value = response
         .json()
+        .await
         .map_err(|e| format!("json decode failed: {}", e))?;
 
     if !status.is_success() {
@@ -168,7 +171,7 @@ fn start_python_backend(resource_dir: Option<PathBuf>) -> Option<Child> {
 }
 
 fn wait_for_backend(timeout: Duration) -> Result<(), String> {
-    let client = Client::builder()
+    let client = BlockingClient::builder()
         .timeout(Duration::from_secs(2))
         .build()
         .map_err(|e| format!("http client init failed: {}", e))?;
@@ -211,6 +214,10 @@ fn main() {
             }
         })
         .setup(move |app| {
+            if let Some(window) = app.get_window("main") {
+                let _ = window.maximize();
+                let _ = window.set_fullscreen(true);
+            }
             let child = start_python_backend(app.path_resolver().resource_dir());
             if let Ok(mut lock) = setup_backend_handle.lock() {
                 *lock = child;

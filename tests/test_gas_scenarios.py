@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-import pandas as pd
 import pytest
 
 import core.gas_scenarios as gas_scenarios
@@ -157,10 +156,10 @@ def test_capacity_context_is_available_for_every_enabled_scenario():
 def test_sample_market_context_for_route_capacity_has_prices():
     context = get_market_context("europe_route_capacity_constraint", source="sample")
 
-    assert context["source"] == "sample"
-    assert context["source_label"] == "Simulated"
-    assert context["data_source"] == "simulated"
-    assert context["data_source_label"] == "Simulated"
+    assert context["source"] == "ai_generated_training"
+    assert context["source_label"] == "AI Generated Training Data"
+    assert context["data_source"] == "ai_generated_training"
+    assert context["data_source_label"] == "AI Generated Training Data"
     assert context["symbol"] == "NG=F"
     assert len(context["price_series"]) >= 6
     assert context["price_points"] == context["price_series"]
@@ -168,60 +167,15 @@ def test_sample_market_context_for_route_capacity_has_prices():
     assert all("date" in point and "close" in point for point in context["price_series"])
 
 
-def test_yahoo_finance_source_uses_live_data_before_fallback(monkeypatch):
-    def fake_fetch_history_daily(ticker, period_if_no_start="3mo", start=None):
-        assert ticker == "NG=F"
-        assert period_if_no_start == "3mo"
-        return pd.DataFrame(
-            [
-                {"date": pd.Timestamp("2026-05-01").date(), "close": 3.1111},
-                {"date": pd.Timestamp("2026-05-02").date(), "close": 3.2222},
-            ]
-        )
+def test_legacy_source_argument_never_calls_external_market_providers():
+    context = get_market_context("europe_route_capacity_constraint", source="legacy_external_provider")
 
-    monkeypatch.setattr("core.yf_prices.fetch_history_daily", fake_fetch_history_daily)
-
-    context = get_market_context("europe_route_capacity_constraint", source="Yahoo Finance")
-
-    assert context["source"] == "yfinance"
-    assert context["source_label"] == "Yahoo Finance"
-    assert context["data_source"] == "yfinance"
-    assert context["data_source_label"] == "Yahoo Finance"
-    assert context["price_series"] == [
-        {"date": "2026-05-01", "close": 3.1111},
-        {"date": "2026-05-02", "close": 3.2222},
-    ]
-    assert context["latest_price"] == 3.2222
-    assert context["metadata"]["returned_source"] == "yfinance"
-    assert context["metadata"]["returned_source_label"] == "Yahoo Finance"
-    assert context["metadata"]["is_fallback"] is False
-
-
-def test_yahoo_finance_empty_response_falls_back_to_simulated(monkeypatch):
-    monkeypatch.setattr("core.yf_prices.fetch_history_daily", lambda *args, **kwargs: pd.DataFrame())
-
-    context = get_market_context("europe_route_capacity_constraint", source="yfinance")
-
-    assert context["source"] == "yfinance"
-    assert context["source_label"] == "Yahoo Finance"
-    assert context["data_source"] == "simulated"
-    assert context["data_source_label"] == "Simulated"
-    assert context["price_series"]
-    assert context["metadata"]["requested_source"] == "yfinance"
-    assert context["metadata"]["returned_source"] == "simulated"
-    assert context["metadata"]["is_fallback"] is True
-    assert "Yahoo Finance returned no usable close prices" in context["metadata"]["fallback_reason"]
-
-
-def test_platts_source_uses_simulated_fallback_until_adapter_exists():
-    context = get_market_context("europe_route_capacity_constraint", source="platts")
-
-    assert context["source"] == "platts"
-    assert context["source_label"] == "Platts"
-    assert context["data_source"] == "simulated"
-    assert context["data_source_label"] == "Simulated"
+    assert context["source"] == "ai_generated_training"
+    assert context["source_label"] == "AI Generated Training Data"
+    assert context["data_source"] == "ai_generated_training"
+    assert context["data_source_label"] == "AI Generated Training Data"
     assert context["price_series"]
     assert context["latest_price"] == context["price_series"][-1]["close"]
-    assert context["metadata"]["requested_source"] == "platts"
-    assert context["metadata"]["returned_source"] == "simulated"
-    assert context["metadata"]["is_fallback"] is True
+    assert context["metadata"]["requested_source"] == "ai_generated_training"
+    assert context["metadata"]["returned_source"] == "ai_generated_training"
+    assert context["metadata"]["is_fallback"] is False

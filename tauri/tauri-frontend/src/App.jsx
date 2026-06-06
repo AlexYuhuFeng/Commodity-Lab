@@ -1,42 +1,72 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { appWindow } from "@tauri-apps/api/window";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const defaultOrder = {
-  side: "sell",
-  quantity: 60000,
-  hedge_type: "short_hedge",
-  price: 3.5
+const currentVersion = "1.0.9";
+
+const defaultProviderCatalog = {
+  haineng: {
+    label: "Haineng",
+    default_model: "V4-Flash",
+    models: [
+      {
+        id: "V4-Flash",
+        label: "V4-Flash / DeepSeek-V4-Flash",
+        resolved_model: "DeepSeek-V4-Flash",
+        base_url: "http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1"
+      },
+      {
+        id: "V4-Pro",
+        label: "V4-Pro / DeepSeek-V4",
+        resolved_model: "DeepSeek-V4",
+        base_url: "http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1"
+      }
+    ]
+  },
+  deepseek: {
+    label: "DeepSeek",
+    default_model: "deepseek-v4-flash",
+    models: [
+      { id: "deepseek-v4-flash", label: "deepseek-v4-flash", resolved_model: "deepseek-v4-flash", base_url: "https://api.deepseek.com" },
+      { id: "deepseek-v4-pro", label: "deepseek-v4-pro", resolved_model: "deepseek-v4-pro", base_url: "https://api.deepseek.com" }
+    ]
+  }
 };
 
-const sourceOptions = [
-  { id: "yfinance", labelKey: "yahooFinance" },
-  { id: "sample", labelKey: "simulated" },
-  { id: "platts", labelKey: "platts" }
+const chartFields = ["close", "high", "low"];
+
+const guideSteps = [
+  ["business-sidebar", "guideBusinessTitle", "guideBusinessBody"],
+  ["case-workspace", "guideCaseTitle", "guideCaseBody"],
+  ["market-chart", "guideChartTitle", "guideChartBody"],
+  ["strategy-builder", "guideStrategyTitle", "guideStrategyBody"],
+  ["floating-assistant", "guideAssistantTitle", "guideAssistantBody"],
+  ["settings-menu", "guideSettingsTitle", "guideSettingsBody"]
 ];
 
-const aiActionButtons = [
-  { capability: "advisor_review", labelKey: "askHint", requiresEvaluation: true },
-  { capability: "socratic_coach", labelKey: "socraticCoach" },
-  { capability: "case_generation", labelKey: "generateCase" },
-  { capability: "event_drill", labelKey: "eventDrill" },
-  { capability: "concept_tutor", labelKey: "conceptTutor" },
-  { capability: "trade_playbook", labelKey: "tradePlaybook" },
-  { capability: "exam", labelKey: "generateExam" }
-];
-
-const aiModelOptions = [
-  { value: "V4-Flash", labelKey: "v4Flash" },
-  { value: "V4-Pro", labelKey: "v4Pro" }
-];
-
-const aiThinkingStepKeys = [
-  "thinkingReadContext",
-  "thinkingCheckMarket",
-  "thinkingBuildPrompt",
-  "thinkingWaitModel",
-  "thinkingAssemble"
-];
+const fallbackTemplates = {
+  groups: [
+    { id: "procurement", label: "采购端" },
+    { id: "sales", label: "销售端" }
+  ],
+  knowledge_points: [
+    { id: "basis_spread", label: "基差与枢纽价差", description: "TTF/NBP、地点差、单位与汇率归一化。" },
+    { id: "physical_paper_matching", label: "实货与纸货匹配", description: "GSA、EFET、LNG、swap、future、FX、capacity 的组合动作。" }
+  ],
+  templates: [
+    {
+      id: "procurement_beach_to_germany",
+      group: "procurement",
+      business_type: "上游 Beach Delivery 资源（GSA）",
+      title: "英国上游 Beach Delivery 卖德国",
+      summary: "AI 生成 NBP/TTF、汇率、运输和实纸货匹配案例。",
+      knowledge_points: ["basis_spread", "fx", "physical_paper_matching"],
+      required_curves: ["TTF", "NBP", "EURGBP", "TTF_NBP_SPREAD"],
+      suggested_leg_types: ["physical", "basis", "fx", "capacity"]
+    }
+  ]
+};
 
 function savedValue(key, fallback = "") {
   if (typeof localStorage === "undefined") return fallback;
@@ -46,67 +76,249 @@ function savedValue(key, fallback = "") {
 function formatNumber(value, digits = 0) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "--";
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: digits,
-    minimumFractionDigits: digits
-  }).format(number);
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(number);
 }
 
 function formatMoney(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "--";
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
-    style: "currency",
-    currency: "USD"
-  }).format(number);
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(number);
 }
 
-function optionLabel(value, locale) {
-  const labels = {
-    buy: t("buy", locale),
-    sell: t("sell", locale),
-    short_hedge: t("shortHedge", locale),
-    long_hedge: t("longHedge", locale),
-    basis_hedge: t("basisHedge", locale),
-    calendar_spread: t("calendarSpread", locale)
+function compactDate(value) {
+  return String(value ?? "").slice(5) || "--";
+}
+
+function defaultCase(locale) {
+  const zh = normalizeLocale(locale) === "zh";
+  return {
+    scenario: {
+      id: "starter_case",
+      title: zh ? "选择业务模板生成案例" : "Select a business template to generate a case",
+      summary: zh
+        ? "Commodity Lab 现在以 AI 生成训练数据为核心。先从左侧选择采购端或销售端业务模板。"
+        : "Commodity Lab now uses AI-generated training data. Start from a procurement or sales business template.",
+      business_type: zh ? "采购端 / 销售端" : "Procurement / Sales",
+      knowledge_points: ["basis_spread", "physical_paper_matching"],
+      exposure: {
+        direction: "spread",
+        volume_mmbtu: 60000,
+        risk: zh ? "等待 AI 生成具体业务敞口、曲线、目标动作和评分规则。" : "Waiting for AI to generate exposure, curves, target actions, and scoring rubric."
+      }
+    },
+    market: {
+      unit: "training index",
+      curves: [
+        {
+          id: "TTF",
+          label: "TTF",
+          color: "#38bdf8",
+          points: [
+            { date: "2026-01-05", open: 31.2, high: 32.4, low: 30.9, close: 31.8 },
+            { date: "2026-01-06", open: 31.8, high: 33.1, low: 31.1, close: 32.7 },
+            { date: "2026-01-07", open: 32.8, high: 34.0, low: 32.2, close: 33.4 },
+            { date: "2026-01-08", open: 33.4, high: 33.8, low: 31.8, close: 32.2 },
+            { date: "2026-01-09", open: 32.2, high: 33.4, low: 31.6, close: 33.0 }
+          ]
+        },
+        {
+          id: "NBP",
+          label: "NBP",
+          color: "#f59e0b",
+          points: [
+            { date: "2026-01-05", open: 74.0, high: 75.2, low: 72.7, close: 74.8 },
+            { date: "2026-01-06", open: 74.8, high: 76.3, low: 73.9, close: 75.7 },
+            { date: "2026-01-07", open: 75.8, high: 77.4, low: 74.8, close: 76.6 },
+            { date: "2026-01-08", open: 76.4, high: 76.8, low: 74.2, close: 75.1 },
+            { date: "2026-01-09", open: 75.1, high: 76.6, low: 74.1, close: 76.0 }
+          ]
+        }
+      ],
+      events: [{ date: "2026-01-07", label: zh ? "运力紧张" : "Capacity tightness" }]
+    },
+    target_actions: [
+      { id: "physical-1", leg_type: "physical", market: "UK Beach GSA", side: "buy", quantity: 60000, tenor: "M+1", hedge_type: "basis_hedge", rationale: "Source physical gas." },
+      { id: "basis-1", leg_type: "basis", market: "TTF/NBP basis swap", side: "sell", quantity: 60000, tenor: "M+1", hedge_type: "basis_hedge", rationale: "Lock hub spread." }
+    ],
+    rubric: [
+      { id: "physical", label: zh ? "实货腿" : "Physical leg", points: 25, rule: "Include a physical purchase/sale leg." },
+      { id: "paper", label: zh ? "纸货腿" : "Paper leg", points: 35, rule: "Include swap/future/basis paper hedge leg." },
+      { id: "risk", label: zh ? "风险解释" : "Risk explanation", points: 25, rule: "Explain price, basis, FX, capacity, and tenor logic." },
+      { id: "controls", label: zh ? "风控检查" : "Risk controls", points: 15, rule: "Mention liquidity, limits, credit, and execution window." }
+    ],
+    prompt: zh
+      ? "### 决策任务\n构建一个实货 + 纸货的组合套保。说明每条腿覆盖什么风险，以及需要检查哪些风控条件。"
+      : "### Decision task\nBuild a physical + paper hedge strategy. Explain what each leg covers and which risk controls must be checked."
   };
-  return labels[value] ?? value;
 }
 
-function capabilityLabel(capability, locale) {
-  const titleKey = aiActionButtons.find((action) => action.capability === capability)?.labelKey ?? "aiCoach";
-  return t(titleKey, locale);
+function defaultLegs(locale = "zh") {
+  return defaultCase(locale).target_actions.map((leg) => ({ ...leg }));
 }
 
-function formatErrorMessage(error, locale) {
-  const raw = typeof error === "string" ? error : error?.message ?? "";
-  if (!raw) return t("serviceIssue", locale);
+function providerCatalog(status) {
+  return status?.ai_providers ?? defaultProviderCatalog;
+}
 
-  try {
-    const jsonStart = raw.indexOf("{");
-    if (jsonStart >= 0) {
-      const payload = JSON.parse(raw.slice(jsonStart));
-      const detail = payload.detail ?? payload;
-      if (detail.provider_message) return detail.provider_message;
-      if (detail.message) return detail.message;
+function providerConfig(catalog, provider) {
+  return catalog[provider] ?? catalog.haineng ?? defaultProviderCatalog.haineng;
+}
+
+function modelConfig(catalog, provider, model) {
+  const config = providerConfig(catalog, provider);
+  return config.models.find((option) => option.id === model) ?? config.models[0];
+}
+
+function formForProvider(provider, catalog = defaultProviderCatalog, apiKey = "") {
+  const config = providerConfig(catalog, provider);
+  const storedModel = savedValue(`commodity-lab-${provider}-model`, config.default_model);
+  const model = config.models.some((option) => option.id === storedModel) ? storedModel : config.default_model;
+  const selected = modelConfig(catalog, provider, model);
+  return {
+    api_key: apiKey,
+    provider,
+    model,
+    base_url: savedValue(`commodity-lab-${provider}-base-url`, selected?.base_url ?? "")
+  };
+}
+
+function orderFromStrategy(strategyLegs) {
+  const leg = strategyLegs.find((item) => ["swap", "future", "basis", "paper"].includes(item.leg_type)) ?? strategyLegs[0];
+  return {
+    side: leg?.side === "buy" ? "buy" : "sell",
+    quantity: Number(leg?.quantity) || 0,
+    hedge_type: leg?.hedge_type || "basis_hedge",
+    price: Number(leg?.price) || 0
+  };
+}
+
+function evaluateStrategy(caseData, legs, rationale) {
+  const rubric = caseData.rubric ?? [];
+  const text = `${rationale} ${legs.map((leg) => `${leg.leg_type} ${leg.market} ${leg.side}`).join(" ")}`.toLowerCase();
+  const hasPhysical = legs.some((leg) => ["physical", "gsa", "lng", "efet"].includes(leg.leg_type));
+  const hasPaper = legs.some((leg) => ["swap", "future", "basis", "paper"].includes(leg.leg_type));
+  const targetTypes = new Set((caseData.target_actions ?? []).map((leg) => leg.leg_type));
+  const matchedTypes = legs.filter((leg) => targetTypes.has(leg.leg_type)).length;
+  const maxScore = rubric.reduce((sum, item) => sum + Number(item.points || 0), 0) || 100;
+  let score = 0;
+  if (hasPhysical) score += 25;
+  if (hasPaper) score += 30;
+  score += Math.min(25, matchedTypes * 8);
+  if (/(basis|基差|spread|价差|fx|汇率|capacity|运力|limit|限额|liquidity|流动性)/i.test(text)) score += 20;
+  const baseline = Math.max(0, Math.min(100, Math.round((score / Math.max(100, maxScore)) * 100)));
+  return {
+    valid: true,
+    baseline_score: baseline,
+    rubric,
+    target_actions: caseData.target_actions ?? [],
+    strategy_legs: legs,
+    mistake_tags: [
+      ...(!hasPhysical ? ["missing_physical_leg"] : []),
+      ...(!hasPaper ? ["missing_paper_leg"] : []),
+      ...(matchedTypes < Math.min(2, targetTypes.size) ? ["incomplete_target_legs"] : [])
+    ],
+    metrics: {
+      strategy_leg_count: legs.length,
+      physical_leg_count: legs.filter((leg) => ["physical", "gsa", "lng", "efet"].includes(leg.leg_type)).length,
+      paper_leg_count: legs.filter((leg) => ["swap", "future", "basis", "paper"].includes(leg.leg_type)).length,
+      fx_leg_count: legs.filter((leg) => leg.leg_type === "fx").length,
+      notional_usd: legs.reduce((sum, leg) => sum + (Number(leg.quantity) || 0) * (Number(leg.price) || 0), 0)
     }
+  };
+}
+
+function parseSafeJson(value) {
+  if (!value || typeof value !== "string") return null;
+  try {
+    return JSON.parse(value);
   } catch {
-    // Keep the raw provider/runtime message when backend errors are not JSON.
+    return null;
+  }
+}
+
+function MarkdownText({ text }) {
+  const lines = String(text ?? "").split("\n");
+  const inline = (value) =>
+    String(value)
+      .split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
+      .filter(Boolean)
+      .map((part, index) => {
+        if (part.startsWith("**") && part.endsWith("**")) return <strong key={index}>{part.slice(2, -2)}</strong>;
+        if (part.startsWith("`") && part.endsWith("`")) return <code key={index}>{part.slice(1, -1)}</code>;
+        return <React.Fragment key={index}>{part}</React.Fragment>;
+      });
+
+  const nodes = [];
+  let paragraph = [];
+  let list = [];
+  let listType = null;
+
+  function flushParagraph() {
+    if (!paragraph.length) return;
+    nodes.push({ type: "paragraph", text: paragraph.join(" ") });
+    paragraph = [];
+  }
+  function flushList() {
+    if (!list.length) return;
+    nodes.push({ type: listType, items: list });
+    list = [];
+    listType = null;
   }
 
-  return raw.replace(/^backend status \d+:\s*/i, "");
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushParagraph();
+      flushList();
+      return;
+    }
+    const heading = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushList();
+      nodes.push({ type: `h${Math.min(4, heading[1].length + 2)}`, text: heading[2] });
+      return;
+    }
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+    const ordered = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (bullet || ordered) {
+      flushParagraph();
+      const nextType = bullet ? "ul" : "ol";
+      if (listType && listType !== nextType) flushList();
+      listType = nextType;
+      list.push((bullet || ordered)[1]);
+      return;
+    }
+    flushList();
+    paragraph.push(trimmed);
+  });
+  flushParagraph();
+  flushList();
+
+  return (
+    <div className="markdown-output">
+      {nodes.map((node, index) => {
+        if (/^h[1-4]$/.test(node.type)) {
+          const Tag = node.type;
+          return <Tag key={index}>{inline(node.text)}</Tag>;
+        }
+        if (node.type === "ul") {
+          return <ul key={index}>{node.items.map((item, itemIndex) => <li key={itemIndex}>{inline(item)}</li>)}</ul>;
+        }
+        if (node.type === "ol") {
+          return <ol key={index}>{node.items.map((item, itemIndex) => <li key={itemIndex}>{inline(item)}</li>)}</ol>;
+        }
+        return <p key={index}>{inline(node.text)}</p>;
+      })}
+    </div>
+  );
 }
 
 function LanguageToggle({ locale, setLocale }) {
   return (
-    <div className="segmented" aria-label="Language">
-      <button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")} type="button">
-        EN
-      </button>
-      <button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")} type="button">
-        中文
-      </button>
+    <div className="segmented" aria-label={t("language", locale)}>
+      <button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")} type="button">中文</button>
+      <button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")} type="button">EN</button>
     </div>
   );
 }
@@ -132,798 +344,623 @@ function CollapsiblePanel({ children, className = "", defaultOpen = false, meta,
   );
 }
 
-function DataSourceStrip({ locale, sources = [], activeSource }) {
-  const sourceRows = sources.length
-    ? sources
-    : [
-        { id: "yfinance", label: "Yahoo Finance", configured: true },
-        { id: "simulated", label: "Simulated", configured: true },
-        { id: "platts", label: "Platts", configured: false }
-      ];
-
+function WindowControls({ locale }) {
+  async function closeApp() {
+    try {
+      await appWindow.close();
+    } catch {
+      window.close();
+    }
+  }
+  async function toggleFullscreen() {
+    try {
+      await appWindow.setFullscreen(!(await appWindow.isFullscreen()));
+    } catch {
+      // Browser preview fallback has no native window control.
+    }
+  }
   return (
-    <div className="source-strip" aria-label={t("dataSources", locale)}>
-      {sourceRows.map((source) => (
-        <span
-          className={
-            source.id === activeSource || (source.id === "simulated" && activeSource === "sample")
-              ? "source-pill active"
-              : "source-pill"
-          }
-          key={source.id}
-        >
-          <strong>{source.label}</strong>
-          <small>{source.configured ? t("configured", locale) : t("notConfigured", locale)}</small>
-        </span>
-      ))}
+    <div className="window-controls">
+      <button title={t("toggleFullscreen", locale)} onClick={toggleFullscreen} type="button">□</button>
+      <button title={t("close", locale)} onClick={closeApp} type="button">×</button>
     </div>
   );
 }
 
-function AiActivationPanel({ aiReady, locale, onSaveSettings, providerStatus, saving, message }) {
-  const [form, setForm] = useState({
-    api_key: "",
-    base_url: savedValue("commodity-lab-haineng-base-url", ""),
-    model: savedValue("commodity-lab-haineng-model", "V4-Flash")
-  });
+function SettingsMenu({ aiReady, locale, onCheckUpdate, onRestartGuide, onSaveSettings, providerStatus, saving, serviceMessage, setLocale, setTheme, theme, updateInfo }) {
+  const catalog = providerCatalog(providerStatus);
+  const [form, setForm] = useState(() => formForProvider(savedValue("commodity-lab-ai-provider", "haineng")));
+  const provider = catalog[form.provider] ? form.provider : "haineng";
+  const config = providerConfig(catalog, provider);
+  const model = modelConfig(catalog, provider, form.model);
 
-  async function submit(event) {
-    event.preventDefault();
-    await onSaveSettings(form);
-    setForm((current) => ({ ...current, api_key: "" }));
+  function changeProvider(nextProvider) {
+    setForm(formForProvider(nextProvider, catalog, form.api_key));
+  }
+  function changeModel(nextModel) {
+    const next = modelConfig(catalog, provider, nextModel);
+    setForm((current) => ({ ...current, model: nextModel, base_url: next?.base_url ?? current.base_url }));
   }
 
   return (
-    <details className={aiReady ? "ai-activation online" : "ai-activation"} open={!aiReady}>
-      <summary>
-        <div className="ai-activation-copy">
-          <p>{aiReady ? t("aiConnected", locale) : t("connectAi", locale)}</p>
-          <h2>{t("aiSettings", locale)}</h2>
-          <span>{aiReady ? t("aiUnlockedCompact", locale) : t("aiLockedSubtitle", locale)}</span>
-        </div>
-        <div className="provider-summary">
-          <span>
-            {t("model", locale)}
-            <strong>{providerStatus?.haineng?.resolved_model ?? form.model}</strong>
-          </span>
-          <span>
-            {t("status", locale)}
-            <strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong>
-          </span>
-        </div>
-        <span className="disclosure-label">{t("configure", locale)}</span>
-      </summary>
-      <form className="setup-form compact" onSubmit={submit}>
-        <label>
-          {t("apiKey", locale)}
-          <input
-            aria-label={t("apiKey", locale)}
-            autoComplete="off"
-            onChange={(event) => setForm({ ...form, api_key: event.target.value })}
-            placeholder={aiReady ? "********" : t("enterKeyToUnlock", locale)}
-            type="password"
-            value={form.api_key}
-          />
-        </label>
-        <label>
-          {t("baseUrl", locale)}
-          <input
-            aria-label={t("baseUrl", locale)}
-            onChange={(event) => setForm({ ...form, base_url: event.target.value })}
-            placeholder="http://127.0.0.1:8001/v1"
-            value={form.base_url}
-          />
-        </label>
-        <label>
-          {t("model", locale)}
-          <select
-            aria-label={t("model", locale)}
-            onChange={(event) => setForm({ ...form, model: event.target.value })}
-            value={form.model}
-          >
-            {aiModelOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.labelKey, locale)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className="primary" disabled={saving} type="submit">
-          {saving ? t("loading", locale) : aiReady ? t("refreshAi", locale) : t("unlockAi", locale)}
-        </button>
-      </form>
-      {message ? <div className={aiReady ? "status-line ok" : "status-line warn"}>{message}</div> : null}
+    <details className="settings-menu" data-guide="settings-menu">
+      <summary>{t("menu", locale)}</summary>
+      <div className="settings-popover">
+        <section>
+          <h3>{t("settings", locale)}</h3>
+          <div className="settings-row">
+            <span>{t("language", locale)}</span>
+            <LanguageToggle locale={locale} setLocale={setLocale} />
+          </div>
+          <label>
+            {t("theme", locale)}
+            <select value={theme} onChange={(event) => setTheme(event.target.value)}>
+              <option value="dark">{t("darkMode", locale)}</option>
+              <option value="light">{t("lightMode", locale)}</option>
+            </select>
+          </label>
+        </section>
+
+        <section>
+          <h3>{t("apiSettings", locale)}</h3>
+          <form className="setup-form" onSubmit={(event) => { event.preventDefault(); onSaveSettings(form); setForm((current) => ({ ...current, api_key: "" })); }}>
+            <label>
+              {t("provider", locale)}
+              <select aria-label={t("provider", locale)} value={provider} onChange={(event) => changeProvider(event.target.value)}>
+                <option value="haineng">{t("hainengProvider", locale)}</option>
+                <option value="deepseek">{t("deepseekProvider", locale)}</option>
+              </select>
+            </label>
+            <label>
+              {t("apiKey", locale)}
+              <input aria-label={t("apiKey", locale)} autoComplete="off" type="password" value={form.api_key} placeholder={aiReady ? "********" : t("enterKeyToUnlock", locale)} onChange={(event) => setForm({ ...form, api_key: event.target.value })} />
+            </label>
+            <label>
+              {t("baseUrl", locale)}
+              <input aria-label={t("baseUrl", locale)} value={form.base_url} placeholder={model?.base_url} onChange={(event) => setForm({ ...form, base_url: event.target.value })} />
+            </label>
+            <label>
+              {t("model", locale)}
+              <select aria-label={t("model", locale)} value={form.model} onChange={(event) => changeModel(event.target.value)}>
+                {config.models.map((option) => <option key={option.id} value={option.id}>{option.label ?? option.id}</option>)}
+              </select>
+            </label>
+            <button className="primary" disabled={saving} type="submit">{saving ? t("loading", locale) : t("saveSettings", locale)}</button>
+          </form>
+          {serviceMessage ? <p className="settings-note">{serviceMessage}</p> : null}
+        </section>
+
+        <section>
+          <h3>{t("developerInfo", locale)}</h3>
+          <dl className="settings-facts">
+            <div><dt>{t("organization", locale)}</dt><dd>{t("gasCenter", locale)}</dd></div>
+            <div><dt>{t("projectLead", locale)}</dt><dd>{t("yangMin", locale)}</dd></div>
+          </dl>
+        </section>
+
+        <section>
+          <h3>{t("versionInfo", locale)}</h3>
+          <dl className="settings-facts">
+            <div><dt>{t("currentVersion", locale)}</dt><dd>{updateInfo.current_version ?? currentVersion}</dd></div>
+            <div><dt>{t("latestVersion", locale)}</dt><dd>{updateInfo.latest_version ?? "--"}</dd></div>
+          </dl>
+          <div className="settings-actions">
+            <button className="secondary" onClick={onCheckUpdate} type="button">{t("checkForUpdates", locale)}</button>
+            <button className="secondary" onClick={onRestartGuide} type="button">{t("restartGuide", locale)}</button>
+          </div>
+          {updateInfo.message ? <p className="settings-note">{updateInfo.message}</p> : null}
+          {updateInfo.release_url ? <a className="release-link" href={updateInfo.release_url} target="_blank" rel="noreferrer">{t("releasePage", locale)}</a> : null}
+        </section>
+      </div>
     </details>
   );
 }
 
-function CategoryTabs({ categories, locale }) {
+function BusinessNavigator({ activeTemplateId, businessTemplates, generateTrainingCase, locale, loadingTemplate }) {
+  const groups = businessTemplates.groups?.length ? businessTemplates.groups : fallbackTemplates.groups;
+  const templates = businessTemplates.templates?.length ? businessTemplates.templates : fallbackTemplates.templates;
+  const knowledge = businessTemplates.knowledge_points?.length ? businessTemplates.knowledge_points : fallbackTemplates.knowledge_points;
   return (
-    <nav className="category-tabs" aria-label={t("futureModules", locale)}>
-      {categories.map((category) => (
-        <button
-          className={category.status === "enabled" ? "category-tab active" : "category-tab"}
-          disabled={category.status !== "enabled"}
-          key={category.id}
-          title={category.description}
-          type="button"
-        >
-          <span>{category.label}</span>
-          {category.status !== "enabled" ? <small>{t("constructing", locale)}</small> : null}
-        </button>
-      ))}
-    </nav>
-  );
-}
-
-function ScenarioDeck({ scenarios, selectedId, setSelectedId }) {
-  return (
-    <div className="scenario-list">
-      {scenarios.map((scenario) => (
-        <button
-          className={scenario.id === selectedId ? "scenario-row active" : "scenario-row"}
-          key={scenario.id}
-          onClick={() => setSelectedId(scenario.id)}
-          type="button"
-        >
-          <em>{scenario.region_label}</em>
-          <strong>{scenario.title}</strong>
-          <span>{scenario.summary}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function SourceSelector({ locale, source, setSource, market }) {
-  return (
-    <label className="compact-label">
-      {t("sourceSelect", locale)}
-      <select aria-label={t("sourceSelect", locale)} onChange={(event) => setSource(event.target.value)} value={source}>
-        {sourceOptions.map((option) => (
-          <option key={option.id} value={option.id}>
-            {t(option.labelKey, locale)}
-          </option>
-        ))}
-      </select>
-      {market ? (
-        <span className="source-meta">
-          {t("requestedSource", locale)}: {market.source_label} / {t("returnedSource", locale)}: {market.data_source_label}
-        </span>
-      ) : null}
-    </label>
-  );
-}
-
-function MarketChart({ locale, market, source, setSource }) {
-  const points = market?.price_series ?? [];
-  const closes = points.map((point) => Number(point.close)).filter(Number.isFinite);
-  const min = closes.length ? Math.min(...closes) : 0;
-  const max = closes.length ? Math.max(...closes) : 1;
-  const first = closes[0] ?? 0;
-  const last = closes[closes.length - 1] ?? market?.latest_price ?? 0;
-  const delta = last - first;
-  const range = Math.max(max - min, 0.01);
-  const chartWidth = 620;
-  const chartHeight = 210;
-  const padX = 28;
-  const padTop = 20;
-  const padBottom = 34;
-  const plotWidth = chartWidth - padX * 2;
-  const plotHeight = chartHeight - padTop - padBottom;
-  const xFor = (index) => padX + (points.length <= 1 ? 0 : (index / (points.length - 1)) * plotWidth);
-  const yFor = (close) => padTop + ((max - Number(close)) / range) * plotHeight;
-  const linePath = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${xFor(index).toFixed(1)} ${yFor(point.close).toFixed(1)}`)
-    .join(" ");
-  const areaPath = linePath ? `${linePath} L ${padX + plotWidth} ${padTop + plotHeight} L ${padX} ${padTop + plotHeight} Z` : "";
-  const latestX = points.length ? xFor(points.length - 1) : padX;
-  const latestY = points.length ? yFor(points[points.length - 1].close) : padTop + plotHeight;
-
-  return (
-    <section className="panel market-panel">
-      <div className="panel-title">
-        <span>{t("marketContext", locale)}</span>
-        <strong>{market?.symbol ?? "NG=F"}</strong>
-      </div>
-      <SourceSelector locale={locale} market={market} setSource={setSource} source={source} />
-      <div className="price-chart-wrap">
-        <svg className={delta >= 0 ? "price-chart up" : "price-chart down"} role="img" aria-label={t("priceChart", locale)} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
-          <line className="grid-line" x1={padX} x2={padX + plotWidth} y1={padTop} y2={padTop} />
-          <line className="grid-line" x1={padX} x2={padX + plotWidth} y1={padTop + plotHeight / 2} y2={padTop + plotHeight / 2} />
-          <line className="grid-line baseline" x1={padX} x2={padX + plotWidth} y1={padTop + plotHeight} y2={padTop + plotHeight} />
-          {areaPath ? <path className="price-area" d={areaPath} /> : null}
-          {linePath ? <path className="price-line" d={linePath} /> : null}
-          <circle className="latest-dot" cx={latestX} cy={latestY} r="5" />
-          <text className="axis-label" x={padX} y={padTop + 12}>{formatNumber(max, 2)}</text>
-          <text className="axis-label" x={padX} y={padTop + plotHeight - 6}>{formatNumber(min, 2)}</text>
-          <text className="latest-label" x={Math.max(padX + 88, latestX - 82)} y={Math.max(28, latestY - 14)}>
-            {formatNumber(last, 2)}
-          </text>
-          {points[0]?.date ? <text className="date-label" x={padX} y={chartHeight - 10}>{points[0].date}</text> : null}
-          {points.at(-1)?.date ? <text className="date-label end" x={padX + plotWidth} y={chartHeight - 10}>{points.at(-1).date}</text> : null}
-        </svg>
-      </div>
-      <div className="metric-strip compact-metrics">
-        <span>
-          {t("latestPrice", locale)}
-          <strong>{formatNumber(market?.latest_price, 2)}</strong>
-        </span>
-        <span>
-          {t("latestMove", locale)}
-          <strong className={delta >= 0 ? "positive" : "negative"}>{delta >= 0 ? "+" : ""}{formatNumber(delta, 2)}</strong>
-        </span>
-        <span>
-          {t("dataSource", locale)}
-          <strong>{market?.data_source_label ?? t("simulated", locale)}</strong>
-        </span>
-      </div>
-    </section>
-  );
-}
-
-function CapacityDiagram({ locale, capacity }) {
-  const utilization = Number(capacity?.utilization_pct ?? 0);
-  const width = Math.min(100, Math.max(0, utilization));
-
-  return (
-    <section className="panel capacity-panel">
-      <div className="panel-title">
-        <span>{t("routeAndCapacity", locale)}</span>
-        <strong>{capacity?.congestion_status ?? "--"}</strong>
-      </div>
-      <div className="flow-line">
-        <span>
-          <small>{t("receipt", locale)}</small>
-          {capacity?.receipt_point ?? "--"}
-        </span>
-        <div className="pipe-track">
-          <i style={{ width: `${width}%` }} />
-        </div>
-        <span>
-          <small>{t("delivery", locale)}</small>
-          {capacity?.delivery_point ?? "--"}
-        </span>
-      </div>
-      <div className="metric-strip">
-        <span>
-          {t("availableCapacity", locale)}
-          <strong>{formatNumber(capacity?.available_capacity_mmbtu)} MMBtu</strong>
-        </span>
-        <span>
-          {t("nominations", locale)}
-          <strong>{formatNumber(capacity?.nominated_mmbtu)} MMBtu</strong>
-        </span>
-        <span>
-          {t("capacityUtilization", locale)}
-          <strong>{formatNumber(utilization, 1)}%</strong>
-        </span>
-      </div>
-    </section>
-  );
-}
-
-function ExposurePanel({ locale, scenario }) {
-  const exposure = scenario?.exposure ?? {};
-
-  return (
-    <section className="panel exposure-panel">
-      <div className="panel-title">
-        <span>{t("exposure", locale)}</span>
-        <strong>{scenario?.region_label ?? "--"}</strong>
-      </div>
-      <div className="exposure-grid">
-        <span>
-          {t("direction", locale)}
-          <strong>{exposure.direction ?? "--"}</strong>
-        </span>
-        <span>
-          {t("quantity", locale)}
-          <strong>{formatNumber(exposure.volume_mmbtu)} MMBtu</strong>
-        </span>
-        <span>
-          {t("hedgePlan", locale)}
-          <strong>{optionLabel(scenario?.recommended_hedge_type, locale)}</strong>
-        </span>
-        <span>
-          {t("instrument", locale)}
-          <strong>{scenario?.default_symbol ?? "--"}</strong>
-        </span>
-      </div>
-      <p className="teaching-note">{exposure.risk}</p>
-    </section>
-  );
-}
-
-function TrainingGuide({ locale, scenario }) {
-  const steps = scenario?.guided_steps ?? [];
-  return (
-    <section className="panel training-guide">
-      <div className="panel-title">
-        <span>{t("learningPath", locale)}</span>
-        <strong>{t("guided", locale)}</strong>
-      </div>
-      <ol className="guide-list">
-        {steps.map((step) => (
-          <li key={step.id}>
-            <strong>{step.label}</strong>
-            <span>{step.description}</span>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function OrderTicket({ locale, order, setOrder, rationale, setRationale, onSubmit, busy }) {
-  return (
-    <section className="panel order-ticket">
-      <div className="panel-title">
-        <span>{t("orderTicket", locale)}</span>
-        <strong>{t("decisionLab", locale)}</strong>
-      </div>
-      <div className="ticket-grid">
-        <label>
-          {t("side", locale)}
-          <select value={order.side} onChange={(event) => setOrder({ ...order, side: event.target.value })}>
-            <option value="sell">{t("sell", locale)}</option>
-            <option value="buy">{t("buy", locale)}</option>
-          </select>
-        </label>
-        <label>
-          {t("quantity", locale)}
-          <input min="0" onChange={(event) => setOrder({ ...order, quantity: Number(event.target.value) })} type="number" value={order.quantity} />
-        </label>
-        <label>
-          {t("hedgeType", locale)}
-          <select value={order.hedge_type} onChange={(event) => setOrder({ ...order, hedge_type: event.target.value })}>
-            <option value="short_hedge">{t("shortHedge", locale)}</option>
-            <option value="long_hedge">{t("longHedge", locale)}</option>
-            <option value="basis_hedge">{t("basisHedge", locale)}</option>
-            <option value="calendar_spread">{t("calendarSpread", locale)}</option>
-          </select>
-        </label>
-        <label>
-          {t("price", locale)}
-          <input min="0" onChange={(event) => setOrder({ ...order, price: Number(event.target.value) })} step="0.01" type="number" value={order.price} />
-        </label>
-      </div>
-      <label>
-        {t("rationale", locale)}
-        <textarea onChange={(event) => setRationale(event.target.value)} value={rationale} />
-      </label>
-      <button className="primary" disabled={busy} onClick={onSubmit} type="button">
-        {busy ? t("loading", locale) : t("submitOrder", locale)}
-      </button>
-    </section>
-  );
-}
-
-function ScorePanel({ locale, evaluation }) {
-  const metrics = evaluation?.metrics ?? {};
-  const mistakes = evaluation?.mistake_tags ?? [];
-
-  return (
-    <section className="panel score-panel">
-      <div className="panel-title">
-        <span>{t("reviewScore", locale)}</span>
-        <strong>{t("deterministicCore", locale)}</strong>
-      </div>
-      <div className="score-readout">{evaluation?.baseline_score ?? "--"}</div>
-      <div className="metric-strip">
-        <span>
-          {t("hedgeRatio", locale)}
-          <strong>{formatNumber(metrics.hedge_ratio, 2)}</strong>
-        </span>
-        <span>
-          {t("notional", locale)}
-          <strong>{metrics.notional_usd ? formatMoney(metrics.notional_usd) : "--"}</strong>
-        </span>
-        <span>
-          {t("mistakes", locale)}
-          <strong>{mistakes.length ? mistakes.join(", ") : t("noMistakes", locale)}</strong>
-        </span>
-      </div>
-    </section>
-  );
-}
-
-function GuidedStepper({ locale, evaluation, aiReady }) {
-  const steps = ["understandExposure", "inspectMarket", "placeHedge", "reviewScore", "exam"];
-  const activeIndex = evaluation ? (aiReady ? 4 : 3) : 2;
-
-  return (
-    <ol className="stepper">
-      {steps.map((step, index) => (
-        <li className={index <= activeIndex ? "active" : ""} key={step}>
-          {t(step, locale)}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function LearningJourneyPanel({ journey, locale }) {
-  const recommendations = journey?.recommendations ?? [];
-  const attemptCount = journey?.profile?.attempt_count ?? 0;
-
-  return (
-    <div className="journey-panel">
-      <div className="journey-summary">
-        <span>
-          {t("attemptCount", locale)}
-          <strong>{formatNumber(attemptCount)}</strong>
-        </span>
-        <span>
-          {t("skillFocus", locale)}
-          <strong>{recommendations[0]?.skill_id ?? "--"}</strong>
-        </span>
-      </div>
-      <div className="recommendation-list">
-        {recommendations.length ? (
-          recommendations.map((item) => (
-            <article key={`${item.scenario_id}-${item.skill_id}`}>
-              <span>{item.ai_capability}</span>
-              <strong>{item.title}</strong>
-              <p>{item.reason}</p>
-            </article>
-          ))
-        ) : (
-          <p className="empty-state">{t("noRecommendations", locale)}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AiThinkingPanel({ aiThinking, busyAction, locale }) {
-  const active = Boolean(aiThinking && busyAction && busyAction !== "provider" && busyAction !== "evaluate");
-  const stepIndex = aiThinking?.stepIndex ?? 0;
-
-  return (
-    <section className={active ? "thinking-panel active" : "thinking-panel"} aria-live="polite">
-      <div className="panel-title compact-title">
-        <span>{active ? t("aiThinkingTitle", locale) : t("aiThinkingIdle", locale)}</span>
-        <strong>{aiThinking?.capability ? capabilityLabel(aiThinking.capability, locale) : t("standby", locale)}</strong>
-      </div>
-      <ol className="thinking-steps">
-        {aiThinkingStepKeys.map((key, index) => (
-          <li className={active && index <= stepIndex ? "active" : ""} key={key}>
-            <i />
-            <span>{t(key, locale)}</span>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function AdvisorRail({ aiOutput, aiReady, advisorFeedback, aiThinking, busyAction, error, evaluation, exam, journey, locale, runAiAction }) {
-  return (
-    <aside className={aiReady ? "advisor-rail online" : "advisor-rail"}>
-      <div className="advisor-head">
-        <span>{t("aiCoach", locale)}</span>
-        <strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong>
-      </div>
-      <GuidedStepper aiReady={aiReady} evaluation={evaluation} locale={locale} />
-      <AiThinkingPanel aiThinking={aiThinking} busyAction={busyAction} locale={locale} />
-      <CollapsiblePanel defaultOpen title={t("aiTrainingActions", locale)} meta={aiReady ? t("enabled", locale) : t("connectToEnable", locale)}>
-        <div className="ai-action-grid">
-          {aiActionButtons.map((action) => (
-            <button
-              className={busyAction === action.capability ? "active" : ""}
-              disabled={Boolean(busyAction) || !aiReady || (action.requiresEvaluation && !evaluation)}
-              key={action.capability}
-              onClick={() => runAiAction(action.capability)}
-              type="button"
-            >
-              {busyAction === action.capability ? t("loading", locale) : t(action.labelKey, locale)}
-            </button>
+    <aside className="left-rail" data-guide="business-sidebar">
+      <CollapsiblePanel defaultOpen title={t("businessTypes", locale)} meta={t("aiGeneratedData", locale)}>
+        <div className="business-navigator">
+          {groups.map((group) => (
+            <details className="business-group" key={group.id} open>
+              <summary>{group.label}</summary>
+              <div className="scenario-list">
+                {templates.filter((template) => template.group === group.id).map((template) => (
+                  <button className={template.id === activeTemplateId ? "scenario-row active" : "scenario-row"} key={template.id} onClick={() => generateTrainingCase(template.id)} type="button">
+                    <em>{template.business_type}</em>
+                    <strong>{template.title}</strong>
+                    <span>{template.summary}</span>
+                    <small>{loadingTemplate === template.id ? t("aiGenerating", locale) : t("generateWithAi", locale)}</small>
+                  </button>
+                ))}
+              </div>
+            </details>
           ))}
         </div>
       </CollapsiblePanel>
-      <CollapsiblePanel defaultOpen={Boolean(advisorFeedback || exam || aiOutput?.answer || error)} title={t("aiTrainingOutput", locale)} meta={t("outputReady", locale)}>
-        {!aiReady ? <p className="service-error muted">{t("aiDisabledHint", locale)}</p> : null}
-        {error ? <p className="service-error">{error}</p> : null}
-        {advisorFeedback ? (
-          <section className="response-block">
-            <h3>{t("advisorFeedback", locale)}</h3>
-            <p>{advisorFeedback}</p>
-          </section>
-        ) : null}
-        {exam ? (
-          <section className="response-block">
-            <h3>{t("examQuestions", locale)}</h3>
-            <p>{exam}</p>
-          </section>
-        ) : null}
-        {aiOutput?.answer ? (
-          <section className="response-block">
-            <h3>{aiOutput.title}</h3>
-            <p>{aiOutput.answer}</p>
-          </section>
-        ) : null}
-      </CollapsiblePanel>
-      <CollapsiblePanel title={t("learningRecommendations", locale)} meta={t("journeyReady", locale)}>
-        <LearningJourneyPanel journey={journey} locale={locale} />
+      <CollapsiblePanel title={t("knowledgePoints", locale)} meta={formatNumber(knowledge.length)}>
+        <div className="knowledge-list">
+          {knowledge.map((point) => (
+            <article key={point.id}>
+              <strong>{point.label}</strong>
+              <p>{point.description}</p>
+            </article>
+          ))}
+        </div>
       </CollapsiblePanel>
     </aside>
   );
 }
 
+function GenerationTimeline({ locale, stages }) {
+  return (
+    <div className="ai-generation-timeline">
+      {(stages.length ? stages : [{ id: "ready", label: t("aiCaseReady", locale) }]).map((stage, index) => (
+        <span className={index === stages.length - 1 && stages.length ? "active" : ""} key={`${stage.id}-${index}`}>
+          <i />
+          {stage.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, strategyLegs }) {
+  const market = caseData.market ?? {};
+  const curves = market.curves ?? [];
+  const [hoverIndex, setHoverIndex] = useState(null);
+  const values = curves.flatMap((curve) => (curve.points ?? []).flatMap((point) => fieldSelection.map((field) => Number(point[field])).filter(Number.isFinite)));
+  const min = values.length ? Math.min(...values) : 0;
+  const max = values.length ? Math.max(...values) : 1;
+  const range = Math.max(max - min, 0.01);
+  const width = 780;
+  const height = 310;
+  const pad = { left: 56, right: 20, top: 24, bottom: 42 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  const pointCount = Math.max(...curves.map((curve) => curve.points?.length ?? 0), 1);
+  const xFor = (index) => pad.left + (pointCount <= 1 ? 0 : (index / (pointCount - 1)) * plotW);
+  const yFor = (value) => pad.top + ((max - Number(value)) / range) * plotH;
+  const hovered = hoverIndex == null ? null : curves.map((curve) => ({ curve, point: curve.points?.[hoverIndex] })).filter((row) => row.point);
+
+  function pathFor(points, field) {
+    return (points ?? []).map((point, index) => {
+      const value = Number(point[field]);
+      if (!Number.isFinite(value)) return "";
+      return `${index === 0 ? "M" : "L"} ${xFor(index).toFixed(1)} ${yFor(value).toFixed(1)}`;
+    }).filter(Boolean).join(" ");
+  }
+  function toggleField(field) {
+    setFieldSelection((current) => {
+      if (current.includes(field) && current.length > 1) return current.filter((item) => item !== field);
+      if (!current.includes(field)) return [...current, field];
+      return current;
+    });
+  }
+  function onMove(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    setHoverIndex(Math.round(ratio * (pointCount - 1)));
+  }
+
+  return (
+    <section className="panel market-panel" data-guide="market-chart">
+      <div className="panel-title">
+        <span>{t("marketContext", locale)}</span>
+        <strong>{t("aiGeneratedData", locale)}</strong>
+      </div>
+      <div className="chart-toolbar">
+        <div className="segmented compact">
+          {chartFields.map((field) => (
+            <button className={fieldSelection.includes(field) ? "active" : ""} key={field} onClick={() => toggleField(field)} type="button">{t(field, locale)}</button>
+          ))}
+        </div>
+        <span>{market.unit ?? "--"}</span>
+      </div>
+      <div className="price-chart-wrap" onMouseLeave={() => setHoverIndex(null)} onMouseMove={onMove}>
+        <svg className="price-chart terminal-chart" role="img" aria-label={t("priceChart", locale)} viewBox={`0 0 ${width} ${height}`}>
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => <line className="grid-line" key={ratio} x1={pad.left} x2={pad.left + plotW} y1={pad.top + plotH * ratio} y2={pad.top + plotH * ratio} />)}
+          <text className="axis-label" x="8" y={pad.top + 6}>{formatNumber(max, 2)}</text>
+          <text className="axis-label" x="8" y={pad.top + plotH}>{formatNumber(min, 2)}</text>
+          {curves.map((curve) => fieldSelection.map((field) => {
+            const path = pathFor(curve.points, field);
+            if (!path) return null;
+            const color = field === "close" ? curve.color : field === "high" ? "#22c55e" : "#fb7185";
+            return <path className={`price-line field-${field}`} d={path} key={`${curve.id}-${field}`} style={{ stroke: color }} />;
+          }))}
+          {market.events?.map((event) => {
+            const index = Math.max(0, (curves[0]?.points ?? []).findIndex((point) => point.date === event.date));
+            const x = xFor(index < 0 ? 0 : index);
+            return <g className="event-marker" key={`${event.date}-${event.label}`}><line x1={x} x2={x} y1={pad.top} y2={pad.top + plotH} /><text x={x + 5} y={pad.top + 15}>{event.label}</text></g>;
+          })}
+          {hoverIndex != null ? <line className="hover-line" x1={xFor(hoverIndex)} x2={xFor(hoverIndex)} y1={pad.top} y2={pad.top + plotH} /> : null}
+          {strategyLegs.map((leg, index) => {
+            const x = pad.left + plotW * Math.min(0.92, 0.12 + index * 0.1);
+            return <g className="trade-marker" key={leg.id ?? index}><circle cx={x} cy={pad.top + 20 + index * 18} r="5" /><text x={x + 8} y={pad.top + 24 + index * 18}>{leg.leg_type}:{leg.side}</text></g>;
+          })}
+          {curves[0]?.points?.[0]?.date ? <text className="date-label" x={pad.left} y={height - 12}>{compactDate(curves[0].points[0].date)}</text> : null}
+          {curves[0]?.points?.at(-1)?.date ? <text className="date-label end" x={pad.left + plotW} y={height - 12}>{compactDate(curves[0].points.at(-1).date)}</text> : null}
+        </svg>
+        {hovered?.length ? (
+          <div className="chart-tooltip">
+            <strong>{hovered[0].point.date}</strong>
+            {hovered.map(({ curve, point }) => (
+              <span key={curve.id}>{curve.label}: C {formatNumber(point.close, 2)} / H {formatNumber(point.high, 2)} / L {formatNumber(point.low, 2)}</span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="curve-table">
+        {curves.map((curve) => {
+          const point = curve.points?.at(-1) ?? {};
+          return <span key={curve.id}><i style={{ background: curve.color }} /><strong>{curve.label}</strong><small>{point.date ?? "--"} C {formatNumber(point.close, 2)} H {formatNumber(point.high, 2)} L {formatNumber(point.low, 2)}</small></span>;
+        })}
+      </div>
+    </section>
+  );
+}
+
+function CaseWorkspace({ caseData, generationStages, locale }) {
+  return (
+    <section className="case-workspace" data-guide="case-workspace">
+      <div className="scenario-header">
+        <span>{caseData.scenario.business_type}</span>
+        <h2>{caseData.scenario.title}</h2>
+        <p>{caseData.scenario.summary}</p>
+        <GenerationTimeline locale={locale} stages={generationStages} />
+      </div>
+      <section className="panel prompt-panel">
+        <MarkdownText text={caseData.prompt} />
+      </section>
+    </section>
+  );
+}
+
+function StrategyBuilder({ busy, locale, onSubmit, rationale, setRationale, setStrategyLegs, strategyLegs }) {
+  function updateLeg(index, patch) {
+    setStrategyLegs((current) => current.map((leg, itemIndex) => itemIndex === index ? { ...leg, ...patch } : leg));
+  }
+  function addLeg() {
+    setStrategyLegs((current) => [...current, { id: `leg-${Date.now()}`, leg_type: "swap", market: "TTF", side: "sell", quantity: 0, price: 0, tenor: "M+1", hedge_type: "short_hedge" }]);
+  }
+  function removeLeg(index) {
+    setStrategyLegs((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  }
+  return (
+    <section className="panel order-ticket" data-guide="strategy-builder">
+      <div className="panel-title"><span>{t("strategyBuilder", locale)}</span><strong>{t("decisionLab", locale)}</strong></div>
+      <div className="strategy-leg-list">
+        {strategyLegs.map((leg, index) => (
+          <div className="strategy-leg" key={leg.id ?? index}>
+            <label>{t("legType", locale)}<select value={leg.leg_type} onChange={(event) => updateLeg(index, { leg_type: event.target.value })}><option value="physical">{t("physicalLeg", locale)}</option><option value="swap">Swap</option><option value="future">Future</option><option value="basis">{t("basisLeg", locale)}</option><option value="fx">FX</option><option value="capacity">{t("capacityLeg", locale)}</option></select></label>
+            <label>{t("market", locale)}<input value={leg.market} onChange={(event) => updateLeg(index, { market: event.target.value })} /></label>
+            <label>{t("side", locale)}<select value={leg.side} onChange={(event) => updateLeg(index, { side: event.target.value })}><option value="sell">{t("sell", locale)}</option><option value="buy">{t("buy", locale)}</option><option value="pay">Pay</option><option value="receive">Receive</option></select></label>
+            <label>{t("quantity", locale)}<input min="0" type="number" value={leg.quantity} onChange={(event) => updateLeg(index, { quantity: Number(event.target.value) })} /></label>
+            <label>{t("tenor", locale)}<input value={leg.tenor} onChange={(event) => updateLeg(index, { tenor: event.target.value })} /></label>
+            <button className="icon-button danger" disabled={strategyLegs.length <= 1} onClick={() => removeLeg(index)} type="button">×</button>
+          </div>
+        ))}
+      </div>
+      <button className="secondary" onClick={addLeg} type="button">{t("addLeg", locale)}</button>
+      <label>{t("rationale", locale)}<textarea value={rationale} onChange={(event) => setRationale(event.target.value)} /></label>
+      <button className="primary" disabled={busy} onClick={onSubmit} type="button">{busy ? t("loading", locale) : t("submitOrder", locale)}</button>
+    </section>
+  );
+}
+
+function ScorePanel({ evaluation, locale }) {
+  const metrics = evaluation?.metrics ?? {};
+  return (
+    <section className="panel score-panel">
+      <div className="panel-title"><span>{t("reviewScore", locale)}</span><strong>{t("localScoring", locale)}</strong></div>
+      <div className="score-row">
+        <div className="score-readout">{evaluation?.baseline_score ?? "--"}</div>
+        <div className="metric-strip">
+          <span>{t("strategyLegs", locale)}<strong>{formatNumber(metrics.strategy_leg_count)}</strong></span>
+          <span>{t("paperLegs", locale)}<strong>{formatNumber(metrics.paper_leg_count)}</strong></span>
+          <span>{t("notional", locale)}<strong>{metrics.notional_usd ? formatMoney(metrics.notional_usd) : "--"}</strong></span>
+        </div>
+      </div>
+      {evaluation?.mistake_tags?.length ? <p className="service-error">{evaluation.mistake_tags.join(", ")}</p> : null}
+    </section>
+  );
+}
+
+function RubricPanel({ caseData, locale }) {
+  return (
+    <section className="panel rubric-panel">
+      <div className="panel-title"><span>{t("rubric", locale)}</span><strong>{t("generatedWithCase", locale)}</strong></div>
+      <div className="rubric-list">
+        {(caseData.rubric ?? []).map((item) => <article key={item.id}><strong>{item.points} - {item.label}</strong><p>{item.rule}</p></article>)}
+      </div>
+    </section>
+  );
+}
+
+function AiThinkingPanel({ locale, titleKey = "aiThinkingTitle" }) {
+  return (
+    <section className="thinking-panel active" aria-live="polite">
+      <div className="panel-title compact-title"><span>{t(titleKey, locale)}</span><strong>{t("working", locale)}</strong></div>
+      <ol className="thinking-steps">
+        {["thinkingReadContext", "thinkingMatchKnowledge", "thinkingGenerateActions", "thinkingAssemble"].map((key) => <li className="active" key={key}><i /><span>{t(key, locale)}</span></li>)}
+      </ol>
+    </section>
+  );
+}
+
+function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, evaluation, exam, locale, runAiAction }) {
+  return (
+    <aside className={aiReady ? "advisor-rail online" : "advisor-rail"}>
+      <div className="advisor-head"><span>{t("aiCoach", locale)}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div>
+      {busyAction && !["evaluate", "provider"].includes(busyAction) ? <AiThinkingPanel locale={locale} /> : null}
+      <CollapsiblePanel defaultOpen title={t("aiTrainingActions", locale)} meta={aiReady ? t("enabled", locale) : t("connectToEnable", locale)}>
+        <div className="ai-action-grid">
+          {[
+            ["advisor_review", "askHint", Boolean(evaluation)],
+            ["exam", "generateExam", true],
+            ["concept_tutor", "conceptTutor", true],
+            ["trade_playbook", "tradePlaybook", true]
+          ].map(([capability, labelKey, available]) => (
+            <button disabled={Boolean(busyAction) || !aiReady || !available} key={capability} onClick={() => runAiAction(capability)} type="button">{busyAction === capability ? t("loading", locale) : t(labelKey, locale)}</button>
+          ))}
+        </div>
+      </CollapsiblePanel>
+      <CollapsiblePanel defaultOpen title={t("aiTrainingOutput", locale)} meta={t("markdownEnabled", locale)}>
+        {!aiReady ? <p className="service-error muted">{t("aiDisabledHint", locale)}</p> : null}
+        {error ? <p className="service-error">{error}</p> : null}
+        {advisorFeedback ? <section className="response-block"><h3>{t("advisorFeedback", locale)}</h3><MarkdownText text={advisorFeedback} /></section> : null}
+        {exam ? <section className="response-block"><h3>{t("examQuestions", locale)}</h3><MarkdownText text={exam} /></section> : null}
+        {aiOutput?.answer ? <section className="response-block"><h3>{aiOutput.title}</h3><MarkdownText text={aiOutput.answer} /></section> : null}
+      </CollapsiblePanel>
+    </aside>
+  );
+}
+
+function FloatingAssistant({ aiReady, applyAction, locale, messages, onSend, thinking }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  async function submit(event) {
+    event.preventDefault();
+    if (!draft.trim()) return;
+    await onSend(draft.trim());
+    setDraft("");
+  }
+  return (
+    <div className={open ? "floating-assistant open" : "floating-assistant"} data-guide="floating-assistant">
+      {open ? (
+        <section className="assistant-panel">
+          <header><div><span>{t("liveAssistant", locale)}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div><button className="icon-button" onClick={() => setOpen(false)} type="button">×</button></header>
+          <div className="assistant-messages">
+            {messages.length ? messages.map((message, index) => (
+              <article className={message.role} key={index}>
+                <MarkdownText text={message.content} />
+                {message.actions?.length ? <div className="assistant-actions">{message.actions.map((action, i) => <button key={i} onClick={() => applyAction(action)} type="button">{action.label ?? action.type}</button>)}</div> : null}
+              </article>
+            )) : <p className="empty-state">{t("assistantEmpty", locale)}</p>}
+            {thinking ? <AiThinkingPanel locale={locale} titleKey="assistantWorking" /> : null}
+          </div>
+          <form onSubmit={submit}><textarea disabled={!aiReady || thinking} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={t("assistantPlaceholder", locale)} /><button className="primary" disabled={!aiReady || thinking || !draft.trim()} type="submit">{thinking ? t("loading", locale) : t("send", locale)}</button></form>
+        </section>
+      ) : null}
+      <button className="assistant-orb" onClick={() => setOpen((current) => !current)} type="button">AI</button>
+    </div>
+  );
+}
+
+function GuidedOverlay({ locale, onClose, onNext, stepIndex }) {
+  const step = guideSteps[stepIndex];
+  if (!step) return null;
+  return (
+    <div className="guided-overlay">
+      <div className="guided-mask" />
+      <div className={`guided-callout target-${step[0]}`}>
+        <div className="guided-arrow" />
+        <span>{stepIndex + 1} / {guideSteps.length}</span>
+        <h3>{t(step[1], locale)}</h3>
+        <p>{t(step[2], locale)}</p>
+        <div className="guided-actions"><button className="secondary" onClick={onClose} type="button">{t("skipGuide", locale)}</button><button className="primary" onClick={onNext} type="button">{stepIndex === guideSteps.length - 1 ? t("finishGuide", locale) : t("next", locale)}</button></div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [locale, setLocaleState] = useState(() => normalizeLocale(savedValue("commodity-lab-locale", "zh")));
+  const initialLocale = normalizeLocale(savedValue("commodity-lab-locale", "zh"));
+  const [locale, setLocaleState] = useState(initialLocale);
+  const [theme, setThemeState] = useState(() => savedValue("commodity-lab-theme", "dark"));
   const [providerStatus, setProviderStatus] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [scenarios, setScenarios] = useState([]);
-  const [selectedId, setSelectedId] = useState("");
-  const [context, setContext] = useState(null);
-  const [journey, setJourney] = useState(null);
-  const [source, setSource] = useState("yfinance");
-  const [order, setOrder] = useState(defaultOrder);
-  const [rationale, setRationale] = useState("Manage the energy exposure with a hedge that matches the risk driver, timing, and volume.");
+  const [templates, setTemplates] = useState(fallbackTemplates);
+  const [activeTemplateId, setActiveTemplateId] = useState(fallbackTemplates.templates[0].id);
+  const [caseData, setCaseData] = useState(() => defaultCase(initialLocale));
+  const [generationStages, setGenerationStages] = useState([]);
+  const [loadingTemplate, setLoadingTemplate] = useState("");
+  const [fieldSelection, setFieldSelection] = useState(["close"]);
+  const [strategyLegs, setStrategyLegs] = useState(() => defaultLegs(initialLocale));
+  const [rationale, setRationale] = useState(() =>
+    initialLocale === "zh"
+      ? "说明实货、纸货、基差/汇率/运力的匹配逻辑。"
+      : "Explain how the physical, paper, basis, FX, and capacity legs match the exposure."
+  );
   const [evaluation, setEvaluation] = useState(null);
   const [advisorFeedback, setAdvisorFeedback] = useState("");
   const [exam, setExam] = useState("");
   const [aiOutput, setAiOutput] = useState(null);
-  const [aiThinking, setAiThinking] = useState(null);
   const [busyAction, setBusyAction] = useState("");
   const [serviceMessage, setServiceMessage] = useState("");
-
+  const [updateInfo, setUpdateInfo] = useState({ current_version: currentVersion });
+  const [assistantMessages, setAssistantMessages] = useState([]);
+  const [guideIndex, setGuideIndex] = useState(() => savedValue("commodity-lab-guide-complete", "") ? -1 : 0);
   const aiReady = Boolean(providerStatus?.haineng?.ok);
 
   function setLocale(nextLocale) {
     localStorage.setItem("commodity-lab-locale", nextLocale);
     setLocaleState(nextLocale);
   }
-
-  function startAiThinking(capability) {
-    setAiThinking({ capability, stepIndex: 0 });
+  function setTheme(nextTheme) {
+    localStorage.setItem("commodity-lab-theme", nextTheme);
+    setThemeState(nextTheme);
   }
-
-  function finishAiThinking() {
-    setAiThinking((current) => (current ? { ...current, stepIndex: aiThinkingStepKeys.length - 1 } : current));
+  function completeGuide() {
+    localStorage.setItem("commodity-lab-guide-complete", "1");
+    setGuideIndex(-1);
   }
 
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
-  }, [locale]);
+    document.documentElement.dataset.theme = theme;
+  }, [locale, theme]);
 
   useEffect(() => {
-    if (!aiThinking || !busyAction || busyAction === "provider" || busyAction === "evaluate") return undefined;
-    const timer = window.setInterval(() => {
-      setAiThinking((current) => {
-        if (!current) return current;
-        return { ...current, stepIndex: Math.min(current.stepIndex + 1, aiThinkingStepKeys.length - 1) };
-      });
-    }, 900);
-    return () => window.clearInterval(timer);
-  }, [aiThinking, busyAction]);
-
-  useEffect(() => {
-    let active = true;
     backendRequest("GET", "/api/v1/provider-status")
-      .then((payload) => {
-        if (active) setProviderStatus(payload);
-      })
+      .then(setProviderStatus)
       .catch((error) => {
-        if (!active) return;
-        setProviderStatus({ haineng: { ok: false, configured: false }, data_sources: [] });
+        setProviderStatus({ haineng: { ok: false, configured: false }, ai_providers: defaultProviderCatalog });
         setServiceMessage(formatErrorMessage(error, locale));
       });
-    return () => {
-      active = false;
-    };
   }, [locale]);
 
   useEffect(() => {
-    let active = true;
-    backendRequest("GET", `/api/v1/scenarios?locale=${locale}`)
+    backendRequest("GET", `/api/v1/business-templates?locale=${locale}`)
       .then((payload) => {
-        if (!active) return;
-        const nextScenarios = payload.scenarios ?? [];
-        setCategories(payload.categories ?? []);
-        setScenarios(nextScenarios);
-        setSelectedId((current) => (nextScenarios.some((scenario) => scenario.id === current) ? current : nextScenarios[0]?.id ?? ""));
+        setTemplates(payload);
+        setActiveTemplateId((current) => current || payload.templates?.[0]?.id || "");
       })
-      .catch((error) => setServiceMessage(formatErrorMessage(error, locale)));
-    return () => {
-      active = false;
-    };
+      .catch(() => setTemplates(fallbackTemplates));
   }, [locale]);
 
   useEffect(() => {
-    let active = true;
-    backendRequest("GET", `/api/v1/learning-journey?locale=${locale}`)
-      .then((payload) => {
-        if (active) setJourney(payload);
-      })
-      .catch(() => {
-        if (active) setJourney(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [locale]);
-
-  useEffect(() => {
-    if (!selectedId) return undefined;
-    let active = true;
-    setContext(null);
-    backendRequest("GET", `/api/v1/scenarios/${selectedId}/context?locale=${locale}&source=${source}`)
-      .then((payload) => {
-        if (!active) return;
-        setContext(payload);
-        setEvaluation(null);
-        setAdvisorFeedback("");
-        setExam("");
-        setAiOutput(null);
-      })
-      .catch((error) => setServiceMessage(formatErrorMessage(error, locale)));
-    return () => {
-      active = false;
-    };
-  }, [selectedId, locale, source]);
-
-  const selectedScenario = useMemo(() => context?.scenario ?? scenarios.find((scenario) => scenario.id === selectedId), [context?.scenario, scenarios, selectedId]);
+    backendRequest("GET", "/api/v1/version").then(setUpdateInfo).catch(() => {});
+  }, []);
 
   async function saveProviderSettings(form) {
     setBusyAction("provider");
     setServiceMessage("");
     try {
       const payload = await backendRequest("POST", "/api/v1/provider-settings", form);
-      localStorage.setItem("commodity-lab-haineng-base-url", form.base_url);
-      localStorage.setItem("commodity-lab-haineng-model", form.model);
+      localStorage.setItem("commodity-lab-ai-provider", form.provider);
+      localStorage.setItem(`commodity-lab-${form.provider}-base-url`, form.base_url);
+      localStorage.setItem(`commodity-lab-${form.provider}-model`, form.model);
       setProviderStatus((current) => ({ ...(current ?? {}), ...payload }));
       setServiceMessage(t("providerSaved", locale));
     } catch (error) {
-      setServiceMessage(formatErrorMessage(error, locale) || t("providerSaveFailed", locale));
-    } finally {
-      setBusyAction("");
-    }
-  }
-
-  async function requestAdvisorReview(nextEvaluation = evaluation) {
-    if (!nextEvaluation || !selectedId || !aiReady) return;
-    setBusyAction("advisor_review");
-    startAiThinking("advisor_review");
-    setServiceMessage("");
-    try {
-      const payload = await backendRequest("POST", "/api/v1/advisor/review", {
-        scenario_id: selectedId,
-        locale,
-        order,
-        rationale,
-        evaluation: nextEvaluation
-      });
-      setAdvisorFeedback(payload.answer);
-      setAiOutput(null);
-      finishAiThinking();
-    } catch (error) {
       setServiceMessage(formatErrorMessage(error, locale));
     } finally {
       setBusyAction("");
     }
   }
 
-  async function submitOrder() {
-    if (!selectedId) return;
+  async function checkUpdate() {
+    setUpdateInfo((current) => ({ ...current, message: t("checkingUpdates", locale) }));
+    try {
+      const payload = await backendRequest("GET", "/api/v1/update-check");
+      setUpdateInfo({ ...payload, message: payload.up_to_date ? t("alreadyLatest", locale) : t("updateAvailable", locale) });
+    } catch (error) {
+      setUpdateInfo((current) => ({ ...current, message: formatErrorMessage(error, locale) }));
+    }
+  }
+
+  async function generateTrainingCase(templateId, userRequest = "") {
+    setActiveTemplateId(templateId);
+    if (!aiReady) {
+      setServiceMessage(t("aiRequiredForCase", locale));
+      return;
+    }
+    setLoadingTemplate(templateId);
+    setBusyAction("case_generation");
+    setGenerationStages([{ id: "read_template", label: t("stageReadTemplate", locale) }]);
+    try {
+      setGenerationStages((current) => [...current, { id: "generate_market", label: t("stageGenerateMarket", locale) }]);
+      const payload = await backendRequest("POST", "/api/v1/ai/training-case", { template_id: templateId, locale, user_request: userRequest });
+      const nextCase = payload.case ?? defaultCase(locale);
+      setGenerationStages((current) => [...current, { id: "build_case", label: t("stageBuildCase", locale) }]);
+      setCaseData(nextCase);
+      setStrategyLegs((nextCase.target_actions ?? defaultLegs()).map((leg, index) => ({ id: leg.id ?? `ai-leg-${index}`, ...leg })));
+      setRationale(locale === "zh" ? "写下你的组合套保逻辑、风险覆盖和执行检查。" : "Write your hedge logic, covered risks, and execution checks.");
+      setEvaluation(null);
+      setAdvisorFeedback("");
+      setExam("");
+      setAiOutput(null);
+    } catch (error) {
+      setServiceMessage(formatErrorMessage(error, locale));
+    } finally {
+      setBusyAction("");
+      setLoadingTemplate("");
+    }
+  }
+
+  function submitStrategy() {
     setBusyAction("evaluate");
-    setServiceMessage("");
-    try {
-      const payload = await backendRequest("POST", "/api/v1/attempts/evaluate", {
-        scenario_id: selectedId,
-        locale,
-        order,
-        rationale
-      });
-      setEvaluation(payload.evaluation);
-      setAiOutput(null);
-      if (payload.journey) {
-        setJourney(payload.journey);
-      }
-      if (payload.evaluation?.valid && aiReady) {
-        await requestAdvisorReview(payload.evaluation);
-      }
-    } catch (error) {
-      setServiceMessage(formatErrorMessage(error, locale));
-    } finally {
-      setBusyAction("");
-    }
-  }
-
-  async function generateExam() {
-    if (!selectedId || !aiReady) return;
-    setBusyAction("exam");
-    startAiThinking("exam");
-    setServiceMessage("");
-    try {
-      const payload = await backendRequest("POST", "/api/v1/exam/generate", {
-        scenario_id: selectedId,
-        locale,
-        attempt_history: evaluation ? [evaluation] : []
-      });
-      setExam(payload.exam);
-      setAiOutput(null);
-      finishAiThinking();
-    } catch (error) {
-      setServiceMessage(formatErrorMessage(error, locale));
-    } finally {
-      setBusyAction("");
-    }
+    const nextEvaluation = evaluateStrategy(caseData, strategyLegs, rationale);
+    setEvaluation(nextEvaluation);
+    setAiOutput(null);
+    setBusyAction("");
   }
 
   function buildAiPayload(capability) {
-    const base = {
+    return {
       capability,
-      scenario_id: selectedId,
+      scenario_id: "europe_ttf_nbp_spread",
       locale,
-      source,
-      order,
+      order: orderFromStrategy(strategyLegs),
       rationale,
       evaluation: evaluation ?? {},
       attempt_history: evaluation ? [evaluation] : [],
-      market_context: context
+      market_context: { case: caseData, strategy_legs: strategyLegs },
+      user_request: rationale,
+      concept: "basis risk, physical-paper matching, FX hedge, EEX/OCM windows, LNG cargo risk",
+      commercial_goal: "Build a practical multi-leg hedge playbook for this generated gas business case."
     };
-
-    if (capability === "case_generation") {
-      return {
-        ...base,
-        learner_level: "intermediate",
-        user_request: "Generate a Europe natural gas hedging case using the current scenario as the seed."
-      };
-    }
-    if (capability === "event_drill") {
-      return {
-        ...base,
-        event_context: "Pipeline capacity changes, storage surprises, weather demand swings, or TTF/NBP spread dislocations."
-      };
-    }
-    if (capability === "concept_tutor") {
-      return {
-        ...base,
-        concept: "basis risk, route capacity constraints, storage optionality, and calendar spread hedging"
-      };
-    }
-    if (capability === "trade_playbook") {
-      return {
-        ...base,
-        commercial_goal: "Prepare a practical pre-trade hedge playbook for the current Europe gas exposure."
-      };
-    }
-    if (capability === "socratic_coach") {
-      return {
-        ...base,
-        learner_message: rationale || "Ask me diagnostic questions before I place the hedge."
-      };
-    }
-    return base;
   }
 
   async function runAiAction(capability) {
-    if (capability === "advisor_review") {
-      await requestAdvisorReview();
-      return;
-    }
-    if (capability === "exam") {
-      await generateExam();
-      return;
-    }
-    if (!selectedId || !aiReady) return;
-
+    if (!aiReady) return;
+    if (capability === "advisor_review" && !evaluation) return;
     setBusyAction(capability);
-    startAiThinking(capability);
     setServiceMessage("");
     try {
-      const payload = await backendRequest("POST", "/api/v1/ai/generate", buildAiPayload(capability));
-      setAiOutput({ title: capabilityLabel(capability, locale), answer: payload.answer });
-      finishAiThinking();
+      const path = capability === "exam" ? "/api/v1/exam/generate" : "/api/v1/ai/generate";
+      const payload = await backendRequest("POST", path, capability === "exam" ? { scenario_id: "europe_ttf_nbp_spread", locale, attempt_history: evaluation ? [evaluation] : [] } : buildAiPayload(capability));
+      if (capability === "advisor_review") setAdvisorFeedback(payload.answer);
+      else if (capability === "exam") setExam(payload.exam);
+      else setAiOutput({ title: t(capability, locale), answer: payload.answer });
     } catch (error) {
       setServiceMessage(formatErrorMessage(error, locale));
     } finally {
       setBusyAction("");
     }
   }
+
+  async function sendAssistant(message) {
+    const userMessage = { role: "user", content: message };
+    setAssistantMessages((current) => [...current, userMessage]);
+    setBusyAction("assistant");
+    try {
+      const payload = await backendRequest("POST", "/api/v1/ai/live-assistant", {
+        locale,
+        message,
+        workspace_state: { case: caseData, strategy_legs: strategyLegs, evaluation, active_template_id: activeTemplateId }
+      });
+      setAssistantMessages((current) => [...current, { role: "assistant", content: payload.answer, actions: payload.actions ?? [] }]);
+    } catch (error) {
+      setAssistantMessages((current) => [...current, { role: "assistant", content: formatErrorMessage(error, locale), actions: [] }]);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  function applyAssistantAction(action) {
+    const payload = action.payload ?? {};
+    if (action.type === "select_template" && payload.template_id) generateTrainingCase(payload.template_id);
+    if (action.type === "set_chart_fields" && Array.isArray(payload.fields)) setFieldSelection(payload.fields.filter((field) => chartFields.includes(field)));
+    if (action.type === "set_strategy_legs" && Array.isArray(payload.legs)) setStrategyLegs(payload.legs.map((leg, index) => ({ id: leg.id ?? `assistant-leg-${index}`, ...leg })));
+    if (action.type === "fill_rationale" && payload.text) setRationale(payload.text);
+    if (action.type === "run_ai_capability" && payload.capability) runAiAction(payload.capability);
+  }
+
+  const activeTemplate = useMemo(() => templates.templates?.find((item) => item.id === activeTemplateId), [templates, activeTemplateId]);
 
   return (
     <main className={aiReady ? "app-shell ai-ready" : "app-shell"}>
@@ -934,70 +971,61 @@ export default function App() {
         </div>
         <div className="topbar-actions">
           <AiStatusBadge aiReady={aiReady} locale={locale} />
-          <LanguageToggle locale={locale} setLocale={setLocale} />
+          <span className="active-template">{activeTemplate?.title ?? t("noCase", locale)}</span>
+          <SettingsMenu
+            aiReady={aiReady}
+            locale={locale}
+            onCheckUpdate={checkUpdate}
+            onRestartGuide={() => setGuideIndex(0)}
+            onSaveSettings={saveProviderSettings}
+            providerStatus={providerStatus}
+            saving={busyAction === "provider"}
+            serviceMessage={busyAction === "provider" ? "" : serviceMessage}
+            setLocale={setLocale}
+            setTheme={setTheme}
+            theme={theme}
+            updateInfo={updateInfo}
+          />
+          <WindowControls locale={locale} />
         </div>
       </header>
 
-      <AiActivationPanel
-        aiReady={aiReady}
-        locale={locale}
-        message={busyAction === "provider" ? "" : serviceMessage}
-        onSaveSettings={saveProviderSettings}
-        providerStatus={providerStatus}
-        saving={busyAction === "provider"}
-      />
-
       <div className="workbench-layout">
-        <aside className="left-rail">
-          <CollapsiblePanel defaultOpen title={t("moduleNavigator", locale)} meta={t("naturalGasOnly", locale)}>
-            <CategoryTabs categories={categories} locale={locale} />
-          </CollapsiblePanel>
-          <CollapsiblePanel defaultOpen title={t("scenarioDeck", locale)} meta={t("regionalGas", locale)}>
-            <ScenarioDeck scenarios={scenarios} selectedId={selectedId} setSelectedId={setSelectedId} />
-          </CollapsiblePanel>
-          <CollapsiblePanel title={t("dataSources", locale)} meta={source === "sample" ? t("simulated", locale) : t(sourceOptions.find((option) => option.id === source)?.labelKey ?? "dataSource", locale)}>
-            <DataSourceStrip activeSource={source === "sample" ? "simulated" : source} locale={locale} sources={providerStatus?.data_sources} />
-          </CollapsiblePanel>
-        </aside>
+        <BusinessNavigator activeTemplateId={activeTemplateId} businessTemplates={templates} generateTrainingCase={generateTrainingCase} loadingTemplate={loadingTemplate} locale={locale} />
 
         <section className="workspace-main">
-          <div className="scenario-header">
-            <span>{selectedScenario?.region_label ?? t("scenario", locale)}</span>
-            <h2>{selectedScenario?.title ?? t("loading", locale)}</h2>
-            <p>{selectedScenario?.summary ?? ""}</p>
-          </div>
+          <CaseWorkspace caseData={caseData} generationStages={generationStages} locale={locale} />
           <div className="workspace-grid">
-            <MarketChart locale={locale} market={context?.market} setSource={setSource} source={source} />
-            <CapacityDiagram capacity={context?.capacity} locale={locale} />
-            <ExposurePanel locale={locale} scenario={selectedScenario} />
-            <OrderTicket
-              busy={busyAction === "evaluate" || busyAction === "advisor_review"}
-              locale={locale}
-              onSubmit={submitOrder}
-              order={order}
-              rationale={rationale}
-              setOrder={setOrder}
-              setRationale={setRationale}
-            />
+            <MarketChart caseData={caseData} fieldSelection={fieldSelection} locale={locale} setFieldSelection={setFieldSelection} strategyLegs={strategyLegs} />
+            <StrategyBuilder busy={busyAction === "evaluate"} locale={locale} onSubmit={submitStrategy} rationale={rationale} setRationale={setRationale} setStrategyLegs={setStrategyLegs} strategyLegs={strategyLegs} />
             <ScorePanel evaluation={evaluation} locale={locale} />
-            <TrainingGuide locale={locale} scenario={selectedScenario} />
+            <RubricPanel caseData={caseData} locale={locale} />
           </div>
         </section>
 
-        <AdvisorRail
-          aiOutput={aiOutput}
-          aiReady={aiReady}
-          advisorFeedback={advisorFeedback}
-          aiThinking={aiThinking}
-          busyAction={busyAction}
-          error={serviceMessage && busyAction !== "provider" ? serviceMessage : ""}
-          evaluation={evaluation}
-          exam={exam}
-          journey={journey}
-          locale={locale}
-          runAiAction={runAiAction}
-        />
+        <AdvisorRail aiOutput={aiOutput} aiReady={aiReady} advisorFeedback={advisorFeedback} busyAction={busyAction} error={serviceMessage && busyAction !== "provider" ? serviceMessage : ""} evaluation={evaluation} exam={exam} locale={locale} runAiAction={runAiAction} />
       </div>
+
+      <FloatingAssistant aiReady={aiReady} applyAction={applyAssistantAction} locale={locale} messages={assistantMessages} onSend={sendAssistant} thinking={busyAction === "assistant"} />
+
+      {guideIndex >= 0 ? (
+        <GuidedOverlay
+          locale={locale}
+          onClose={completeGuide}
+          onNext={() => (guideIndex >= guideSteps.length - 1 ? completeGuide() : setGuideIndex((current) => current + 1))}
+          stepIndex={guideIndex}
+        />
+      ) : null}
     </main>
   );
+}
+
+function formatErrorMessage(error, locale) {
+  const raw = typeof error === "string" ? error : error?.message ?? "";
+  if (!raw) return t("serviceIssue", locale);
+  const jsonStart = raw.indexOf("{");
+  const parsed = jsonStart >= 0 ? parseSafeJson(raw.slice(jsonStart)) : null;
+  if (parsed?.detail?.provider_message) return parsed.detail.provider_message;
+  if (parsed?.provider_message) return parsed.provider_message;
+  return raw.replace(/^backend status \d+:\s*/i, "");
 }

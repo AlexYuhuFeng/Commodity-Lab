@@ -1,7 +1,6 @@
 """Energy scenario catalog and market context for Commodity Lab V1."""
 from __future__ import annotations
 
-import math
 from copy import deepcopy
 from typing import Any
 
@@ -426,27 +425,8 @@ _SAMPLE_PRICE_POINTS: dict[str, list[dict[str, Any]]] = {
     ],
 }
 
-_SOURCE_LABELS: dict[str, str] = {
-    "sample": "Simulated",
-    "simulated": "Simulated",
-    "yfinance": "Yahoo Finance",
-    "platts": "Platts",
-}
-
-_SOURCE_ALIASES: dict[str, str] = {
-    "sample": "sample",
-    "simulated": "simulated",
-    "yfinance": "yfinance",
-    "yahoo finance": "yfinance",
-    "yahoo_finance": "yfinance",
-    "yahoo-finance": "yfinance",
-    "platts": "platts",
-}
-
-_SIMULATED_SOURCE = "simulated"
-_SIMULATED_SOURCE_LABEL = "Simulated"
-_YFINANCE_SOURCE = "yfinance"
-_YFINANCE_SOURCE_LABEL = "Yahoo Finance"
+_AI_GENERATED_SOURCE = "ai_generated_training"
+_AI_GENERATED_SOURCE_LABEL = "AI Generated Training Data"
 
 _CAPACITY_CONTEXTS: dict[str, dict[str, Any]] = {
     "europe_ttf_nbp_spread": {
@@ -533,45 +513,25 @@ def get_scenario(scenario_id: str, locale: str = "en") -> dict[str, Any]:
 
 
 def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, Any]:
-    """Return market context for a scenario.
+    """Return legacy built-in training market context for a scenario.
 
-    Priority is explicit:
-    - sample/simulated: deterministic built-in sample data.
-    - yfinance/Yahoo Finance: Yahoo Finance data first, simulated fallback only if unavailable.
-    - platts: reserved source; simulated fallback until a Platts adapter is implemented.
+    V1 now treats market context as AI-generated training data. This function is
+    retained for existing deterministic tests and offline fallback screens only.
+    It never calls external market providers.
     """
     scenario = _find_scenario(scenario_id)
     points = _SAMPLE_PRICE_POINTS.get(scenario_id)
     if points is None:
         raise KeyError(f"No market context is configured for scenario '{scenario_id}'.")
 
-    requested_source = _normalize_source(source)
-    requested_source_label = _source_label(requested_source)
-
-    if requested_source == _YFINANCE_SOURCE:
-        return _build_yfinance_market_context(
-            scenario_id,
-            scenario,
-            points,
-            requested_source,
-            requested_source_label,
-        )
-
-    is_fallback = requested_source not in {"sample", _SIMULATED_SOURCE}
-    fallback_reason = None
-    if requested_source == "platts":
-        fallback_reason = "Platts adapter is not implemented in V1; using deterministic sample data."
-    elif is_fallback:
-        fallback_reason = "Requested market source is not available in V1; using deterministic sample data."
-
-    return _build_simulated_market_context(
+    return _build_ai_generated_market_context(
         scenario_id,
         scenario,
         points,
-        requested_source,
-        requested_source_label,
-        is_fallback=is_fallback,
-        fallback_reason=fallback_reason,
+        _AI_GENERATED_SOURCE,
+        _AI_GENERATED_SOURCE_LABEL,
+        is_fallback=False,
+        fallback_reason=None,
     )
 
 
@@ -584,65 +544,7 @@ def get_capacity_context(scenario_id: str) -> dict[str, Any]:
     return _build_default_capacity_context(scenario)
 
 
-def _build_yfinance_market_context(
-    scenario_id: str,
-    scenario: dict[str, Any],
-    sample_points: list[dict[str, Any]],
-    requested_source: str,
-    requested_source_label: str,
-) -> dict[str, Any]:
-    symbol = str(scenario["default_symbol"])
-    try:
-        from core.yf_prices import fetch_history_daily
-
-        history = fetch_history_daily(symbol, period_if_no_start="3mo")
-        price_series = _price_series_from_dataframe(history)
-    except Exception as exc:
-        return _build_simulated_market_context(
-            scenario_id,
-            scenario,
-            sample_points,
-            requested_source,
-            requested_source_label,
-            is_fallback=True,
-            fallback_reason=f"Yahoo Finance fetch failed: {exc}",
-        )
-
-    if not price_series:
-        return _build_simulated_market_context(
-            scenario_id,
-            scenario,
-            sample_points,
-            requested_source,
-            requested_source_label,
-            is_fallback=True,
-            fallback_reason="Yahoo Finance returned no usable close prices; using deterministic sample data.",
-        )
-
-    return {
-        "scenario_id": scenario_id,
-        "source": requested_source,
-        "source_label": requested_source_label,
-        "data_source": _YFINANCE_SOURCE,
-        "data_source_label": _YFINANCE_SOURCE_LABEL,
-        "symbol": symbol,
-        "instrument": _instrument_name(scenario),
-        "unit": "USD/MMBtu",
-        "price_series": price_series,
-        "price_points": deepcopy(price_series),
-        "latest_price": price_series[-1]["close"],
-        "metadata": {
-            "provider": requested_source,
-            "requested_source": requested_source,
-            "requested_source_label": requested_source_label,
-            "returned_source": _YFINANCE_SOURCE,
-            "returned_source_label": _YFINANCE_SOURCE_LABEL,
-            "is_fallback": False,
-        },
-    }
-
-
-def _build_simulated_market_context(
+def _build_ai_generated_market_context(
     scenario_id: str,
     scenario: dict[str, Any],
     points: list[dict[str, Any]],
@@ -657,8 +559,8 @@ def _build_simulated_market_context(
         "scenario_id": scenario_id,
         "source": requested_source,
         "source_label": requested_source_label,
-        "data_source": _SIMULATED_SOURCE,
-        "data_source_label": _SIMULATED_SOURCE_LABEL,
+        "data_source": _AI_GENERATED_SOURCE,
+        "data_source_label": _AI_GENERATED_SOURCE_LABEL,
         "symbol": scenario["default_symbol"],
         "instrument": _instrument_name(scenario),
         "unit": "USD/MMBtu",
@@ -669,8 +571,8 @@ def _build_simulated_market_context(
             "provider": requested_source,
             "requested_source": requested_source,
             "requested_source_label": requested_source_label,
-            "returned_source": _SIMULATED_SOURCE,
-            "returned_source_label": _SIMULATED_SOURCE_LABEL,
+            "returned_source": _AI_GENERATED_SOURCE,
+            "returned_source_label": _AI_GENERATED_SOURCE_LABEL,
             "is_fallback": is_fallback,
         },
     }
@@ -679,29 +581,6 @@ def _build_simulated_market_context(
             fallback_reason or "Only deterministic sample data is available in V1."
         )
     return context
-
-
-def _price_series_from_dataframe(history: Any) -> list[dict[str, Any]]:
-    if history is None or getattr(history, "empty", True):
-        return []
-    if "close" not in history.columns or "date" not in history.columns:
-        return []
-
-    rows = history.dropna(subset=["close"], how="all").tail(30)
-    price_series: list[dict[str, Any]] = []
-    for _, row in rows.iterrows():
-        try:
-            close = float(row["close"])
-        except (TypeError, ValueError):
-            continue
-        if not math.isfinite(close):
-            continue
-
-        date_value = row["date"]
-        date_text = date_value.isoformat() if hasattr(date_value, "isoformat") else str(date_value)
-        price_series.append({"date": date_text, "close": round(close, 4)})
-
-    return price_series
 
 
 def _normalize_locale(locale: str) -> str:
@@ -777,15 +656,6 @@ def _is_enabled_natural_gas_scenario(scenario: dict[str, Any]) -> bool:
     enabled = scenario.get("enabled", scenario.get("status") == "enabled")
     commodity = scenario.get("commodity", scenario.get("commodity_id"))
     return enabled is True and scenario.get("status") == "enabled" and commodity == "natural_gas"
-
-
-def _normalize_source(source: str) -> str:
-    normalized = " ".join(source.strip().lower().split()) if source else "sample"
-    return _SOURCE_ALIASES.get(normalized, normalized)
-
-
-def _source_label(source: str) -> str:
-    return _SOURCE_LABELS.get(source, source)
 
 
 def _instrument_name(scenario: dict[str, Any]) -> str:
