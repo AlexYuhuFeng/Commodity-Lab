@@ -22,3 +22,9 @@ After the workflow succeeds, the GitHub Release should contain Windows Tauri bun
 ```text
 tauri\src-tauri\target\release\bundle\
 ```
+
+Verify before publishing:
+
+- Release tag and app package version match.
+- Windows Publisher displays `Commodity Lab`.
+- Installer/app signing status is documented. Public commercial builds should be signed with a trusted certificate.

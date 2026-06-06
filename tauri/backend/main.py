@@ -2,6 +2,8 @@ from pathlib import Path
 import re
 import os
 import sys
+import threading
+import time
 from typing import Any, List, Dict
 
 from fastapi import FastAPI, HTTPException, Query
@@ -117,6 +119,51 @@ def _ensure_stdio_for_windowed_runtime() -> None:
         sys.stdout = open(os.devnull, "w", encoding="utf-8")
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
+
+def _start_parent_watchdog() -> None:
+    parent_pid_text = os.getenv("COMMODITY_LAB_PARENT_PID", "").strip()
+    if not parent_pid_text:
+        return
+    try:
+        parent_pid = int(parent_pid_text)
+    except ValueError:
+        return
+
+    def exit_when_windows_parent_exits() -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        synchronize = 0x00100000
+        infinite = 0xFFFFFFFF
+        wait_object_0 = 0x00000000
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        kernel32.WaitForSingleObject.restype = wintypes.DWORD
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        handle = kernel32.OpenProcess(synchronize, False, parent_pid)
+        if not handle:
+            os._exit(0)
+        try:
+            result = kernel32.WaitForSingleObject(wintypes.HANDLE(handle), infinite)
+            if result == wait_object_0:
+                os._exit(0)
+        finally:
+            kernel32.CloseHandle(wintypes.HANDLE(handle))
+
+    def exit_when_parent_pid_disappears() -> None:
+        while True:
+            try:
+                os.kill(parent_pid, 0)
+            except OSError:
+                os._exit(0)
+            time.sleep(2)
+
+    target = exit_when_windows_parent_exits if os.name == "nt" else exit_when_parent_pid_disappears
+    threading.Thread(target=target, name="commodity-lab-parent-watchdog", daemon=True).start()
 
 
 def _apply_profile_update(evaluation: dict[str, Any]) -> dict[str, Any] | None:
@@ -476,4 +523,5 @@ def v1_generate_exam(payload: ExamRequest):
 if __name__ == "__main__":
     import uvicorn
     _ensure_stdio_for_windowed_runtime()
+    _start_parent_watchdog()
     uvicorn.run(app, host=_backend_host(), port=_backend_port(), log_config=None)

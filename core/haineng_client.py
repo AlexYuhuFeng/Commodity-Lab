@@ -63,9 +63,29 @@ def redact_settings(settings: HainengSettings) -> dict[str, Any]:
         "configured": _is_configured(settings),
         "base_url": settings.base_url,
         "model": settings.model,
+        "resolved_model": _provider_model_name(settings),
         "streaming": settings.streaming,
         "function_calling": settings.function_calling,
     }
+
+
+def _provider_model_name(settings: HainengSettings) -> str:
+    model = (settings.model or "").strip() or "V4-Flash"
+    base_url = (settings.base_url or "").lower()
+    normalized = model.lower().replace("_", "-").replace(" ", "")
+    if "deepseek.com" in base_url:
+        aliases = {
+            "v4-flash": "deepseek-v4-flash",
+            "v4flash": "deepseek-v4-flash",
+            "deepseek-flash": "deepseek-v4-flash",
+            "deepseek-v4-flash": "deepseek-v4-flash",
+            "v4-pro": "deepseek-v4-pro",
+            "v4pro": "deepseek-v4-pro",
+            "deepseek-pro": "deepseek-v4-pro",
+            "deepseek-v4-pro": "deepseek-v4-pro",
+        }
+        return aliases.get(normalized, model)
+    return model
 
 
 def build_haineng_tools() -> list[dict[str, Any]]:
@@ -360,7 +380,7 @@ class HainengClient:
 
         client = OpenAI(api_key=self.settings.api_key, base_url=self.settings.base_url)
         payload: dict[str, Any] = {
-            "model": self.settings.model,
+            "model": _provider_model_name(self.settings),
             "messages": messages,
             "stream": False,
         }

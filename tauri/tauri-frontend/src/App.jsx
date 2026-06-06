@@ -15,15 +15,6 @@ const sourceOptions = [
   { id: "platts", labelKey: "platts" }
 ];
 
-const aiCapabilityKeys = [
-  "aiCaseGeneration",
-  "aiEventDrills",
-  "aiScoringCoach",
-  "aiConceptTutor",
-  "aiTradePlaybook",
-  "aiExaminer"
-];
-
 const aiActionButtons = [
   { capability: "advisor_review", labelKey: "askHint", requiresEvaluation: true },
   { capability: "socratic_coach", labelKey: "socraticCoach" },
@@ -32,6 +23,19 @@ const aiActionButtons = [
   { capability: "concept_tutor", labelKey: "conceptTutor" },
   { capability: "trade_playbook", labelKey: "tradePlaybook" },
   { capability: "exam", labelKey: "generateExam" }
+];
+
+const aiModelOptions = [
+  { value: "V4-Flash", labelKey: "v4Flash" },
+  { value: "V4-Pro", labelKey: "v4Pro" }
+];
+
+const aiThinkingStepKeys = [
+  "thinkingReadContext",
+  "thinkingCheckMarket",
+  "thinkingBuildPrompt",
+  "thinkingWaitModel",
+  "thinkingAssemble"
 ];
 
 function savedValue(key, fallback = "") {
@@ -70,6 +74,30 @@ function optionLabel(value, locale) {
   return labels[value] ?? value;
 }
 
+function capabilityLabel(capability, locale) {
+  const titleKey = aiActionButtons.find((action) => action.capability === capability)?.labelKey ?? "aiCoach";
+  return t(titleKey, locale);
+}
+
+function formatErrorMessage(error, locale) {
+  const raw = typeof error === "string" ? error : error?.message ?? "";
+  if (!raw) return t("serviceIssue", locale);
+
+  try {
+    const jsonStart = raw.indexOf("{");
+    if (jsonStart >= 0) {
+      const payload = JSON.parse(raw.slice(jsonStart));
+      const detail = payload.detail ?? payload;
+      if (detail.provider_message) return detail.provider_message;
+      if (detail.message) return detail.message;
+    }
+  } catch {
+    // Keep the raw provider/runtime message when backend errors are not JSON.
+  }
+
+  return raw.replace(/^backend status \d+:\s*/i, "");
+}
+
 function LanguageToggle({ locale, setLocale }) {
   return (
     <div className="segmented" aria-label="Language">
@@ -89,6 +117,18 @@ function AiStatusBadge({ aiReady, locale }) {
       <i />
       <span>{aiReady ? t("aiFullPower", locale) : t("baseMode", locale)}</span>
     </div>
+  );
+}
+
+function CollapsiblePanel({ children, className = "", defaultOpen = false, meta, title }) {
+  return (
+    <details className={`collapsible-panel ${className}`.trim()} open={defaultOpen}>
+      <summary>
+        <span>{title}</span>
+        {meta ? <strong>{meta}</strong> : null}
+      </summary>
+      <div className="collapsible-body">{children}</div>
+    </details>
   );
 }
 
@@ -120,7 +160,7 @@ function DataSourceStrip({ locale, sources = [], activeSource }) {
   );
 }
 
-function AiActivationPanel({ aiReady, locale, onSaveSettings, saving, message }) {
+function AiActivationPanel({ aiReady, locale, onSaveSettings, providerStatus, saving, message }) {
   const [form, setForm] = useState({
     api_key: "",
     base_url: savedValue("commodity-lab-haineng-base-url", ""),
@@ -134,12 +174,25 @@ function AiActivationPanel({ aiReady, locale, onSaveSettings, saving, message })
   }
 
   return (
-    <section className={aiReady ? "ai-activation online" : "ai-activation"}>
-      <div className="ai-activation-copy">
-        <p className="eyebrow">{aiReady ? t("aiConnected", locale) : t("connectAi", locale)}</p>
-        <h2>{aiReady ? t("aiTerminalUnlocked", locale) : t("aiTerminalLocked", locale)}</h2>
-        <p>{aiReady ? t("aiUnlockedSubtitle", locale) : t("aiLockedSubtitle", locale)}</p>
-      </div>
+    <details className={aiReady ? "ai-activation online" : "ai-activation"} open={!aiReady}>
+      <summary>
+        <div className="ai-activation-copy">
+          <p>{aiReady ? t("aiConnected", locale) : t("connectAi", locale)}</p>
+          <h2>{t("aiSettings", locale)}</h2>
+          <span>{aiReady ? t("aiUnlockedCompact", locale) : t("aiLockedSubtitle", locale)}</span>
+        </div>
+        <div className="provider-summary">
+          <span>
+            {t("model", locale)}
+            <strong>{providerStatus?.haineng?.resolved_model ?? form.model}</strong>
+          </span>
+          <span>
+            {t("status", locale)}
+            <strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong>
+          </span>
+        </div>
+        <span className="disclosure-label">{t("configure", locale)}</span>
+      </summary>
       <form className="setup-form compact" onSubmit={submit}>
         <label>
           {t("apiKey", locale)}
@@ -147,7 +200,7 @@ function AiActivationPanel({ aiReady, locale, onSaveSettings, saving, message })
             aria-label={t("apiKey", locale)}
             autoComplete="off"
             onChange={(event) => setForm({ ...form, api_key: event.target.value })}
-            placeholder={aiReady ? "••••••••" : t("enterKeyToUnlock", locale)}
+            placeholder={aiReady ? "********" : t("enterKeyToUnlock", locale)}
             type="password"
             value={form.api_key}
           />
@@ -163,32 +216,24 @@ function AiActivationPanel({ aiReady, locale, onSaveSettings, saving, message })
         </label>
         <label>
           {t("model", locale)}
-          <input
+          <select
             aria-label={t("model", locale)}
             onChange={(event) => setForm({ ...form, model: event.target.value })}
             value={form.model}
-          />
+          >
+            {aiModelOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.labelKey, locale)}
+              </option>
+            ))}
+          </select>
         </label>
         <button className="primary" disabled={saving} type="submit">
           {saving ? t("loading", locale) : aiReady ? t("refreshAi", locale) : t("unlockAi", locale)}
         </button>
       </form>
       {message ? <div className={aiReady ? "status-line ok" : "status-line warn"}>{message}</div> : null}
-    </section>
-  );
-}
-
-function AiCapabilityMatrix({ aiReady, locale }) {
-  return (
-    <section className={aiReady ? "ai-matrix online" : "ai-matrix"}>
-      {aiCapabilityKeys.map((key, index) => (
-        <div className="ai-card" key={key} style={{ animationDelay: `${index * 80}ms` }}>
-          <span>{`0${index + 1}`}</span>
-          <strong>{t(key, locale)}</strong>
-          <small>{aiReady ? t("enabled", locale) : t("connectToEnable", locale)}</small>
-        </div>
-      ))}
-    </section>
+    </details>
   );
 }
 
@@ -211,28 +256,22 @@ function CategoryTabs({ categories, locale }) {
   );
 }
 
-function ScenarioDeck({ locale, scenarios, selectedId, setSelectedId }) {
+function ScenarioDeck({ scenarios, selectedId, setSelectedId }) {
   return (
-    <aside className="panel scenario-deck">
-      <div className="panel-title">
-        <span>{t("scenarioDeck", locale)}</span>
-        <strong>{t("regionalGas", locale)}</strong>
-      </div>
-      <div className="scenario-list">
-        {scenarios.map((scenario) => (
-          <button
-            className={scenario.id === selectedId ? "scenario-row active" : "scenario-row"}
-            key={scenario.id}
-            onClick={() => setSelectedId(scenario.id)}
-            type="button"
-          >
-            <em>{scenario.region_label}</em>
-            <strong>{scenario.title}</strong>
-            <span>{scenario.summary}</span>
-          </button>
-        ))}
-      </div>
-    </aside>
+    <div className="scenario-list">
+      {scenarios.map((scenario) => (
+        <button
+          className={scenario.id === selectedId ? "scenario-row active" : "scenario-row"}
+          key={scenario.id}
+          onClick={() => setSelectedId(scenario.id)}
+          type="button"
+        >
+          <em>{scenario.region_label}</em>
+          <strong>{scenario.title}</strong>
+          <span>{scenario.summary}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -249,7 +288,7 @@ function SourceSelector({ locale, source, setSource, market }) {
       </select>
       {market ? (
         <span className="source-meta">
-          {t("requestedSource", locale)}: {market.source_label} · {t("returnedSource", locale)}: {market.data_source_label}
+          {t("requestedSource", locale)}: {market.source_label} / {t("returnedSource", locale)}: {market.data_source_label}
         </span>
       ) : null}
     </label>
@@ -261,7 +300,25 @@ function MarketChart({ locale, market, source, setSource }) {
   const closes = points.map((point) => Number(point.close)).filter(Number.isFinite);
   const min = closes.length ? Math.min(...closes) : 0;
   const max = closes.length ? Math.max(...closes) : 1;
+  const first = closes[0] ?? 0;
+  const last = closes[closes.length - 1] ?? market?.latest_price ?? 0;
+  const delta = last - first;
   const range = Math.max(max - min, 0.01);
+  const chartWidth = 620;
+  const chartHeight = 210;
+  const padX = 28;
+  const padTop = 20;
+  const padBottom = 34;
+  const plotWidth = chartWidth - padX * 2;
+  const plotHeight = chartHeight - padTop - padBottom;
+  const xFor = (index) => padX + (points.length <= 1 ? 0 : (index / (points.length - 1)) * plotWidth);
+  const yFor = (close) => padTop + ((max - Number(close)) / range) * plotHeight;
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${xFor(index).toFixed(1)} ${yFor(point.close).toFixed(1)}`)
+    .join(" ");
+  const areaPath = linePath ? `${linePath} L ${padX + plotWidth} ${padTop + plotHeight} L ${padX} ${padTop + plotHeight} Z` : "";
+  const latestX = points.length ? xFor(points.length - 1) : padX;
+  const latestY = points.length ? yFor(points[points.length - 1].close) : padTop + plotHeight;
 
   return (
     <section className="panel market-panel">
@@ -270,20 +327,31 @@ function MarketChart({ locale, market, source, setSource }) {
         <strong>{market?.symbol ?? "NG=F"}</strong>
       </div>
       <SourceSelector locale={locale} market={market} setSource={setSource} source={source} />
-      <div className="bar-chart" role="img" aria-label={t("marketContext", locale)}>
-        {points.map((point) => {
-          const height = 24 + ((Number(point.close) - min) / range) * 76;
-          return <span key={point.date} style={{ height: `${height}%` }} title={`${point.date}: ${point.close}`} />;
-        })}
+      <div className="price-chart-wrap">
+        <svg className={delta >= 0 ? "price-chart up" : "price-chart down"} role="img" aria-label={t("priceChart", locale)} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
+          <line className="grid-line" x1={padX} x2={padX + plotWidth} y1={padTop} y2={padTop} />
+          <line className="grid-line" x1={padX} x2={padX + plotWidth} y1={padTop + plotHeight / 2} y2={padTop + plotHeight / 2} />
+          <line className="grid-line baseline" x1={padX} x2={padX + plotWidth} y1={padTop + plotHeight} y2={padTop + plotHeight} />
+          {areaPath ? <path className="price-area" d={areaPath} /> : null}
+          {linePath ? <path className="price-line" d={linePath} /> : null}
+          <circle className="latest-dot" cx={latestX} cy={latestY} r="5" />
+          <text className="axis-label" x={padX} y={padTop + 12}>{formatNumber(max, 2)}</text>
+          <text className="axis-label" x={padX} y={padTop + plotHeight - 6}>{formatNumber(min, 2)}</text>
+          <text className="latest-label" x={Math.max(padX + 88, latestX - 82)} y={Math.max(28, latestY - 14)}>
+            {formatNumber(last, 2)}
+          </text>
+          {points[0]?.date ? <text className="date-label" x={padX} y={chartHeight - 10}>{points[0].date}</text> : null}
+          {points.at(-1)?.date ? <text className="date-label end" x={padX + plotWidth} y={chartHeight - 10}>{points.at(-1).date}</text> : null}
+        </svg>
       </div>
-      <div className="metric-strip">
+      <div className="metric-strip compact-metrics">
         <span>
           {t("latestPrice", locale)}
           <strong>{formatNumber(market?.latest_price, 2)}</strong>
         </span>
         <span>
-          {t("unit", locale)}
-          <strong>{market?.unit ?? "USD/MMBtu"}</strong>
+          {t("latestMove", locale)}
+          <strong className={delta >= 0 ? "positive" : "negative"}>{delta >= 0 ? "+" : ""}{formatNumber(delta, 2)}</strong>
         </span>
         <span>
           {t("dataSource", locale)}
@@ -480,11 +548,7 @@ function LearningJourneyPanel({ journey, locale }) {
   const attemptCount = journey?.profile?.attempt_count ?? 0;
 
   return (
-    <section className="journey-panel">
-      <div className="panel-title compact-title">
-        <span>{t("learningRecommendations", locale)}</span>
-        <strong>{t("journeyReady", locale)}</strong>
-      </div>
+    <div className="journey-panel">
       <div className="journey-summary">
         <span>
           {t("attemptCount", locale)}
@@ -508,27 +572,46 @@ function LearningJourneyPanel({ journey, locale }) {
           <p className="empty-state">{t("noRecommendations", locale)}</p>
         )}
       </div>
+    </div>
+  );
+}
+
+function AiThinkingPanel({ aiThinking, busyAction, locale }) {
+  const active = Boolean(aiThinking && busyAction && busyAction !== "provider" && busyAction !== "evaluate");
+  const stepIndex = aiThinking?.stepIndex ?? 0;
+
+  return (
+    <section className={active ? "thinking-panel active" : "thinking-panel"} aria-live="polite">
+      <div className="panel-title compact-title">
+        <span>{active ? t("aiThinkingTitle", locale) : t("aiThinkingIdle", locale)}</span>
+        <strong>{aiThinking?.capability ? capabilityLabel(aiThinking.capability, locale) : t("standby", locale)}</strong>
+      </div>
+      <ol className="thinking-steps">
+        {aiThinkingStepKeys.map((key, index) => (
+          <li className={active && index <= stepIndex ? "active" : ""} key={key}>
+            <i />
+            <span>{t(key, locale)}</span>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
 
-function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, evaluation, exam, journey, locale, runAiAction }) {
+function AdvisorRail({ aiOutput, aiReady, advisorFeedback, aiThinking, busyAction, error, evaluation, exam, journey, locale, runAiAction }) {
   return (
-    <aside className={aiReady ? "panel advisor-rail online" : "panel advisor-rail"}>
-      <div className="panel-title">
+    <aside className={aiReady ? "advisor-rail online" : "advisor-rail"}>
+      <div className="advisor-head">
         <span>{t("aiCoach", locale)}</span>
         <strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong>
       </div>
       <GuidedStepper aiReady={aiReady} evaluation={evaluation} locale={locale} />
-      <LearningJourneyPanel journey={journey} locale={locale} />
-      <div className="ai-action-panel">
-        <div className="panel-title compact-title">
-          <span>{t("aiTrainingActions", locale)}</span>
-          <strong>{aiReady ? t("enabled", locale) : t("connectToEnable", locale)}</strong>
-        </div>
+      <AiThinkingPanel aiThinking={aiThinking} busyAction={busyAction} locale={locale} />
+      <CollapsiblePanel defaultOpen title={t("aiTrainingActions", locale)} meta={aiReady ? t("enabled", locale) : t("connectToEnable", locale)}>
         <div className="ai-action-grid">
           {aiActionButtons.map((action) => (
             <button
+              className={busyAction === action.capability ? "active" : ""}
               disabled={Boolean(busyAction) || !aiReady || (action.requiresEvaluation && !evaluation)}
               key={action.capability}
               onClick={() => runAiAction(action.capability)}
@@ -538,27 +621,32 @@ function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, ev
             </button>
           ))}
         </div>
-      </div>
-      {!aiReady ? <p className="service-error muted">{t("aiDisabledHint", locale)}</p> : null}
-      {error ? <p className="service-error">{error}</p> : null}
-      {advisorFeedback ? (
-        <section className="response-block">
-          <h3>{t("advisorFeedback", locale)}</h3>
-          <p>{advisorFeedback}</p>
-        </section>
-      ) : null}
-      {exam ? (
-        <section className="response-block">
-          <h3>{t("examQuestions", locale)}</h3>
-          <p>{exam}</p>
-        </section>
-      ) : null}
-      {aiOutput?.answer ? (
-        <section className="response-block">
-          <h3>{aiOutput.title}</h3>
-          <p>{aiOutput.answer}</p>
-        </section>
-      ) : null}
+      </CollapsiblePanel>
+      <CollapsiblePanel defaultOpen={Boolean(advisorFeedback || exam || aiOutput?.answer || error)} title={t("aiTrainingOutput", locale)} meta={t("outputReady", locale)}>
+        {!aiReady ? <p className="service-error muted">{t("aiDisabledHint", locale)}</p> : null}
+        {error ? <p className="service-error">{error}</p> : null}
+        {advisorFeedback ? (
+          <section className="response-block">
+            <h3>{t("advisorFeedback", locale)}</h3>
+            <p>{advisorFeedback}</p>
+          </section>
+        ) : null}
+        {exam ? (
+          <section className="response-block">
+            <h3>{t("examQuestions", locale)}</h3>
+            <p>{exam}</p>
+          </section>
+        ) : null}
+        {aiOutput?.answer ? (
+          <section className="response-block">
+            <h3>{aiOutput.title}</h3>
+            <p>{aiOutput.answer}</p>
+          </section>
+        ) : null}
+      </CollapsiblePanel>
+      <CollapsiblePanel title={t("learningRecommendations", locale)} meta={t("journeyReady", locale)}>
+        <LearningJourneyPanel journey={journey} locale={locale} />
+      </CollapsiblePanel>
     </aside>
   );
 }
@@ -578,6 +666,7 @@ export default function App() {
   const [advisorFeedback, setAdvisorFeedback] = useState("");
   const [exam, setExam] = useState("");
   const [aiOutput, setAiOutput] = useState(null);
+  const [aiThinking, setAiThinking] = useState(null);
   const [busyAction, setBusyAction] = useState("");
   const [serviceMessage, setServiceMessage] = useState("");
 
@@ -588,9 +677,28 @@ export default function App() {
     setLocaleState(nextLocale);
   }
 
+  function startAiThinking(capability) {
+    setAiThinking({ capability, stepIndex: 0 });
+  }
+
+  function finishAiThinking() {
+    setAiThinking((current) => (current ? { ...current, stepIndex: aiThinkingStepKeys.length - 1 } : current));
+  }
+
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
   }, [locale]);
+
+  useEffect(() => {
+    if (!aiThinking || !busyAction || busyAction === "provider" || busyAction === "evaluate") return undefined;
+    const timer = window.setInterval(() => {
+      setAiThinking((current) => {
+        if (!current) return current;
+        return { ...current, stepIndex: Math.min(current.stepIndex + 1, aiThinkingStepKeys.length - 1) };
+      });
+    }, 900);
+    return () => window.clearInterval(timer);
+  }, [aiThinking, busyAction]);
 
   useEffect(() => {
     let active = true;
@@ -601,12 +709,12 @@ export default function App() {
       .catch((error) => {
         if (!active) return;
         setProviderStatus({ haineng: { ok: false, configured: false }, data_sources: [] });
-        setServiceMessage(error.message);
+        setServiceMessage(formatErrorMessage(error, locale));
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     let active = true;
@@ -618,7 +726,7 @@ export default function App() {
         setScenarios(nextScenarios);
         setSelectedId((current) => (nextScenarios.some((scenario) => scenario.id === current) ? current : nextScenarios[0]?.id ?? ""));
       })
-      .catch((error) => setServiceMessage(error.message));
+      .catch((error) => setServiceMessage(formatErrorMessage(error, locale)));
     return () => {
       active = false;
     };
@@ -651,7 +759,7 @@ export default function App() {
         setExam("");
         setAiOutput(null);
       })
-      .catch((error) => setServiceMessage(error.message));
+      .catch((error) => setServiceMessage(formatErrorMessage(error, locale)));
     return () => {
       active = false;
     };
@@ -669,7 +777,7 @@ export default function App() {
       setProviderStatus((current) => ({ ...(current ?? {}), ...payload }));
       setServiceMessage(t("providerSaved", locale));
     } catch (error) {
-      setServiceMessage(error.message || t("providerSaveFailed", locale));
+      setServiceMessage(formatErrorMessage(error, locale) || t("providerSaveFailed", locale));
     } finally {
       setBusyAction("");
     }
@@ -678,6 +786,7 @@ export default function App() {
   async function requestAdvisorReview(nextEvaluation = evaluation) {
     if (!nextEvaluation || !selectedId || !aiReady) return;
     setBusyAction("advisor_review");
+    startAiThinking("advisor_review");
     setServiceMessage("");
     try {
       const payload = await backendRequest("POST", "/api/v1/advisor/review", {
@@ -689,8 +798,9 @@ export default function App() {
       });
       setAdvisorFeedback(payload.answer);
       setAiOutput(null);
+      finishAiThinking();
     } catch (error) {
-      setServiceMessage(error.message);
+      setServiceMessage(formatErrorMessage(error, locale));
     } finally {
       setBusyAction("");
     }
@@ -716,7 +826,7 @@ export default function App() {
         await requestAdvisorReview(payload.evaluation);
       }
     } catch (error) {
-      setServiceMessage(error.message);
+      setServiceMessage(formatErrorMessage(error, locale));
     } finally {
       setBusyAction("");
     }
@@ -725,6 +835,7 @@ export default function App() {
   async function generateExam() {
     if (!selectedId || !aiReady) return;
     setBusyAction("exam");
+    startAiThinking("exam");
     setServiceMessage("");
     try {
       const payload = await backendRequest("POST", "/api/v1/exam/generate", {
@@ -734,8 +845,9 @@ export default function App() {
       });
       setExam(payload.exam);
       setAiOutput(null);
+      finishAiThinking();
     } catch (error) {
-      setServiceMessage(error.message);
+      setServiceMessage(formatErrorMessage(error, locale));
     } finally {
       setBusyAction("");
     }
@@ -800,13 +912,14 @@ export default function App() {
     if (!selectedId || !aiReady) return;
 
     setBusyAction(capability);
+    startAiThinking(capability);
     setServiceMessage("");
     try {
       const payload = await backendRequest("POST", "/api/v1/ai/generate", buildAiPayload(capability));
-      const titleKey = aiActionButtons.find((action) => action.capability === capability)?.labelKey ?? "aiCoach";
-      setAiOutput({ title: t(titleKey, locale), answer: payload.answer });
+      setAiOutput({ title: capabilityLabel(capability, locale), answer: payload.answer });
+      finishAiThinking();
     } catch (error) {
-      setServiceMessage(error.message);
+      setServiceMessage(formatErrorMessage(error, locale));
     } finally {
       setBusyAction("");
     }
@@ -828,53 +941,62 @@ export default function App() {
       <AiActivationPanel
         aiReady={aiReady}
         locale={locale}
-        message={serviceMessage}
+        message={busyAction === "provider" ? "" : serviceMessage}
         onSaveSettings={saveProviderSettings}
+        providerStatus={providerStatus}
         saving={busyAction === "provider"}
       />
-      <AiCapabilityMatrix aiReady={aiReady} locale={locale} />
 
-      <div className="workspace-shell">
-        <CategoryTabs categories={categories} locale={locale} />
-        <div className="terminal-grid">
-          <ScenarioDeck locale={locale} scenarios={scenarios} selectedId={selectedId} setSelectedId={setSelectedId} />
-          <section className="workspace-main">
-            <div className="scenario-header">
-              <span>{selectedScenario?.region_label ?? t("scenario", locale)}</span>
-              <h2>{selectedScenario?.title ?? t("loading", locale)}</h2>
-              <p>{selectedScenario?.summary ?? ""}</p>
-            </div>
+      <div className="workbench-layout">
+        <aside className="left-rail">
+          <CollapsiblePanel defaultOpen title={t("moduleNavigator", locale)} meta={t("naturalGasOnly", locale)}>
+            <CategoryTabs categories={categories} locale={locale} />
+          </CollapsiblePanel>
+          <CollapsiblePanel defaultOpen title={t("scenarioDeck", locale)} meta={t("regionalGas", locale)}>
+            <ScenarioDeck scenarios={scenarios} selectedId={selectedId} setSelectedId={setSelectedId} />
+          </CollapsiblePanel>
+          <CollapsiblePanel title={t("dataSources", locale)} meta={source === "sample" ? t("simulated", locale) : t(sourceOptions.find((option) => option.id === source)?.labelKey ?? "dataSource", locale)}>
             <DataSourceStrip activeSource={source === "sample" ? "simulated" : source} locale={locale} sources={providerStatus?.data_sources} />
-            <div className="workspace-grid">
-              <MarketChart locale={locale} market={context?.market} setSource={setSource} source={source} />
-              <CapacityDiagram capacity={context?.capacity} locale={locale} />
-              <ExposurePanel locale={locale} scenario={selectedScenario} />
-              <TrainingGuide locale={locale} scenario={selectedScenario} />
-                <OrderTicket
-                busy={busyAction === "evaluate" || busyAction === "advisor_review"}
-                locale={locale}
-                onSubmit={submitOrder}
-                order={order}
-                rationale={rationale}
-                setOrder={setOrder}
-                setRationale={setRationale}
-              />
-              <ScorePanel evaluation={evaluation} locale={locale} />
-            </div>
-          </section>
-          <AdvisorRail
-            aiOutput={aiOutput}
-            aiReady={aiReady}
-            advisorFeedback={advisorFeedback}
-            busyAction={busyAction}
-            error={serviceMessage && busyAction !== "provider" ? serviceMessage : ""}
-            evaluation={evaluation}
-            exam={exam}
-            journey={journey}
-            locale={locale}
-            runAiAction={runAiAction}
-          />
-        </div>
+          </CollapsiblePanel>
+        </aside>
+
+        <section className="workspace-main">
+          <div className="scenario-header">
+            <span>{selectedScenario?.region_label ?? t("scenario", locale)}</span>
+            <h2>{selectedScenario?.title ?? t("loading", locale)}</h2>
+            <p>{selectedScenario?.summary ?? ""}</p>
+          </div>
+          <div className="workspace-grid">
+            <MarketChart locale={locale} market={context?.market} setSource={setSource} source={source} />
+            <CapacityDiagram capacity={context?.capacity} locale={locale} />
+            <ExposurePanel locale={locale} scenario={selectedScenario} />
+            <OrderTicket
+              busy={busyAction === "evaluate" || busyAction === "advisor_review"}
+              locale={locale}
+              onSubmit={submitOrder}
+              order={order}
+              rationale={rationale}
+              setOrder={setOrder}
+              setRationale={setRationale}
+            />
+            <ScorePanel evaluation={evaluation} locale={locale} />
+            <TrainingGuide locale={locale} scenario={selectedScenario} />
+          </div>
+        </section>
+
+        <AdvisorRail
+          aiOutput={aiOutput}
+          aiReady={aiReady}
+          advisorFeedback={advisorFeedback}
+          aiThinking={aiThinking}
+          busyAction={busyAction}
+          error={serviceMessage && busyAction !== "provider" ? serviceMessage : ""}
+          evaluation={evaluation}
+          exam={exam}
+          journey={journey}
+          locale={locale}
+          runAiAction={runAiAction}
+        />
       </div>
     </main>
   );

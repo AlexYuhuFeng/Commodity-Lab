@@ -19,11 +19,12 @@ from core.haineng_client import (
 def test_redact_settings_never_returns_api_key() -> None:
     settings = HainengSettings(
         api_key="secret-key",
-        base_url="http://model.local/haineng/v1",
+        base_url="https://api.deepseek.com",
         model="V4-Flash",
     )
     redacted = redact_settings(settings)
     assert redacted["configured"] is True
+    assert redacted["resolved_model"] == "deepseek-v4-flash"
     assert "secret-key" not in str(redacted)
 
 
@@ -93,6 +94,7 @@ def test_health_check_reports_configuration_only() -> None:
     assert missing["reason"] == "missing_haineng_settings"
     assert configured["ok"] is True
     assert configured["configured"] is True
+    assert "resolved_model" in configured
     assert "secret-key" not in str(missing)
     assert "secret-key" not in str(configured)
 
@@ -162,3 +164,40 @@ def test_complete_raises_when_model_requests_tool_call(monkeypatch: pytest.Monke
     assert captured_payload["model"] == "V4-Flash"
     assert captured_payload["stream"] is False
     assert captured_payload["tool_choice"] == "auto"
+
+
+def test_deepseek_endpoint_uses_supported_flash_model_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_payload: dict[str, object] = {}
+
+    class Message:
+        content = "ok"
+        tool_calls = None
+
+    class Choice:
+        message = Message()
+
+    class Response:
+        choices = [Choice()]
+
+    class Completions:
+        def create(self, **payload):
+            captured_payload.update(payload)
+            return Response()
+
+    class Chat:
+        completions = Completions()
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str, base_url: str) -> None:
+            assert api_key == "secret-key"
+            assert base_url == "https://api.deepseek.com"
+            self.chat = Chat()
+
+    fake_openai = types.SimpleNamespace(OpenAI=FakeOpenAI)
+    monkeypatch.setitem(sys.modules, "openai", fake_openai)
+    client = HainengClient(
+        HainengSettings(api_key="secret-key", base_url="https://api.deepseek.com", model="V4-Flash")
+    )
+
+    assert client.complete([{"role": "user", "content": "review"}]) == "ok"
+    assert captured_payload["model"] == "deepseek-v4-flash"
