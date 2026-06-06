@@ -1,6 +1,6 @@
 # Commodity Lab
 
-**Commodity Lab** is an AI-powered desktop training terminal for energy trading practice. It combines market data, structured trading scenarios, deterministic scoring, and an optional 海能-compatible LLM coach. Users can enter the terminal immediately in Base Mode with Yahoo Finance and simulated data; connecting 海能 unlocks Full Power Mode with AI case generation, event-driven drills, concept tutoring, scoring explanations, trade playbooks, and adaptive exams.
+**Commodity Lab** is an AI-powered desktop training terminal for energy trading practice. It combines market data, structured trading scenarios, deterministic scoring, and an optional Haineng-compatible LLM coach. Users can enter the terminal immediately in Base Mode with Yahoo Finance and simulated data; connecting Haineng unlocks Full Power Mode with AI case generation, event-driven drills, concept tutoring, scoring explanations, trade playbooks, and adaptive exams.
 
 **Commodity Lab** 是一个 AI 驱动的能源交易训练终端。系统将市场数据、结构化业务场景、确定性评分和海能兼容 LLM 教练结合起来。用户无需先配置海能即可进入基础训练模式，使用 Yahoo Finance 和模拟数据完成训练；连接海能后进入 AI 全功能模式，解锁案例生成、事件演练、概念教学、评分解释、交易实务建议和自适应测验。
 
@@ -12,7 +12,7 @@
 Suggested GitHub repository description:
 
 ```text
-AI-powered desktop training terminal for energy trading, combining market data, structured scenarios, deterministic scoring, and 海能 LLM coaching.
+AI-powered desktop training terminal for energy trading, combining market data, structured scenarios, deterministic scoring, and Haineng LLM coaching.
 ```
 
 ## Product Goal / 产品目标
@@ -37,32 +37,33 @@ Commodity Lab 不是静态课程，也不是简单套保计算器。项目目标
 
 ## Scope / 范围
 
-V1 enables natural gas training and shows the future energy scope as disabled modules.
+V1 enables European natural gas training and shows the future energy scope as disabled modules.
 
-V1 启用天然气训练，并将其他能源模块作为后续方向展示。
+V1 启用欧洲天然气训练，并将其他能源模块作为后续方向展示。
 
 | Module | Status | Notes |
 |---|---|---|
-| Natural Gas / 天然气 | Enabled | Europe and North America scenarios |
+| Natural Gas / 天然气 | Enabled | Europe natural gas scenarios |
 | Crude Oil / 原油 | Constructing | Future module |
 | Oil Products / 成品油 | Constructing | Future module |
 | Carbon / 碳 | Constructing | Future module |
+| Power / 电力 | Constructing | Future module |
 
-Natural gas scenarios are organized by region:
+Natural gas V1 scenarios are organized around Europe:
 
 - **Europe**: hub spread, storage spread, route/capacity logic, TTF/NBP-style thinking.
-- **North America**: Henry Hub outright hedge, winter demand, pipeline basis, regional basis risk.
+- **Future North America / LNG**: Henry Hub, regional basis, pipeline constraints, weather-driven load, and LNG optionality.
 
-天然气场景按区域组织：
+天然气 V1 场景围绕欧洲组织：
 
 - **欧洲**：枢纽价差、储气月差、路径/运力逻辑、TTF/NBP 类思路。
-- **北美**：亨利港单边套保、冬季需求、管道基差、区域基差风险。
+- **后续北美 / LNG**：亨利港、区域基差、管道约束、天气负荷和 LNG 可选性。
 
 ## Experience Modes / 体验模式
 
 ### Base Mode
 
-Base Mode is available immediately. No 海能 key is required at startup.
+Base Mode is available immediately. No Haineng key is required at startup.
 
 基础模式进入即用，启动时不要求提供海能 Key。
 
@@ -77,7 +78,7 @@ Base Mode includes:
 
 ### AI Full Power Mode
 
-Connecting a user-provided 海能-compatible endpoint unlocks the full AI training workflow.
+Connecting a user-provided Haineng-compatible endpoint unlocks the full AI training workflow.
 
 连接用户自备的海能兼容端点后，系统进入 AI 全功能模式。
 
@@ -107,7 +108,7 @@ Commodity Lab
 │   ├── gas_scenarios.py          Energy scenario catalog, regions, market context
 │   ├── learning_session.py       Deterministic scoring and attempt evaluation
 │   ├── yf_prices.py              Yahoo Finance market data adapter
-│   └── haineng_client.py         OpenAI-compatible 海能 client
+│   └── haineng_client.py         OpenAI-compatible Haineng client
 ├── tauri/backend/                FastAPI backend for the desktop client
 ├── tauri/tauri-frontend/         React + Vite terminal UI
 ├── tauri/src-tauri/              Tauri Rust shell and backend launcher
@@ -135,7 +136,7 @@ Commodity Lab
 - Node.js 20+
 - Rust stable
 - Windows for desktop packaging
-- Optional user-provided 海能-compatible LLM API key and base URL
+- Optional user-provided Haineng-compatible LLM API key and base URL
 - Optional user-provided Platts credentials
 
 环境要求：

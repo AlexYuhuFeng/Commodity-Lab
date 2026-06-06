@@ -25,46 +25,46 @@ def test_validate_order_rejects_invalid_required_fields(order: dict[str, object]
 
 
 def test_evaluate_attempt_returns_errors_for_invalid_orders() -> None:
-    scenario = get_scenario("producer_short_hedge", locale="en")
+    scenario = get_scenario("europe_ttf_nbp_spread", locale="en")
 
     result = evaluate_attempt(
         scenario=scenario,
-        capacity_context=get_capacity_context("producer_short_hedge"),
-        order={"side": "sell", "quantity": 0, "hedge_type": "short_hedge"},
-        rationale="I sell futures to offset falling price risk.",
+        capacity_context=get_capacity_context("europe_ttf_nbp_spread"),
+        order={"side": "sell", "quantity": 0, "hedge_type": "basis_hedge"},
+        rationale="I sell a basis hedge to manage TTF/NBP spread risk.",
     )
 
     assert result["valid"] is False
     assert "quantity" in result["errors"]
 
 
-def test_evaluate_attempt_scores_recommended_producer_hedge() -> None:
-    scenario = get_scenario("producer_short_hedge", locale="en")
+def test_evaluate_attempt_scores_recommended_europe_basis_hedge() -> None:
+    scenario = get_scenario("europe_ttf_nbp_spread", locale="en")
     result = evaluate_attempt(
         scenario=scenario,
-        capacity_context=get_capacity_context("producer_short_hedge"),
+        capacity_context=get_capacity_context("europe_ttf_nbp_spread"),
         order={
             "side": "sell",
-            "quantity": 80000,
-            "hedge_type": "short_hedge",
+            "quantity": 70000,
+            "hedge_type": "basis_hedge",
             "price": 3.5,
         },
-        rationale="I sell futures to offset falling price risk on expected production.",
+        rationale="I sell a basis hedge to offset TTF/NBP spread and capacity risk.",
     )
     assert result["valid"] is True
     assert result["score_inputs"]["direction_match"] is True
     assert result["score_inputs"]["hedge_type_match"] is True
-    assert result["metrics"]["hedge_ratio"] == 0.8
-    assert result["metrics"]["notional_usd"] == 280000.0
-    assert result["metrics"]["capacity_utilization_pct"] == 80.0
+    assert result["metrics"]["hedge_ratio"] == 1.0
+    assert result["metrics"]["notional_usd"] == 245000.0
+    assert result["metrics"]["capacity_utilization_pct"] == 77.8
     assert result["baseline_score"] >= 80
 
 
 def test_evaluate_attempt_tags_capacity_blind_spot() -> None:
-    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
+    scenario = get_scenario("europe_route_capacity_constraint", locale="en")
     result = evaluate_attempt(
         scenario=scenario,
-        capacity_context=get_capacity_context("pipeline_capacity_constraint"),
+        capacity_context=get_capacity_context("europe_route_capacity_constraint"),
         order={
             "side": "buy",
             "quantity": 60000,
@@ -80,8 +80,8 @@ def test_evaluate_attempt_tags_capacity_blind_spot() -> None:
 
 
 def test_classify_mistakes_tags_capacity_blind_spot_directly() -> None:
-    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
-    capacity = get_capacity_context("pipeline_capacity_constraint")
+    scenario = get_scenario("europe_route_capacity_constraint", locale="en")
+    capacity = get_capacity_context("europe_route_capacity_constraint")
     tags = classify_mistakes(
         scenario=scenario,
         capacity_context=capacity,
@@ -94,11 +94,11 @@ def test_classify_mistakes_tags_capacity_blind_spot_directly() -> None:
     assert "ignores_capacity" in tags
 
 
-def test_evaluate_attempt_scores_recommended_pipeline_basis_hedge() -> None:
-    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
+def test_evaluate_attempt_scores_recommended_route_capacity_basis_hedge() -> None:
+    scenario = get_scenario("europe_route_capacity_constraint", locale="en")
     result = evaluate_attempt(
         scenario=scenario,
-        capacity_context=get_capacity_context("pipeline_capacity_constraint"),
+        capacity_context=get_capacity_context("europe_route_capacity_constraint"),
         order={
             "side": "sell",
             "quantity": 60000,
@@ -118,10 +118,10 @@ def test_evaluate_attempt_scores_recommended_pipeline_basis_hedge() -> None:
 
 
 def test_pipeline_basis_answer_must_mention_capacity_context() -> None:
-    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
+    scenario = get_scenario("europe_route_capacity_constraint", locale="en")
     result = evaluate_attempt(
         scenario=scenario,
-        capacity_context=get_capacity_context("pipeline_capacity_constraint"),
+        capacity_context=get_capacity_context("europe_route_capacity_constraint"),
         order={
             "side": "sell",
             "quantity": 60000,
@@ -135,12 +135,12 @@ def test_pipeline_basis_answer_must_mention_capacity_context() -> None:
 
 
 def test_capacity_rationale_handles_punctuation_and_hyphenation() -> None:
-    scenario = get_scenario("pipeline_capacity_constraint", locale="en")
+    scenario = get_scenario("europe_route_capacity_constraint", locale="en")
 
     for rationale in ("Pipeline.", "pipeline-capacity risk"):
         result = evaluate_attempt(
             scenario=scenario,
-            capacity_context=get_capacity_context("pipeline_capacity_constraint"),
+            capacity_context=get_capacity_context("europe_route_capacity_constraint"),
             order={
                 "side": "sell",
                 "quantity": 60000,
@@ -153,18 +153,18 @@ def test_capacity_rationale_handles_punctuation_and_hyphenation() -> None:
         assert "ignores_capacity" not in result["mistake_tags"]
 
 
-def test_regional_basis_hedge_does_not_require_capacity_language() -> None:
-    scenario = get_scenario("regional_basis_blowout", locale="en")
+def test_europe_storage_spread_does_not_require_capacity_language_when_unconstrained() -> None:
+    scenario = get_scenario("europe_storage_calendar_spread", locale="en")
     result = evaluate_attempt(
         scenario=scenario,
-        capacity_context=get_capacity_context("regional_basis_blowout"),
+        capacity_context=get_capacity_context("europe_storage_calendar_spread"),
         order={
-            "side": "sell",
-            "quantity": 90000,
-            "hedge_type": "basis_hedge",
-            "price": 2.55,
+            "side": "spread",
+            "quantity": 75000,
+            "hedge_type": "calendar_spread",
+            "price": 3.1,
         },
-        rationale="The local discount may widen versus Henry Hub.",
+        rationale="The injection and withdrawal months define the seasonal spread margin.",
     )
 
     assert result["score_inputs"]["direction_match"] is True

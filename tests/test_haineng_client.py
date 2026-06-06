@@ -31,9 +31,9 @@ def test_advisor_messages_include_locale_and_not_key() -> None:
     settings = HainengSettings(api_key="secret-key", base_url="http://local/v1")
     messages = build_advisor_messages(
         locale="zh",
-        scenario={"id": "producer_short_hedge", "title": "生产商卖出套保"},
+        scenario={"id": "europe_ttf_nbp_spread", "title": "欧洲 TTF/NBP 价差"},
         evaluation={"baseline_score": 82, "mistake_tags": []},
-        user_rationale="卖出期货保护价格下跌风险",
+        user_rationale="卖出基差套保管理 TTF/NBP 价差风险",
     )
     text = str(messages)
     assert "Respond in Mandarin Chinese" in text
@@ -44,12 +44,12 @@ def test_advisor_messages_include_locale_and_not_key() -> None:
 def test_exam_messages_request_three_to_five_questions() -> None:
     messages = build_exam_messages(
         locale="en",
-        scenario={"id": "pipeline_capacity_constraint", "title": "Pipeline Capacity Constraint"},
+        scenario={"id": "europe_route_capacity_constraint", "title": "Europe Route Capacity Constraint"},
         attempt_history=[{"baseline_score": 62, "mistake_tags": ["ignores_capacity"]}],
     )
     text = str(messages)
     assert "3 to 5" in text
-    assert "pipeline_capacity_constraint" in text
+    assert "europe_route_capacity_constraint" in text
 
 
 def test_function_tools_have_required_shape() -> None:
@@ -78,7 +78,7 @@ def test_settings_from_env_parses_booleans(monkeypatch: pytest.MonkeyPatch) -> N
 def test_unconfigured_complete_raises() -> None:
     client = HainengClient(HainengSettings())
 
-    with pytest.raises(RuntimeError, match="海能 is not configured."):
+    with pytest.raises(RuntimeError, match="Haineng is not configured."):
         client.complete([{"role": "user", "content": "hello"}])
 
 
@@ -101,13 +101,13 @@ def test_prompt_scrubbing_redacts_settings_objects() -> None:
 
     advisor_messages = build_advisor_messages(
         locale="en",
-        scenario={"id": "producer_short_hedge", "settings": settings},
+        scenario={"id": "europe_ttf_nbp_spread", "settings": settings},
         evaluation={"baseline_score": 90},
         user_rationale="I pasted token=secret-key into the rationale.",
     )
     exam_messages = build_exam_messages(
         locale="en",
-        scenario={"id": "pipeline_capacity_constraint"},
+        scenario={"id": "europe_route_capacity_constraint"},
         attempt_history=[{"settings": settings}],
     )
 

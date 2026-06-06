@@ -353,7 +353,7 @@ class HainengClient:
         tools: list[dict[str, Any]] | None = None,
     ) -> str:
         if not self.is_configured():
-            raise RuntimeError("海能 is not configured.")
+            raise RuntimeError("Haineng is not configured.")
 
         from openai import OpenAI
 
@@ -370,5 +370,5 @@ class HainengClient:
         response = client.chat.completions.create(**payload)
         message = response.choices[0].message
         if getattr(message, "tool_calls", None):
-            raise RuntimeError("海能 requested a tool call, but tool execution is not enabled.")
+            raise RuntimeError("Haineng requested a tool call, but tool execution is not enabled.")
         return message.content or ""

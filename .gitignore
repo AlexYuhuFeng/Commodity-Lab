@@ -12,6 +12,15 @@ build/
 *.egg-info/
 *.sqlite
 commodity_lab.duckdb
+node_modules/
+tauri/node_modules/
+tauri/tauri-frontend/node_modules/
+tauri/src-tauri/target/
+tauri/tauri-frontend/dist/
+*.msi
+*.exe
+*.zip
+*.7z
 # Local diagnostics/temp outputs
 py_files_list.txt
 py_compile_output.txt

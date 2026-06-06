@@ -63,6 +63,7 @@ Invoke-Step "Build backend executable" "python" @(
     "--noconfirm",
     "--clean",
     "--onefile",
+    "--noconsole",
     "--name", "commodity_lab_backend",
     "--paths", $RepoRoot,
     "--collect-submodules", "core",

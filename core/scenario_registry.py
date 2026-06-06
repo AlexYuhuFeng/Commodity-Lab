@@ -137,6 +137,43 @@ EUROPE_GAS_SCENARIOS: tuple[TrainingScenario, ...] = (
         tags=("europe_gas", "storage", "calendar_spread", "seasonality"),
         metadata={"region_label": {"en": "Europe", "zh": "欧洲"}, "default_symbol": "NG=F", "v1_focus": True},
     ),
+    TrainingScenario(
+        scenario_id="europe_route_capacity_constraint",
+        commodity="natural_gas",
+        status="enabled",
+        region="europe",
+        title=LocalizedText("Europe Route Capacity Constraint", "欧洲路径运力约束"),
+        summary=LocalizedText(
+            "A shipper manages delivery-location basis when cross-border capacity tightens.",
+            "托运人在跨境运力趋紧时管理交付地点基差风险。",
+        ),
+        difficulty="intermediate",
+        primary_asset_id="europe_route_capacity_proxy",
+        exposure={
+            "direction": "short",
+            "volume_mmbtu": 60000,
+            "risk": {
+                "en": "Delivered European gas obligation exposed to route capacity, nominations, and hub basis.",
+                "zh": "欧洲天然气交付义务面临路径运力、提名量和枢纽基差风险。",
+            },
+        },
+        recommended_tool="basis_hedge",
+        recommended_side="sell",
+        learning_objectives={
+            "en": [
+                "Interpret capacity and nomination data before hedging.",
+                "Connect route constraints to delivered basis risk.",
+                "Build a pre-trade checklist covering capacity, credit, liquidity, and limits.",
+            ],
+            "zh": [
+                "在套保前解读运力和提名量数据。",
+                "将路径约束与交付基差风险联系起来。",
+                "建立覆盖运力、信用、流动性和限额的交易前检查清单。",
+            ],
+        },
+        tags=("europe_gas", "capacity", "route", "basis", "operations", "controls"),
+        metadata={"region_label": {"en": "Europe", "zh": "欧洲"}, "default_symbol": "NG=F", "v1_focus": True},
+    ),
 )
 
 NORTH_AMERICA_GAS_PLACEHOLDERS: tuple[TrainingScenario, ...] = (

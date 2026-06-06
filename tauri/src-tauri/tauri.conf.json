@@ -25,7 +25,9 @@
     "bundle": {
       "active": true,
       "identifier": "com.alexyuhufeng.commoditylab",
-      "icon": [],
+      "icon": [
+        "icons/icon.ico"
+      ],
       "resources": [
         "../bundled/backend/*"
       ]

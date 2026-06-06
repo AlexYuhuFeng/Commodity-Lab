@@ -6,7 +6,9 @@
   "tauri": {
     "bundle": {
       "identifier": "com.alexyuhufeng.commoditylab",
-      "icon": [],
+      "icon": [
+        "src-tauri/icons/icon.ico"
+      ],
       "resources": [
         "bundled/backend/*"
       ]

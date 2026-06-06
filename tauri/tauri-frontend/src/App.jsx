@@ -465,7 +465,44 @@ function GuidedStepper({ locale, evaluation, aiReady }) {
   );
 }
 
-function AdvisorRail({ aiReady, advisorFeedback, busy, error, evaluation, exam, generateExam, locale, requestAdvisorReview }) {
+function LearningJourneyPanel({ journey, locale }) {
+  const recommendations = journey?.recommendations ?? [];
+  const attemptCount = journey?.profile?.attempt_count ?? 0;
+
+  return (
+    <section className="journey-panel">
+      <div className="panel-title compact-title">
+        <span>{t("learningRecommendations", locale)}</span>
+        <strong>{t("journeyReady", locale)}</strong>
+      </div>
+      <div className="journey-summary">
+        <span>
+          {t("attemptCount", locale)}
+          <strong>{formatNumber(attemptCount)}</strong>
+        </span>
+        <span>
+          {t("skillFocus", locale)}
+          <strong>{recommendations[0]?.skill_id ?? "--"}</strong>
+        </span>
+      </div>
+      <div className="recommendation-list">
+        {recommendations.length ? (
+          recommendations.map((item) => (
+            <article key={`${item.scenario_id}-${item.skill_id}`}>
+              <span>{item.ai_capability}</span>
+              <strong>{item.title}</strong>
+              <p>{item.reason}</p>
+            </article>
+          ))
+        ) : (
+          <p className="empty-state">{t("noRecommendations", locale)}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function AdvisorRail({ aiReady, advisorFeedback, busy, error, evaluation, exam, generateExam, journey, locale, requestAdvisorReview }) {
   return (
     <aside className={aiReady ? "panel advisor-rail online" : "panel advisor-rail"}>
       <div className="panel-title">
@@ -473,6 +510,7 @@ function AdvisorRail({ aiReady, advisorFeedback, busy, error, evaluation, exam, 
         <strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong>
       </div>
       <GuidedStepper aiReady={aiReady} evaluation={evaluation} locale={locale} />
+      <LearningJourneyPanel journey={journey} locale={locale} />
       <div className="advisor-actions">
         <button disabled={busy || !evaluation || !aiReady} onClick={() => requestAdvisorReview()} type="button">
           {t("askHint", locale)}
@@ -500,12 +538,13 @@ function AdvisorRail({ aiReady, advisorFeedback, busy, error, evaluation, exam, 
 }
 
 export default function App() {
-  const [locale, setLocaleState] = useState(() => normalizeLocale(savedValue("commodity-lab-locale", "en")));
+  const [locale, setLocaleState] = useState(() => normalizeLocale(savedValue("commodity-lab-locale", "zh")));
   const [providerStatus, setProviderStatus] = useState(null);
   const [categories, setCategories] = useState([]);
   const [scenarios, setScenarios] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [context, setContext] = useState(null);
+  const [journey, setJourney] = useState(null);
   const [source, setSource] = useState("yfinance");
   const [order, setOrder] = useState(defaultOrder);
   const [rationale, setRationale] = useState("Manage the energy exposure with a hedge that matches the risk driver, timing, and volume.");
@@ -521,6 +560,10 @@ export default function App() {
     localStorage.setItem("commodity-lab-locale", nextLocale);
     setLocaleState(nextLocale);
   }
+
+  useEffect(() => {
+    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+  }, [locale]);
 
   useEffect(() => {
     let active = true;
@@ -549,6 +592,20 @@ export default function App() {
         setSelectedId((current) => (nextScenarios.some((scenario) => scenario.id === current) ? current : nextScenarios[0]?.id ?? ""));
       })
       .catch((error) => setServiceMessage(error.message));
+    return () => {
+      active = false;
+    };
+  }, [locale]);
+
+  useEffect(() => {
+    let active = true;
+    backendRequest("GET", `/api/v1/learning-journey?locale=${locale}`)
+      .then((payload) => {
+        if (active) setJourney(payload);
+      })
+      .catch(() => {
+        if (active) setJourney(null);
+      });
     return () => {
       active = false;
     };
@@ -622,6 +679,9 @@ export default function App() {
         rationale
       });
       setEvaluation(payload.evaluation);
+      if (payload.journey) {
+        setJourney(payload.journey);
+      }
       if (payload.evaluation?.valid && aiReady) {
         await requestAdvisorReview(payload.evaluation);
       }
@@ -708,6 +768,7 @@ export default function App() {
             evaluation={evaluation}
             exam={exam}
             generateExam={generateExam}
+            journey={journey}
             locale={locale}
             requestAdvisorReview={requestAdvisorReview}
           />
