@@ -219,4 +219,29 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("1. What is the exposure?")).toBeInTheDocument();
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/exam/generate")).toBe(true));
   });
+
+  it("runs expanded AI training actions with current scenario context", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    window.__COMMODITY_LAB_BACKEND__ = async (method, path, body) => {
+      calls.push({ method, path, body });
+      if (path === "/api/v1/provider-status") {
+        return { haineng: { ok: true, configured: true }, data_sources: [] };
+      }
+      if (path.startsWith("/api/v1/scenarios?")) return scenarioPayload;
+      if (path.startsWith("/api/v1/learning-journey?")) return journeyPayload;
+      if (path.includes("/context")) return contextPayload;
+      if (path === "/api/v1/ai/generate") return { answer: "Playbook: check capacity, basis, liquidity, and limits." };
+      return {};
+    };
+
+    render(<App />);
+    await screen.findByText("Zeebrugge Receipt");
+    fireEvent.click(await screen.findByText("Trade playbook"));
+
+    expect(await screen.findByText("Playbook: check capacity, basis, liquidity, and limits.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(calls.some((call) => call.path === "/api/v1/ai/generate" && call.body?.capability === "trade_playbook")).toBe(true)
+    );
+  });
 });

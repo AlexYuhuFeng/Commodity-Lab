@@ -713,21 +713,31 @@ textarea:focus {
     rgba(15, 23, 42, 0.78);
 }
 
-.advisor-actions {
+.ai-action-panel {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #303739;
+  padding-top: 12px;
+}
+
+.ai-action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.advisor-actions button {
-  min-height: 38px;
+.ai-action-grid button {
+  min-height: 42px;
   border: 1px solid #3b4546;
   border-radius: 8px;
   color: #eef2f0;
   background: #0b1117;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
 }
 
-.advisor-rail.online .advisor-actions button:not(:disabled) {
+.advisor-rail.online .ai-action-grid button:not(:disabled) {
   border-color: rgba(45, 212, 191, 0.55);
   background: rgba(8, 47, 73, 0.42);
 }

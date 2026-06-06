@@ -49,6 +49,7 @@ def test_exam_messages_request_three_to_five_questions() -> None:
     )
     text = str(messages)
     assert "3 to 5" in text
+    assert "Haineng" in text
     assert "europe_route_capacity_constraint" in text
 
 
