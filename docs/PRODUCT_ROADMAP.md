@@ -33,12 +33,12 @@ Primary scope:
 
 Required V1 experience:
 
-- User can open app without 海能 key.
+- User can open app without Haineng key.
 - User sees Base Mode immediately.
 - User can run a guided Europe gas scenario.
 - User can submit a decision and receive deterministic scoring.
 - User can see learner profile and next recommended training.
-- User can connect 海能 and see a visibly richer AI Full Power Mode.
+- User can connect Haineng and see a visibly richer AI Full Power Mode.
 
 Exit criteria:
 

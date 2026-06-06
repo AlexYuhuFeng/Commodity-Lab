@@ -115,7 +115,7 @@ Supported capabilities:
 | `advisor_review` | Review a submitted decision against deterministic scoring. |
 | `exam` | Generate adaptive assessment questions. |
 
-海能 is required for AI Full Power Mode, but the product must not block initial entry when 海能 is not configured. Base Mode should still provide market context, scenarios, decision ticket, deterministic scoring, and basic journey structure.
+Haineng is required for AI Full Power Mode, but the product must not block initial entry when Haineng is not configured. Base Mode should still provide market context, scenarios, decision ticket, deterministic scoring, and basic journey structure.
 
 ## Learning Layer
 
@@ -173,7 +173,7 @@ Welcome
   -> choose track: Europe Natural Gas
   -> see Base Mode capabilities
   -> start first guided scenario
-  -> connect 海能 to unlock AI Full Power Mode
+  -> connect Haineng to unlock AI Full Power Mode
 ```
 
 Roles to support:
@@ -204,8 +204,8 @@ Commodity Lab should not be called commercially ready until the following are tr
 - CI passes for Python, frontend, and Tauri packaging.
 - Windows artifact is generated and downloadable.
 - First-run UX is understandable without developer explanation.
-- Base Mode works without 海能.
-- AI Full Power Mode clearly changes the experience after 海能 connection.
+- Base Mode works without Haineng.
+- AI Full Power Mode clearly changes the experience after Haineng connection.
 - Each AI capability has mocked tests with realistic European gas use cases.
 - Data source priority and fallback status are visible and correct.
 - Scenario Registry and Learning Journey are covered by tests.

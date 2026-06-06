@@ -49,7 +49,7 @@ def test_scenarios_endpoint_returns_natural_gas_only() -> None:
     assert payload["categories"][0]["id"] == "natural_gas"
     assert payload["scenarios"]
     assert {scenario["commodity"] for scenario in payload["scenarios"]} == {"natural_gas"}
-    assert {scenario["region"] for scenario in payload["scenarios"]} >= {"europe", "north_america"}
+    assert {scenario["region"] for scenario in payload["scenarios"]} == {"europe"}
 
 
 def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monkeypatch) -> None:
@@ -69,13 +69,13 @@ def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monk
 
 def test_context_endpoint_returns_market_and_capacity() -> None:
     response = client.get(
-        "/api/v1/scenarios/pipeline_capacity_constraint/context",
+        "/api/v1/scenarios/europe_route_capacity_constraint/context",
         params={"locale": "en", "source": "sample"},
     )
     assert response.status_code == 200
     payload = response.json()
-    assert payload["scenario"]["id"] == "pipeline_capacity_constraint"
-    assert payload["market"]["scenario_id"] == "pipeline_capacity_constraint"
+    assert payload["scenario"]["id"] == "europe_route_capacity_constraint"
+    assert payload["market"]["scenario_id"] == "europe_route_capacity_constraint"
     assert payload["market"]["data_source"] == "simulated"
     assert payload["market"]["symbol"] == "NG=F"
     assert payload["capacity"]["congestion_status"] == "constrained"
@@ -94,7 +94,7 @@ def test_context_endpoint_uses_yahoo_finance_when_available(monkeypatch) -> None
 
     monkeypatch.setattr("core.yf_prices.fetch_history_daily", fake_fetch_history_daily)
     response = client.get(
-        "/api/v1/scenarios/winter_load_spike/context",
+        "/api/v1/scenarios/europe_route_capacity_constraint/context",
         params={"locale": "en", "source": "Yahoo Finance"},
     )
     assert response.status_code == 200
@@ -108,7 +108,7 @@ def test_context_endpoint_uses_yahoo_finance_when_available(monkeypatch) -> None
 def test_context_endpoint_falls_back_when_yahoo_finance_is_empty(monkeypatch) -> None:
     monkeypatch.setattr("core.yf_prices.fetch_history_daily", lambda *args, **kwargs: pd.DataFrame())
     response = client.get(
-        "/api/v1/scenarios/winter_load_spike/context",
+        "/api/v1/scenarios/europe_route_capacity_constraint/context",
         params={"locale": "en", "source": "yfinance"},
     )
     assert response.status_code == 200
@@ -122,10 +122,10 @@ def test_evaluate_endpoint_returns_deterministic_result() -> None:
     response = client.post(
         "/api/v1/attempts/evaluate",
         json={
-            "scenario_id": "producer_short_hedge",
+            "scenario_id": "europe_route_capacity_constraint",
             "locale": "en",
-            "order": {"side": "sell", "quantity": 80000, "hedge_type": "short_hedge"},
-            "rationale": "Sell futures to protect production revenue if prices fall.",
+            "order": {"side": "sell", "quantity": 60000, "hedge_type": "basis_hedge"},
+            "rationale": "Sell a basis hedge to protect delivered European gas margin when capacity is tight.",
         },
     )
     assert response.status_code == 200
@@ -142,7 +142,7 @@ def test_ai_generate_requires_haineng_when_missing(monkeypatch) -> None:
         json={"capability": "case_generation", "scenario_id": "europe_ttf_nbp_spread", "locale": "en"},
     )
     assert response.status_code == 428
-    assert "海能 is required" in response.json()["detail"]
+    assert "Haineng is required" in response.json()["detail"]
 
 
 def test_legacy_advisor_and_exam_require_haineng_when_missing(monkeypatch) -> None:
@@ -150,16 +150,16 @@ def test_legacy_advisor_and_exam_require_haineng_when_missing(monkeypatch) -> No
     advisor_response = client.post(
         "/api/v1/advisor/review",
         json={
-            "scenario_id": "producer_short_hedge",
+            "scenario_id": "europe_ttf_nbp_spread",
             "locale": "en",
-            "order": {"side": "sell", "quantity": 80000, "hedge_type": "short_hedge"},
-            "rationale": "Sell futures to hedge production.",
+            "order": {"side": "sell", "quantity": 70000, "hedge_type": "basis_hedge"},
+            "rationale": "Sell a basis hedge to manage TTF/NBP spread risk.",
             "evaluation": {"valid": True, "baseline_score": 95},
         },
     )
     exam_response = client.post(
         "/api/v1/exam/generate",
-        json={"scenario_id": "producer_short_hedge", "locale": "en", "attempt_history": [{"baseline_score": 95}]},
+        json={"scenario_id": "europe_ttf_nbp_spread", "locale": "en", "attempt_history": [{"baseline_score": 95}]},
     )
     assert advisor_response.status_code == 428
     assert exam_response.status_code == 428
@@ -224,16 +224,16 @@ def test_legacy_advisor_and_exam_return_haineng_answers_when_configured(monkeypa
     advisor_response = client.post(
         "/api/v1/advisor/review",
         json={
-            "scenario_id": "producer_short_hedge",
+            "scenario_id": "europe_ttf_nbp_spread",
             "locale": "en",
-            "order": {"side": "sell", "quantity": 80000, "hedge_type": "short_hedge"},
-            "rationale": "Sell futures to hedge production.",
+            "order": {"side": "sell", "quantity": 70000, "hedge_type": "basis_hedge"},
+            "rationale": "Sell a basis hedge to manage TTF/NBP spread risk.",
             "evaluation": {"valid": True, "baseline_score": 95},
         },
     )
     exam_response = client.post(
         "/api/v1/exam/generate",
-        json={"scenario_id": "producer_short_hedge", "locale": "en", "attempt_history": [{"baseline_score": 95}]},
+        json={"scenario_id": "europe_ttf_nbp_spread", "locale": "en", "attempt_history": [{"baseline_score": 95}]},
     )
     assert advisor_response.status_code == 200
     assert advisor_response.json()["answer"] == "provider answer"

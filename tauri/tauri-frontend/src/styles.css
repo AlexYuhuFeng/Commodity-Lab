@@ -639,6 +639,73 @@ textarea:focus {
   color: #f6faf7;
 }
 
+.journey-panel {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #303739;
+  padding-top: 12px;
+}
+
+.compact-title {
+  margin-bottom: 0;
+}
+
+.journey-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.journey-summary span {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #293647;
+  border-radius: 8px;
+  padding: 9px;
+  color: #9faaa7;
+  background: rgba(2, 6, 23, 0.34);
+  font-size: 11px;
+}
+
+.journey-summary strong {
+  overflow-wrap: anywhere;
+  color: #f6faf7;
+  font-size: 13px;
+}
+
+.recommendation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.recommendation-list article {
+  display: grid;
+  gap: 5px;
+  border-left: 3px solid #67e8f9;
+  padding: 8px 10px;
+  background: rgba(14, 116, 144, 0.1);
+}
+
+.recommendation-list article span {
+  color: #67e8f9;
+  font-size: 11px;
+  font-weight: 780;
+  text-transform: uppercase;
+}
+
+.recommendation-list article strong {
+  color: #f8fafc;
+  font-size: 13px;
+}
+
+.recommendation-list article p,
+.empty-state {
+  margin: 0;
+  color: #aeb9b6;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .advisor-rail.online {
   border-color: rgba(45, 212, 191, 0.58);
   background:
@@ -755,6 +822,7 @@ textarea:focus {
   .workspace-grid,
   .metric-strip,
   .exposure-grid,
+  .journey-summary,
   .ticket-grid,
   .flow-line {
     grid-template-columns: 1fr;

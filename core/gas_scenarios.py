@@ -12,8 +12,8 @@ _CATEGORY_DATA: list[dict[str, Any]] = [
         "status": "enabled",
         "label": {"en": "Natural Gas", "zh": "天然气"},
         "description": {
-            "en": "Enabled V1 training scenarios for European and North American gas hedging.",
-            "zh": "V1 已启用模块，聚焦欧洲和北美天然气套保训练。",
+            "en": "Enabled V1 training scenarios focused on European natural gas.",
+            "zh": "V1 已启用模块，聚焦欧洲天然气训练。",
         },
     },
     {
@@ -41,6 +41,15 @@ _CATEGORY_DATA: list[dict[str, Any]] = [
         "description": {
             "en": "Carbon market workflows are visible but not enabled in V1.",
             "zh": "碳市场工作流仅作为后续方向展示，V1 暂未启用。",
+        },
+    },
+    {
+        "id": "power",
+        "status": "constructing",
+        "label": {"en": "Power", "zh": "电力"},
+        "description": {
+            "en": "Power workflows are visible but not enabled in V1.",
+            "zh": "电力工作流仅作为后续方向展示，V1 暂未启用。",
         },
     },
 ]
@@ -128,13 +137,51 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         },
     },
     {
-        "id": "producer_short_hedge",
+        "id": "europe_route_capacity_constraint",
         "status": "enabled",
+        "commodity_id": "natural_gas",
+        "commodity": "natural_gas",
+        "region": "europe",
+        "region_label": {"en": "Europe", "zh": "欧洲"},
+        "enabled": True,
+        "difficulty": "intermediate",
+        "exposure": {
+            "direction": "short",
+            "volume_mmbtu": 60000,
+            "risk": {
+                "en": "A delivered European gas obligation is exposed to route capacity, nominations, and widening hub basis.",
+                "zh": "欧洲天然气交付义务面临路径运力、提名量和枢纽基差扩大的风险。",
+            },
+        },
+        "recommended_hedge_type": "basis_hedge",
+        "recommended_side": "sell",
+        "default_symbol": "NG=F",
+        "title": {"en": "Europe Route Capacity Constraint", "zh": "欧洲路径运力约束"},
+        "summary": {
+            "en": "A shipper manages delivery-location basis when cross-border capacity tightens.",
+            "zh": "托运人在跨境运力趋紧时管理交付地点基差风险。",
+        },
+        "learning_objectives": {
+            "en": [
+                "Interpret available capacity, nominations, and utilization before hedging.",
+                "Recognize how tight transport can widen European hub basis.",
+                "Choose a hedge that covers both price and delivery-location risk.",
+            ],
+            "zh": [
+                "在套保前解读可用运力、提名量和利用率。",
+                "识别管输紧张如何扩大欧洲枢纽基差。",
+                "选择同时覆盖价格和交付地点风险的套保方案。",
+            ],
+        },
+    },
+    {
+        "id": "producer_short_hedge",
+        "status": "constructing",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
         "region": "north_america",
         "region_label": {"en": "North America", "zh": "北美"},
-        "enabled": True,
+        "enabled": False,
         "difficulty": "intro",
         "exposure": {
             "direction": "long",
@@ -167,12 +214,12 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
     },
     {
         "id": "winter_load_spike",
-        "status": "enabled",
+        "status": "constructing",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
         "region": "north_america",
         "region_label": {"en": "North America", "zh": "北美"},
-        "enabled": True,
+        "enabled": False,
         "difficulty": "intro",
         "exposure": {
             "direction": "short",
@@ -205,12 +252,12 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
     },
     {
         "id": "pipeline_capacity_constraint",
-        "status": "enabled",
+        "status": "constructing",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
         "region": "north_america",
         "region_label": {"en": "North America", "zh": "北美"},
-        "enabled": True,
+        "enabled": False,
         "difficulty": "intermediate",
         "exposure": {
             "direction": "short",
@@ -243,12 +290,12 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
     },
     {
         "id": "regional_basis_blowout",
-        "status": "enabled",
+        "status": "constructing",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
         "region": "north_america",
         "region_label": {"en": "North America", "zh": "北美"},
-        "enabled": True,
+        "enabled": False,
         "difficulty": "intermediate",
         "exposure": {
             "direction": "long",
@@ -280,7 +327,7 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         },
     },
     {
-        "id": "storage_calendar_spread",
+        "id": "europe_storage_calendar_spread",
         "status": "enabled",
         "commodity_id": "natural_gas",
         "commodity": "natural_gas",
@@ -336,6 +383,14 @@ _SAMPLE_PRICE_POINTS: dict[str, list[dict[str, Any]]] = {
         {"date": "2026-01-09", "close": 3.25},
         {"date": "2026-01-12", "close": 3.18},
     ],
+    "europe_route_capacity_constraint": [
+        {"date": "2026-02-02", "close": 2.88},
+        {"date": "2026-02-03", "close": 2.93},
+        {"date": "2026-02-04", "close": 2.97},
+        {"date": "2026-02-05", "close": 3.05},
+        {"date": "2026-02-06", "close": 3.11},
+        {"date": "2026-02-09", "close": 3.16},
+    ],
     "winter_load_spike": [
         {"date": "2026-01-05", "close": 3.14},
         {"date": "2026-01-06", "close": 3.21},
@@ -361,7 +416,7 @@ _SAMPLE_PRICE_POINTS: dict[str, list[dict[str, Any]]] = {
         {"date": "2026-03-06", "close": 2.48},
         {"date": "2026-03-09", "close": 2.44},
     ],
-    "storage_calendar_spread": [
+    "europe_storage_calendar_spread": [
         {"date": "2026-04-01", "close": 2.94},
         {"date": "2026-04-02", "close": 2.98},
         {"date": "2026-04-03", "close": 3.01},
@@ -411,6 +466,25 @@ _CAPACITY_CONTEXTS: dict[str, dict[str, Any]] = {
         "flow_edges": [
             {"from": "ttf", "to": "interconnector", "mmbtu": 70000},
             {"from": "interconnector", "to": "nbp", "mmbtu": 70000},
+        ],
+    },
+    "europe_route_capacity_constraint": {
+        "scenario_id": "europe_route_capacity_constraint",
+        "receipt_point": "Zeebrugge Receipt",
+        "delivery_point": "THE Delivery",
+        "pipeline_name": "Northwest Europe Cross-Border Route",
+        "available_capacity_mmbtu": 120000,
+        "nominated_mmbtu": 111000,
+        "utilization_pct": 92.5,
+        "congestion_status": "constrained",
+        "flow_nodes": [
+            {"id": "receipt", "label": "Zeebrugge Receipt", "role": "receipt"},
+            {"id": "constraint", "label": "Cross-border Capacity", "role": "constraint"},
+            {"id": "delivery", "label": "THE Delivery", "role": "delivery"},
+        ],
+        "flow_edges": [
+            {"from": "receipt", "to": "constraint", "mmbtu": 111000},
+            {"from": "constraint", "to": "delivery", "mmbtu": 111000},
         ],
     },
     "pipeline_capacity_constraint": {

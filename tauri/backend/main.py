@@ -5,6 +5,7 @@ import sys
 from typing import Any, List, Dict
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import pandas as pd
@@ -17,6 +18,16 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 app = FastAPI(title="Commodity Lab Backend")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "tauri://localhost",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 try:
     from core.learner_profile import LearnerProfile
@@ -98,6 +109,14 @@ def _backend_port() -> int:
     if not 1 <= port <= 65535:
         raise RuntimeError(f"COMMODITY_LAB_BACKEND_PORT out of range: {port}")
     return port
+
+
+def _ensure_stdio_for_windowed_runtime() -> None:
+    """PyInstaller windowed apps can start with missing stdio handles on Windows."""
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
 
 
 def _apply_profile_update(evaluation: dict[str, Any]) -> dict[str, Any] | None:
@@ -248,7 +267,7 @@ def _haineng_failure(exc: Exception) -> HTTPException:
     )
     return HTTPException(
         status_code=502,
-        detail={"code": "haineng_request_failed", "message": "海能 request failed.", "provider_message": message},
+        detail={"code": "haineng_request_failed", "message": "Haineng request failed.", "provider_message": message},
     )
 
 
@@ -257,7 +276,7 @@ def _require_haineng_client():
 
     client = HainengClient()
     if not client.is_configured():
-        raise HTTPException(status_code=428, detail="海能 is required for AI Full Power Mode.")
+        raise HTTPException(status_code=428, detail="Haineng is required for AI Full Power Mode.")
     return client
 
 
@@ -298,7 +317,7 @@ def v1_provider_settings(payload: HainengProviderSettingsRequest):
     from core.haineng_client import HainengClient, HainengSettings, set_runtime_settings
 
     if not payload.api_key.strip() or not payload.base_url.strip():
-        raise HTTPException(status_code=400, detail="海能 API key and base URL are required.")
+        raise HTTPException(status_code=400, detail="Haineng API key and base URL are required.")
     set_runtime_settings(
         HainengSettings(
             api_key=payload.api_key.strip(),
@@ -426,4 +445,5 @@ def v1_generate_exam(payload: ExamRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host=_backend_host(), port=_backend_port())
+    _ensure_stdio_for_windowed_runtime()
+    uvicorn.run(app, host=_backend_host(), port=_backend_port(), log_config=None)
