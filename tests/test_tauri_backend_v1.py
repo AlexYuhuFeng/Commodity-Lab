@@ -241,6 +241,28 @@ def test_legacy_advisor_and_exam_return_haineng_answers_when_configured(monkeypa
     assert exam_response.json()["exam"] == "provider answer"
 
 
+def test_legacy_assistant_uses_haineng_contract(monkeypatch) -> None:
+    _clear_haineng_env(monkeypatch)
+    missing = client.post("/api/assistant", json={"question": "How should I hedge TTF/NBP basis?"})
+    assert missing.status_code == 428
+
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def complete(self, messages, tools=None):
+            text = "\n".join(message["content"] for message in messages)
+            assert "TTF/NBP" in text
+            assert "Haineng" in text
+            return "legacy provider answer"
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post("/api/assistant", json={"question": "How should I hedge TTF/NBP basis?"})
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "legacy provider answer"
+
+
 def test_haineng_provider_failure_returns_structured_502(monkeypatch) -> None:
     class FailingClient:
         def is_configured(self) -> bool:

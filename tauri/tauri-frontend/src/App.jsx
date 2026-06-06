@@ -24,6 +24,16 @@ const aiCapabilityKeys = [
   "aiExaminer"
 ];
 
+const aiActionButtons = [
+  { capability: "advisor_review", labelKey: "askHint", requiresEvaluation: true },
+  { capability: "socratic_coach", labelKey: "socraticCoach" },
+  { capability: "case_generation", labelKey: "generateCase" },
+  { capability: "event_drill", labelKey: "eventDrill" },
+  { capability: "concept_tutor", labelKey: "conceptTutor" },
+  { capability: "trade_playbook", labelKey: "tradePlaybook" },
+  { capability: "exam", labelKey: "generateExam" }
+];
+
 function savedValue(key, fallback = "") {
   if (typeof localStorage === "undefined") return fallback;
   return localStorage.getItem(key) ?? fallback;
@@ -502,7 +512,7 @@ function LearningJourneyPanel({ journey, locale }) {
   );
 }
 
-function AdvisorRail({ aiReady, advisorFeedback, busy, error, evaluation, exam, generateExam, journey, locale, requestAdvisorReview }) {
+function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, evaluation, exam, journey, locale, runAiAction }) {
   return (
     <aside className={aiReady ? "panel advisor-rail online" : "panel advisor-rail"}>
       <div className="panel-title">
@@ -511,13 +521,23 @@ function AdvisorRail({ aiReady, advisorFeedback, busy, error, evaluation, exam, 
       </div>
       <GuidedStepper aiReady={aiReady} evaluation={evaluation} locale={locale} />
       <LearningJourneyPanel journey={journey} locale={locale} />
-      <div className="advisor-actions">
-        <button disabled={busy || !evaluation || !aiReady} onClick={() => requestAdvisorReview()} type="button">
-          {t("askHint", locale)}
-        </button>
-        <button disabled={busy || !aiReady} onClick={generateExam} type="button">
-          {t("generateExam", locale)}
-        </button>
+      <div className="ai-action-panel">
+        <div className="panel-title compact-title">
+          <span>{t("aiTrainingActions", locale)}</span>
+          <strong>{aiReady ? t("enabled", locale) : t("connectToEnable", locale)}</strong>
+        </div>
+        <div className="ai-action-grid">
+          {aiActionButtons.map((action) => (
+            <button
+              disabled={Boolean(busyAction) || !aiReady || (action.requiresEvaluation && !evaluation)}
+              key={action.capability}
+              onClick={() => runAiAction(action.capability)}
+              type="button"
+            >
+              {busyAction === action.capability ? t("loading", locale) : t(action.labelKey, locale)}
+            </button>
+          ))}
+        </div>
       </div>
       {!aiReady ? <p className="service-error muted">{t("aiDisabledHint", locale)}</p> : null}
       {error ? <p className="service-error">{error}</p> : null}
@@ -531,6 +551,12 @@ function AdvisorRail({ aiReady, advisorFeedback, busy, error, evaluation, exam, 
         <section className="response-block">
           <h3>{t("examQuestions", locale)}</h3>
           <p>{exam}</p>
+        </section>
+      ) : null}
+      {aiOutput?.answer ? (
+        <section className="response-block">
+          <h3>{aiOutput.title}</h3>
+          <p>{aiOutput.answer}</p>
         </section>
       ) : null}
     </aside>
@@ -551,6 +577,7 @@ export default function App() {
   const [evaluation, setEvaluation] = useState(null);
   const [advisorFeedback, setAdvisorFeedback] = useState("");
   const [exam, setExam] = useState("");
+  const [aiOutput, setAiOutput] = useState(null);
   const [busyAction, setBusyAction] = useState("");
   const [serviceMessage, setServiceMessage] = useState("");
 
@@ -622,6 +649,7 @@ export default function App() {
         setEvaluation(null);
         setAdvisorFeedback("");
         setExam("");
+        setAiOutput(null);
       })
       .catch((error) => setServiceMessage(error.message));
     return () => {
@@ -649,7 +677,7 @@ export default function App() {
 
   async function requestAdvisorReview(nextEvaluation = evaluation) {
     if (!nextEvaluation || !selectedId || !aiReady) return;
-    setBusyAction("advisor");
+    setBusyAction("advisor_review");
     setServiceMessage("");
     try {
       const payload = await backendRequest("POST", "/api/v1/advisor/review", {
@@ -660,6 +688,7 @@ export default function App() {
         evaluation: nextEvaluation
       });
       setAdvisorFeedback(payload.answer);
+      setAiOutput(null);
     } catch (error) {
       setServiceMessage(error.message);
     } finally {
@@ -679,6 +708,7 @@ export default function App() {
         rationale
       });
       setEvaluation(payload.evaluation);
+      setAiOutput(null);
       if (payload.journey) {
         setJourney(payload.journey);
       }
@@ -703,6 +733,78 @@ export default function App() {
         attempt_history: evaluation ? [evaluation] : []
       });
       setExam(payload.exam);
+      setAiOutput(null);
+    } catch (error) {
+      setServiceMessage(error.message);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  function buildAiPayload(capability) {
+    const base = {
+      capability,
+      scenario_id: selectedId,
+      locale,
+      source,
+      order,
+      rationale,
+      evaluation: evaluation ?? {},
+      attempt_history: evaluation ? [evaluation] : [],
+      market_context: context
+    };
+
+    if (capability === "case_generation") {
+      return {
+        ...base,
+        learner_level: "intermediate",
+        user_request: "Generate a Europe natural gas hedging case using the current scenario as the seed."
+      };
+    }
+    if (capability === "event_drill") {
+      return {
+        ...base,
+        event_context: "Pipeline capacity changes, storage surprises, weather demand swings, or TTF/NBP spread dislocations."
+      };
+    }
+    if (capability === "concept_tutor") {
+      return {
+        ...base,
+        concept: "basis risk, route capacity constraints, storage optionality, and calendar spread hedging"
+      };
+    }
+    if (capability === "trade_playbook") {
+      return {
+        ...base,
+        commercial_goal: "Prepare a practical pre-trade hedge playbook for the current Europe gas exposure."
+      };
+    }
+    if (capability === "socratic_coach") {
+      return {
+        ...base,
+        learner_message: rationale || "Ask me diagnostic questions before I place the hedge."
+      };
+    }
+    return base;
+  }
+
+  async function runAiAction(capability) {
+    if (capability === "advisor_review") {
+      await requestAdvisorReview();
+      return;
+    }
+    if (capability === "exam") {
+      await generateExam();
+      return;
+    }
+    if (!selectedId || !aiReady) return;
+
+    setBusyAction(capability);
+    setServiceMessage("");
+    try {
+      const payload = await backendRequest("POST", "/api/v1/ai/generate", buildAiPayload(capability));
+      const titleKey = aiActionButtons.find((action) => action.capability === capability)?.labelKey ?? "aiCoach";
+      setAiOutput({ title: t(titleKey, locale), answer: payload.answer });
     } catch (error) {
       setServiceMessage(error.message);
     } finally {
@@ -748,8 +850,8 @@ export default function App() {
               <CapacityDiagram capacity={context?.capacity} locale={locale} />
               <ExposurePanel locale={locale} scenario={selectedScenario} />
               <TrainingGuide locale={locale} scenario={selectedScenario} />
-              <OrderTicket
-                busy={busyAction === "evaluate" || busyAction === "advisor"}
+                <OrderTicket
+                busy={busyAction === "evaluate" || busyAction === "advisor_review"}
                 locale={locale}
                 onSubmit={submitOrder}
                 order={order}
@@ -761,16 +863,16 @@ export default function App() {
             </div>
           </section>
           <AdvisorRail
+            aiOutput={aiOutput}
             aiReady={aiReady}
             advisorFeedback={advisorFeedback}
-            busy={Boolean(busyAction)}
+            busyAction={busyAction}
             error={serviceMessage && busyAction !== "provider" ? serviceMessage : ""}
             evaluation={evaluation}
             exam={exam}
-            generateExam={generateExam}
             journey={journey}
             locale={locale}
-            requestAdvisorReview={requestAdvisorReview}
+            runAiAction={runAiAction}
           />
         </div>
       </div>

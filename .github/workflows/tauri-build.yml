@@ -10,7 +10,7 @@ permissions:
 
 env:
   PYTHON_VERSION: '3.12'
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   APP_NAME: 'Commodity-Lab'
   ARTIFACT_NAME: 'commodity-lab-windows'
 
@@ -134,7 +134,7 @@ jobs:
           cat > "$NOTES_FILE" <<'EOF'
           Commodity Lab Windows release.
 
-          This build packages the AI-powered energy trading training terminal for Windows. It includes Base Mode market training and supports 海能-compatible AI Full Power Mode when users provide their own endpoint credentials.
+          This build packages the AI-powered energy trading training terminal for Windows. It includes Base Mode market training and supports Haineng-compatible AI Full Power Mode when users provide their own endpoint credentials.
           EOF
 
           mapfile -t files < <(find artifacts/windows -type f)

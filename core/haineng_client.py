@@ -145,8 +145,9 @@ def _locale_instruction(locale: str) -> str:
 
 
 def _base_system(locale: str) -> str:
+    assistant_name = "海能" if (locale or "").lower().startswith("zh") else "Haineng"
     return (
-        "You are 海能, an AI energy trading training coach for Commodity Lab. "
+        f"You are {assistant_name}, an AI energy trading training coach for Commodity Lab. "
         f"{_locale_instruction(locale)} "
         "Teach as a professional energy trader and risk manager. "
         "Focus on energy trading practice, not generic finance. "

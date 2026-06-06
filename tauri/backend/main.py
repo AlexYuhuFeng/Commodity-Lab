@@ -240,11 +240,41 @@ def assistant_query(payload: Dict):
     context = payload.get("context")
     history = payload.get("history")
     try:
-        from core.deepseek import ask_deepseek
-        answer = ask_deepseek(question, context=context, mode=mode, history=history)
+        from core.haineng_client import HainengClient
+
+        client = HainengClient()
+        if not client.is_configured():
+            raise HTTPException(status_code=428, detail="Haineng is required for AI mode.")
+        history_text = "\n".join(
+            f"Q: {entry.get('question', '')}\nA: {entry.get('answer', '')}"
+            for entry in (history or [])[-5:]
+            if isinstance(entry, dict)
+        )
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are Haineng, an AI energy trading training coach for Commodity Lab. "
+                    "Provide practical hedge training guidance grounded in the supplied context. "
+                    "Do not request, reveal, or repeat credentials."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Mode: {mode}\n"
+                    f"Question: {question}\n"
+                    f"Context: {context or 'No additional context provided.'}\n"
+                    f"Recent exchange:\n{history_text or 'None'}"
+                ),
+            },
+        ]
+        answer = client.complete(messages)
         return {"answer": answer}
+    except HTTPException:
+        raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise _haineng_failure(exc) from exc
 
 
 def _platts_is_configured() -> bool:
