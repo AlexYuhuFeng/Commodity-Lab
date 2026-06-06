@@ -49,7 +49,10 @@ const contextPayload = {
     latest_price: 3.52,
     price_series: [
       { date: "2026-01-02", close: 3.08 },
-      { date: "2026-01-03", close: 3.14 }
+      { date: "2026-01-03", close: 3.14 },
+      { date: "2026-01-04", close: 3.31 },
+      { date: "2026-01-05", close: 3.22 },
+      { date: "2026-01-06", close: 3.52 }
     ],
     metadata: { requested_source_label: "Simulated", returned_source_label: "Simulated" }
   },
@@ -80,6 +83,52 @@ const journeyPayload = {
   ]
 };
 
+function mockBackend({ aiReady = true, onCall } = {}) {
+  window.__COMMODITY_LAB_BACKEND__ = async (method, path, body) => {
+    onCall?.({ method, path, body });
+    if (path === "/api/v1/provider-status") {
+      return {
+        haineng: {
+          ok: aiReady,
+          configured: aiReady,
+          model: "V4-Flash",
+          resolved_model: "deepseek-v4-flash"
+        },
+        data_sources: [
+          { id: "platts", label: "Platts", configured: false },
+          { id: "yfinance", label: "Yahoo Finance", configured: true },
+          { id: "simulated", label: "Simulated", configured: true }
+        ]
+      };
+    }
+    if (path.startsWith("/api/v1/scenarios?")) return scenarioPayload;
+    if (path.startsWith("/api/v1/learning-journey?")) return journeyPayload;
+    if (path.includes("/context")) return contextPayload;
+    if (path === "/api/v1/provider-settings") {
+      return {
+        haineng: { ok: true, configured: true, model: body.model, resolved_model: "deepseek-v4-flash" },
+        data_sources: []
+      };
+    }
+    if (path === "/api/v1/advisor/review") return { answer: "Good direction. Tighten hedge ratio." };
+    if (path === "/api/v1/exam/generate") return { exam: "1. What is the exposure?" };
+    if (path === "/api/v1/ai/generate") return { answer: "Playbook: check capacity, basis, liquidity, and limits." };
+    if (path === "/api/v1/attempts/evaluate") {
+      return {
+        evaluation: {
+          valid: true,
+          baseline_score: 88,
+          metrics: { hedge_ratio: 0.6, notional_usd: 210000 },
+          mistake_tags: ["under_hedged"],
+          score_inputs: { direction_match: true, hedge_type_match: true }
+        },
+        journey: journeyPayload
+      };
+    }
+    return {};
+  };
+}
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -97,48 +146,15 @@ describe("i18n catalog", () => {
 });
 
 describe("Commodity Lab shell", () => {
-  it("defaults to Mandarin and opens Base Mode without 海能", async () => {
-    window.__COMMODITY_LAB_BACKEND__ = async (method, path) => {
-      if (path === "/api/v1/provider-status") {
-        return {
-          haineng: { ok: false, configured: false },
-          data_sources: [
-            { id: "platts", label: "Platts", configured: false },
-            { id: "yfinance", label: "Yahoo Finance", configured: true },
-            { id: "simulated", label: "Simulated", configured: true }
-          ]
-        };
-      }
-      if (path.startsWith("/api/v1/scenarios?")) {
-        return {
-          categories: [{ id: "natural_gas", label: "天然气", status: "enabled" }],
-          scenarios: [
-            {
-              ...scenarioPayload.scenarios[0],
-              title: "欧洲路径运力约束",
-              summary: "托运人在跨境运力趋紧时管理交付地点基差风险。",
-              region_label: "欧洲"
-            }
-          ]
-        };
-      }
-      if (path.startsWith("/api/v1/learning-journey?")) return journeyPayload;
-      if (path.includes("/context")) return {
-        ...contextPayload,
-        scenario: {
-          ...contextPayload.scenario,
-          title: "欧洲路径运力约束",
-          summary: "托运人在跨境运力趋紧时管理交付地点基差风险。",
-          region_label: "欧洲"
-        }
-      };
-      return {};
-    };
+  it("defaults to readable Mandarin and keeps AI setup collapsed when connected", async () => {
+    mockBackend({ aiReady: true });
 
     render(<App />);
 
-    expect(await screen.findByText("基础模式")).toBeInTheDocument();
-    expect(await screen.findByText("连接海能")).toBeInTheDocument();
+    expect(await screen.findByText("AI 全功能")).toBeInTheDocument();
+    expect(await screen.findByText("AI 设置")).toBeInTheDocument();
+    expect(screen.getByText("中文")).toBeInTheDocument();
+    expect(screen.queryByText(/涓|鈥|娴疯兘/)).not.toBeInTheDocument();
     expect(screen.getAllByText("Platts").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Yahoo Finance").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Simulated").length).toBeGreaterThan(0);
@@ -146,15 +162,7 @@ describe("Commodity Lab shell", () => {
 
   it("renders constructing navigation for future categories", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
-    window.__COMMODITY_LAB_BACKEND__ = async (method, path) => {
-      if (path === "/api/v1/provider-status") {
-        return { haineng: { ok: true, configured: true }, data_sources: [] };
-      }
-      if (path.startsWith("/api/v1/scenarios?")) return scenarioPayload;
-      if (path.startsWith("/api/v1/learning-journey?")) return journeyPayload;
-      if (path.includes("/context")) return contextPayload;
-      return { evaluation: { valid: true, baseline_score: 80, metrics: {} } };
-    };
+    mockBackend({ aiReady: true });
 
     render(<App />);
 
@@ -163,28 +171,25 @@ describe("Commodity Lab shell", () => {
     expect(screen.getAllByText("Europe Route Capacity Constraint").length).toBeGreaterThan(0);
   });
 
+  it("saves provider settings with a Flash model dropdown", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    mockBackend({ aiReady: false, onCall: (call) => calls.push(call) });
+
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText("API key"), { target: { value: "local-secret" } });
+    fireEvent.change(screen.getByLabelText("Base URL"), { target: { value: "https://api.deepseek.com" } });
+    fireEvent.change(screen.getByLabelText("Model"), { target: { value: "V4-Flash" } });
+    fireEvent.click(screen.getByText("Unlock"));
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/provider-settings")).toBe(true));
+    expect(calls.find((call) => call.path === "/api/v1/provider-settings")?.body.model).toBe("V4-Flash");
+  });
+
   it("submits an order for deterministic scoring and advisor review", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     const calls = [];
-    window.__COMMODITY_LAB_BACKEND__ = async (method, path, body) => {
-      calls.push({ method, path, body });
-      if (path === "/api/v1/provider-status") {
-        return { haineng: { ok: true, configured: true }, data_sources: [] };
-      }
-      if (path.startsWith("/api/v1/scenarios?")) return scenarioPayload;
-      if (path.startsWith("/api/v1/learning-journey?")) return journeyPayload;
-      if (path.includes("/context")) return contextPayload;
-      if (path === "/api/v1/advisor/review") return { answer: "Good direction. Tighten hedge ratio." };
-      return {
-        evaluation: {
-          valid: true,
-          baseline_score: 88,
-          metrics: { hedge_ratio: 0.6, notional_usd: 210000 },
-          mistake_tags: ["under_hedged"],
-          score_inputs: { direction_match: true, hedge_type_match: true }
-        }
-      };
-    };
+    mockBackend({ aiReady: true, onCall: (call) => calls.push(call) });
 
     render(<App />);
     await screen.findByText("Zeebrugge Receipt");
@@ -199,17 +204,7 @@ describe("Commodity Lab shell", () => {
   it("requests exam generation through backend helper", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     const calls = [];
-    window.__COMMODITY_LAB_BACKEND__ = async (method, path, body) => {
-      calls.push({ method, path, body });
-      if (path === "/api/v1/provider-status") {
-        return { haineng: { ok: true, configured: true }, data_sources: [] };
-      }
-      if (path.startsWith("/api/v1/scenarios?")) return scenarioPayload;
-      if (path.startsWith("/api/v1/learning-journey?")) return journeyPayload;
-      if (path.includes("/context")) return contextPayload;
-      if (path === "/api/v1/exam/generate") return { exam: "1. What is the exposure?" };
-      return { evaluation: { valid: true, baseline_score: 80, metrics: {} } };
-    };
+    mockBackend({ aiReady: true, onCall: (call) => calls.push(call) });
 
     render(<App />);
     await screen.findByText("Zeebrugge Receipt");
@@ -220,25 +215,20 @@ describe("Commodity Lab shell", () => {
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/exam/generate")).toBe(true));
   });
 
-  it("runs expanded AI training actions with current scenario context", async () => {
+  it("shows AI thinking progress immediately while running a training action", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     const calls = [];
-    window.__COMMODITY_LAB_BACKEND__ = async (method, path, body) => {
-      calls.push({ method, path, body });
-      if (path === "/api/v1/provider-status") {
-        return { haineng: { ok: true, configured: true }, data_sources: [] };
-      }
-      if (path.startsWith("/api/v1/scenarios?")) return scenarioPayload;
-      if (path.startsWith("/api/v1/learning-journey?")) return journeyPayload;
-      if (path.includes("/context")) return contextPayload;
-      if (path === "/api/v1/ai/generate") return { answer: "Playbook: check capacity, basis, liquidity, and limits." };
-      return {};
-    };
+    mockBackend({
+      aiReady: true,
+      onCall: (call) => calls.push(call)
+    });
 
     render(<App />);
     await screen.findByText("Zeebrugge Receipt");
     fireEvent.click(await screen.findByText("Trade playbook"));
 
+    expect(await screen.findByText("Haineng is thinking")).toBeInTheDocument();
+    expect(screen.getByText("Reading scenario and exposure")).toBeInTheDocument();
     expect(await screen.findByText("Playbook: check capacity, basis, liquidity, and limits.")).toBeInTheDocument();
     await waitFor(() =>
       expect(calls.some((call) => call.path === "/api/v1/ai/generate" && call.body?.capability === "trade_playbook")).toBe(true)

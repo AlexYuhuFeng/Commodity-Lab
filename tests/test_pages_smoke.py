@@ -22,3 +22,16 @@ def test_tauri_window_launches_maximized_with_native_controls() -> None:
     assert window["decorations"] is True
     assert window["transparent"] is False
     assert window["resizable"] is True
+
+
+def test_tauri_shutdown_cleans_backend_on_window_close() -> None:
+    """Closing the desktop window must not leave the bundled backend listening on port 8000."""
+    main_rs = Path("tauri/src-tauri/src/main.rs").read_text(encoding="utf-8")
+    backend_py = Path("tauri/backend/main.py").read_text(encoding="utf-8")
+
+    assert "on_window_event" in main_rs
+    assert "WindowEvent::CloseRequested" in main_rs
+    assert "RunEvent::ExitRequested" in main_rs
+    assert "COMMODITY_LAB_PARENT_PID" in main_rs
+    assert "COMMODITY_LAB_PARENT_PID" in backend_py
+    assert "_start_parent_watchdog" in backend_py

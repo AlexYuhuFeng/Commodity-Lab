@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "package": {
     "productName": "Commodity Lab",
-    "version": "0.1.0"
+    "version": "1.0.8"
   },
   "build": {
     "distDir": "../tauri-frontend/dist",
@@ -26,12 +26,20 @@
     "bundle": {
       "active": true,
       "identifier": "com.alexyuhufeng.commoditylab",
+      "publisher": "Commodity Lab",
+      "copyright": "Copyright © 2026 Commodity Lab. All rights reserved.",
+      "category": "Education",
+      "shortDescription": "AI-powered energy trading training terminal.",
+      "longDescription": "Commodity Lab is a Windows desktop training terminal for European natural gas trading, hedging, market data practice, deterministic scoring, and Haineng-compatible AI coaching.",
       "icon": [
         "icons/icon.ico"
       ],
       "resources": [
         "../bundled/backend/*"
-      ]
+      ],
+      "windows": {
+        "allowDowngrades": false
+      }
     }
   }
 }

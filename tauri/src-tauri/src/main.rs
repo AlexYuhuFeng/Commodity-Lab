@@ -100,6 +100,7 @@ fn push_backend_candidates(base: &Path, candidates: &mut Vec<PathBuf>) {
     for name in executable_names() {
         candidates.push(base.join(name));
         candidates.push(base.join("bundled").join("backend").join(name));
+        candidates.push(base.join("_up_").join("bundled").join("backend").join(name));
     }
 }
 
@@ -119,6 +120,7 @@ fn backend_executable_candidates(resource_dir: Option<PathBuf>) -> Vec<PathBuf> 
     candidates
 }
 
+#[cfg(debug_assertions)]
 fn source_backend_script() -> Option<PathBuf> {
     let current_dir = env::current_dir().ok()?;
     let candidates = [
@@ -129,10 +131,16 @@ fn source_backend_script() -> Option<PathBuf> {
     candidates.into_iter().find(|path| path.exists())
 }
 
+#[cfg(not(debug_assertions))]
+fn source_backend_script() -> Option<PathBuf> {
+    None
+}
+
 fn spawn_backend_command(command: &mut Command) -> Option<Child> {
     command
         .env("COMMODITY_LAB_BACKEND_HOST", backend_host())
         .env("COMMODITY_LAB_BACKEND_PORT", backend_port().to_string())
+        .env("COMMODITY_LAB_PARENT_PID", std::process::id().to_string())
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -190,10 +198,18 @@ fn kill_child(child_opt: &mut Option<Child>) {
 fn main() {
     let backend_handle: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
     let setup_backend_handle = backend_handle.clone();
-    let exit_backend_handle = backend_handle.clone();
+    let window_backend_handle = backend_handle.clone();
+    let run_backend_handle = backend_handle.clone();
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![ping_backend, simulate_backend, backend_request])
+        .on_window_event(move |event| {
+            if matches!(event.event(), tauri::WindowEvent::CloseRequested { .. }) {
+                if let Ok(mut lock) = window_backend_handle.lock() {
+                    kill_child(&mut *lock);
+                }
+            }
+        })
         .setup(move |app| {
             let child = start_python_backend(app.path_resolver().resource_dir());
             if let Ok(mut lock) = setup_backend_handle.lock() {
@@ -207,8 +223,13 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while running tauri")
         .run(move |_app_handle, event| match event {
-            tauri::RunEvent::Exit => {
-                if let Ok(mut lock) = exit_backend_handle.lock() {
+            tauri::RunEvent::WindowEvent {
+                event: tauri::WindowEvent::CloseRequested { .. },
+                ..
+            }
+            | tauri::RunEvent::ExitRequested { .. }
+            | tauri::RunEvent::Exit => {
+                if let Ok(mut lock) = run_backend_handle.lock() {
                     kill_child(&mut *lock);
                 }
             }
