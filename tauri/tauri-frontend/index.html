@@ -4,9 +4,115 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Commodity Lab</title>
+    <style>
+      html,
+      body,
+      #root {
+        width: 100%;
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #0d0f12;
+        color: #f4f4f5;
+        font-family: Inter, "Segoe UI", system-ui, sans-serif;
+      }
+
+      .preload-splash {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 100%;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 28%),
+          #0d0f12;
+      }
+
+      .preload-splash-card {
+        display: grid;
+        justify-items: center;
+        gap: 16px;
+        min-width: 320px;
+      }
+
+      .preload-mark {
+        display: grid;
+        place-items: center;
+        width: 78px;
+        height: 78px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #1a1d22, #111318);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+        color: #f7f7f8;
+        font-size: 25px;
+        font-weight: 720;
+        letter-spacing: 0;
+      }
+
+      .preload-title {
+        display: grid;
+        gap: 6px;
+        text-align: center;
+      }
+
+      .preload-title strong {
+        font-size: 18px;
+        font-weight: 650;
+      }
+
+      .preload-title span {
+        color: #a1a1aa;
+        font-size: 12px;
+      }
+
+      .preload-track {
+        position: relative;
+        width: 260px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      .preload-track::after {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 44%;
+        border-radius: inherit;
+        background: #f4f4f5;
+        animation: preload-sweep 1.35s ease-in-out infinite;
+      }
+
+      @keyframes preload-sweep {
+        0% {
+          transform: translateX(-110%);
+        }
+        55% {
+          transform: translateX(115%);
+        }
+        100% {
+          transform: translateX(260%);
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="preload-splash" aria-label="Commodity Lab loading">
+        <div class="preload-splash-card">
+          <div class="preload-mark">CL</div>
+          <div class="preload-title">
+            <strong>Commodity Lab</strong>
+            <span>正在启动训练终端</span>
+          </div>
+          <div class="preload-track"></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

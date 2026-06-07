@@ -42,12 +42,16 @@ The desktop client supports two runtime provider profiles:
 
 Users provide their own API key and base URL in the app settings. Credentials are runtime-only and must not be committed to the repository.
 
+For test distribution, provide users with a local `AI密钥` file instead of asking them to type keys manually. The Windows client can import this file from any folder through the lower-left Settings menu. See [docs/key-file-import.md](docs/key-file-import.md) for safe JSON and key-value templates.
+
 桌面端支持两套运行时供应方配置：
 
 - 海能：中文界面显示为 `海能`，英文界面显示为 `Haineng`。
 - DeepSeek：作为独立的备用/测试供应方配置。
 
 用户在软件设置里自行填写 API Key 与 Base URL。凭证只用于本地运行，禁止提交到仓库。
+
+测试分发时，可以给用户提供本机 `AI密钥` 文件，不需要用户手动输入密钥。Windows 客户端支持从左下角设置菜单导入任意位置的密钥文件。安全模板见 [docs/key-file-import.md](docs/key-file-import.md)。
 
 ## Product Loop / 产品流程
 

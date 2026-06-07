@@ -1,24 +1,24 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { appWindow } from "@tauri-apps/api/window";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.0.9";
+const currentVersion = "1.0.10";
 
 const defaultProviderCatalog = {
   haineng: {
     label: "Haineng",
-    default_model: "V4-Flash",
+    default_model: "DeepSeek-V4-Flash",
     models: [
       {
-        id: "V4-Flash",
-        label: "V4-Flash / DeepSeek-V4-Flash",
+        id: "DeepSeek-V4-Flash",
+        label: "DeepSeek-V4-Flash",
         resolved_model: "DeepSeek-V4-Flash",
         base_url: "http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1"
       },
       {
-        id: "V4-Pro",
-        label: "V4-Pro / DeepSeek-V4",
+        id: "DeepSeek-V4",
+        label: "DeepSeek-V4",
         resolved_model: "DeepSeek-V4",
         base_url: "http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1"
       }
@@ -36,13 +36,15 @@ const defaultProviderCatalog = {
 
 const chartFields = ["close", "high", "low"];
 
+const startupStageKeys = ["startupBackend", "startupAiRuntime", "startupWorkbench", "startupFinalizing"];
+
 const guideSteps = [
+  ["settings-menu", "guideSettingsTitle", "guideSettingsBody"],
   ["business-sidebar", "guideBusinessTitle", "guideBusinessBody"],
   ["case-workspace", "guideCaseTitle", "guideCaseBody"],
   ["market-chart", "guideChartTitle", "guideChartBody"],
   ["strategy-builder", "guideStrategyTitle", "guideStrategyBody"],
-  ["floating-assistant", "guideAssistantTitle", "guideAssistantBody"],
-  ["settings-menu", "guideSettingsTitle", "guideSettingsBody"]
+  ["floating-assistant", "guideAssistantTitle", "guideAssistantBody"]
 ];
 
 const fallbackTemplates = {
@@ -169,16 +171,108 @@ function modelConfig(catalog, provider, model) {
   return config.models.find((option) => option.id === model) ?? config.models[0];
 }
 
-function formForProvider(provider, catalog = defaultProviderCatalog, apiKey = "") {
+function baseUrlMatchesProvider(provider, value) {
+  const url = String(value ?? "").trim().toLowerCase();
+  if (!url) return false;
+  if (provider === "deepseek") return url.includes("api.deepseek.com");
+  if (provider === "haineng") return url.includes("model.ai.cnooc") || url.includes("cnooc");
+  return true;
+}
+
+function compactKey(value) {
+  return String(value ?? "").trim().toLowerCase().replaceAll("_", "-").replaceAll(" ", "");
+}
+
+function normalizeProviderName(value, baseUrl = "") {
+  const provider = compactKey(value);
+  const url = String(baseUrl ?? "").toLowerCase();
+  if (provider === "deepseek" || provider === "deep-seek" || provider === "ds" || url.includes("api.deepseek.com")) return "deepseek";
+  return "haineng";
+}
+
+function firstConfigValue(payload, ...keys) {
+  for (const key of keys) {
+    const value = payload[compactKey(key)] ?? payload[String(key).toLowerCase()];
+    if (value != null && String(value).trim()) return String(value).trim();
+  }
+  return "";
+}
+
+function parseAiKeyFile(text) {
+  const raw = String(text ?? "").trim();
+  if (!raw) throw new Error("AI key file is empty.");
+  if (raw.startsWith("{")) {
+    const parsed = JSON.parse(raw);
+    return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [compactKey(key), String(value ?? "").trim()]));
+  }
+  const payload = {};
+  raw.split(/\r?\n/).forEach((line) => {
+    const current = line.trim();
+    if (!current || current.startsWith("#")) return;
+    const index = current.includes("=") ? current.indexOf("=") : current.indexOf(":");
+    if (index <= 0) return;
+    payload[compactKey(current.slice(0, index))] = current.slice(index + 1).trim();
+  });
+  return payload;
+}
+
+function modelForProvider(provider, model, config) {
+  const normalized = compactKey(model);
+  const aliases = {
+    haineng: {
+      "v4-flash": "DeepSeek-V4-Flash",
+      v4flash: "DeepSeek-V4-Flash",
+      "deepseek-v4-flash": "DeepSeek-V4-Flash",
+      deepseekv4flash: "DeepSeek-V4-Flash",
+      "v4-pro": "DeepSeek-V4",
+      v4pro: "DeepSeek-V4",
+      "deepseek-v4": "DeepSeek-V4",
+      deepseekv4: "DeepSeek-V4",
+      "deepseek-v4-pro": "DeepSeek-V4",
+      deepseekv4pro: "DeepSeek-V4"
+    },
+    deepseek: {
+      "v4-flash": "deepseek-v4-flash",
+      v4flash: "deepseek-v4-flash",
+      "deepseek-v4-flash": "deepseek-v4-flash",
+      "v4-pro": "deepseek-v4-pro",
+      v4pro: "deepseek-v4-pro",
+      "deepseek-v4-pro": "deepseek-v4-pro"
+    }
+  };
+  const mapped = aliases[provider]?.[normalized] ?? model;
+  return config.models.some((option) => option.id === mapped) ? mapped : config.default_model;
+}
+
+function formFromAiKeyFile(text, catalog = defaultProviderCatalog) {
+  const payload = parseAiKeyFile(text);
+  const baseUrlHint = firstConfigValue(payload, "base_url", "url", "haineng_base_url", "deepseek_base_url");
+  const provider = normalizeProviderName(firstConfigValue(payload, "provider", "ai_provider"), baseUrlHint);
   const config = providerConfig(catalog, provider);
-  const storedModel = savedValue(`commodity-lab-${provider}-model`, config.default_model);
-  const model = config.models.some((option) => option.id === storedModel) ? storedModel : config.default_model;
+  const providerPrefix = provider === "deepseek" ? "deepseek" : "haineng";
+  const apiKey = firstConfigValue(payload, "api_key", "key", `${providerPrefix}_api_key`);
+  if (!apiKey) throw new Error("AI key file is missing api_key.");
+  const model = modelForProvider(provider, firstConfigValue(payload, "model", `${providerPrefix}_model`) || config.default_model, config);
   const selected = modelConfig(catalog, provider, model);
   return {
     api_key: apiKey,
     provider,
     model,
-    base_url: savedValue(`commodity-lab-${provider}-base-url`, selected?.base_url ?? "")
+    base_url: firstConfigValue(payload, "base_url", "url", `${providerPrefix}_base_url`) || selected?.base_url || ""
+  };
+}
+
+function formForProvider(provider, catalog = defaultProviderCatalog, apiKey = "") {
+  const config = providerConfig(catalog, provider);
+  const storedModel = savedValue(`commodity-lab-${provider}-model`, config.default_model);
+  const model = config.models.some((option) => option.id === storedModel) ? storedModel : config.default_model;
+  const selected = modelConfig(catalog, provider, model);
+  const storedBaseUrl = savedValue(`commodity-lab-${provider}-base-url`, "");
+  return {
+    api_key: apiKey,
+    provider,
+    model,
+    base_url: baseUrlMatchesProvider(provider, storedBaseUrl) ? storedBaseUrl : selected?.base_url ?? ""
   };
 }
 
@@ -314,6 +408,24 @@ function MarkdownText({ text }) {
   );
 }
 
+function Icon({ name }) {
+  const icons = {
+    close: <path d="M6 6l12 12M18 6L6 18" />,
+    fullscreen: <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M4 16v4h4" />,
+    settings: (
+      <>
+        <path d="M12 8.4A3.6 3.6 0 1 0 12 15.6A3.6 3.6 0 0 0 12 8.4Z" />
+        <path d="M19.4 15a1.9 1.9 0 0 0 .38 2.1l.04.04a2.2 2.2 0 0 1-3.11 3.11l-.04-.04a1.9 1.9 0 0 0-2.1-.38 1.9 1.9 0 0 0-1.15 1.74V22a2.2 2.2 0 0 1-4.4 0v-.06a1.9 1.9 0 0 0-1.24-1.74 1.9 1.9 0 0 0-2.1.38l-.04.04a2.2 2.2 0 0 1-3.11-3.11l.04-.04a1.9 1.9 0 0 0 .38-2.1 1.9 1.9 0 0 0-1.74-1.15H2a2.2 2.2 0 0 1 0-4.4h.06A1.9 1.9 0 0 0 3.8 8.6a1.9 1.9 0 0 0-.38-2.1l-.04-.04a2.2 2.2 0 0 1 3.11-3.11l.04.04a1.9 1.9 0 0 0 2.1.38h.02A1.9 1.9 0 0 0 9.8 2.06V2a2.2 2.2 0 0 1 4.4 0v.06a1.9 1.9 0 0 0 1.15 1.74 1.9 1.9 0 0 0 2.1-.38l.04-.04a2.2 2.2 0 0 1 3.11 3.11l-.04.04a1.9 1.9 0 0 0-.38 2.1v.02A1.9 1.9 0 0 0 21.94 9.8H22a2.2 2.2 0 0 1 0 4.4h-.06A1.9 1.9 0 0 0 19.4 15Z" />
+      </>
+    )
+  };
+  return (
+    <svg aria-hidden="true" className="ui-icon" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+      {icons[name]}
+    </svg>
+  );
+}
+
 function LanguageToggle({ locale, setLocale }) {
   return (
     <div className="segmented" aria-label={t("language", locale)}>
@@ -361,15 +473,17 @@ function WindowControls({ locale }) {
   }
   return (
     <div className="window-controls">
-      <button title={t("toggleFullscreen", locale)} onClick={toggleFullscreen} type="button">□</button>
-      <button title={t("close", locale)} onClick={closeApp} type="button">×</button>
+      <button title={t("toggleFullscreen", locale)} onClick={toggleFullscreen} type="button"><Icon name="fullscreen" /></button>
+      <button title={t("close", locale)} onClick={closeApp} type="button"><Icon name="close" /></button>
     </div>
   );
 }
 
-function SettingsMenu({ aiReady, locale, onCheckUpdate, onRestartGuide, onSaveSettings, providerStatus, saving, serviceMessage, setLocale, setTheme, theme, updateInfo }) {
+function SettingsMenu({ aiReady, importing, locale, onCheckUpdate, onImportLocalSettings, onRestartGuide, onSaveSettings, providerStatus, saving, serviceMessage, setLocale, setTheme, theme, updateInfo }) {
   const catalog = providerCatalog(providerStatus);
+  const fileInputRef = useRef(null);
   const [form, setForm] = useState(() => formForProvider(savedValue("commodity-lab-ai-provider", "haineng")));
+  const [fileImportError, setFileImportError] = useState("");
   const provider = catalog[form.provider] ? form.provider : "haineng";
   const config = providerConfig(catalog, provider);
   const model = modelConfig(catalog, provider, form.model);
@@ -381,11 +495,23 @@ function SettingsMenu({ aiReady, locale, onCheckUpdate, onRestartGuide, onSaveSe
     const next = modelConfig(catalog, provider, nextModel);
     setForm((current) => ({ ...current, model: nextModel, base_url: next?.base_url ?? current.base_url }));
   }
+  async function importAiKeyFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      setFileImportError("");
+      const text = await file.text();
+      const importedForm = formFromAiKeyFile(text, catalog);
+      await onImportLocalSettings(importedForm, file.name);
+      setForm({ ...importedForm, api_key: "" });
+    } catch (error) {
+      setFileImportError(error?.message ?? String(error));
+    }
+  }
 
   return (
-    <details className="settings-menu" data-guide="settings-menu">
-      <summary>{t("menu", locale)}</summary>
-      <div className="settings-popover">
+      <div className="settings-panel">
         <section>
           <h3>{t("settings", locale)}</h3>
           <div className="settings-row">
@@ -425,8 +551,12 @@ function SettingsMenu({ aiReady, locale, onCheckUpdate, onRestartGuide, onSaveSe
                 {config.models.map((option) => <option key={option.id} value={option.id}>{option.label ?? option.id}</option>)}
               </select>
             </label>
-            <button className="primary" disabled={saving} type="submit">{saving ? t("loading", locale) : t("saveSettings", locale)}</button>
+            <button className="primary" disabled={saving || importing} type="submit">{saving ? t("loading", locale) : t("saveSettings", locale)}</button>
+            <button className="secondary" disabled={saving || importing} onClick={() => fileInputRef.current?.click()} type="button">{importing ? t("loading", locale) : t("loadLocalAiKey", locale)}</button>
+            <input className="visually-hidden" onChange={importAiKeyFile} ref={fileInputRef} type="file" />
           </form>
+          <p className="settings-note">{t("localAiKeyHint", locale)}</p>
+          {fileImportError ? <p className="service-error">{fileImportError}</p> : null}
           {serviceMessage ? <p className="settings-note">{serviceMessage}</p> : null}
         </section>
 
@@ -452,45 +582,60 @@ function SettingsMenu({ aiReady, locale, onCheckUpdate, onRestartGuide, onSaveSe
           {updateInfo.release_url ? <a className="release-link" href={updateInfo.release_url} target="_blank" rel="noreferrer">{t("releasePage", locale)}</a> : null}
         </section>
       </div>
-    </details>
   );
 }
 
-function BusinessNavigator({ activeTemplateId, businessTemplates, generateTrainingCase, locale, loadingTemplate }) {
+function SettingsToggle({ locale, onClick, open }) {
+  return (
+    <button className={open ? "settings-toggle active" : "settings-toggle"} data-guide="settings-menu" onClick={onClick} type="button">
+      <Icon name="settings" />
+      <span>{t("settings", locale)}</span>
+    </button>
+  );
+}
+
+function BusinessNavigator({ activeTemplateId, businessTemplates, footer, generateTrainingCase, locale, loadingTemplate, settingsOpen, settingsPanel }) {
   const groups = businessTemplates.groups?.length ? businessTemplates.groups : fallbackTemplates.groups;
   const templates = businessTemplates.templates?.length ? businessTemplates.templates : fallbackTemplates.templates;
   const knowledge = businessTemplates.knowledge_points?.length ? businessTemplates.knowledge_points : fallbackTemplates.knowledge_points;
   return (
     <aside className="left-rail" data-guide="business-sidebar">
-      <CollapsiblePanel defaultOpen title={t("businessTypes", locale)} meta={t("aiGeneratedData", locale)}>
-        <div className="business-navigator">
-          {groups.map((group) => (
-            <details className="business-group" key={group.id} open>
-              <summary>{group.label}</summary>
-              <div className="scenario-list">
-                {templates.filter((template) => template.group === group.id).map((template) => (
-                  <button className={template.id === activeTemplateId ? "scenario-row active" : "scenario-row"} key={template.id} onClick={() => generateTrainingCase(template.id)} type="button">
-                    <em>{template.business_type}</em>
-                    <strong>{template.title}</strong>
-                    <span>{template.summary}</span>
-                    <small>{loadingTemplate === template.id ? t("aiGenerating", locale) : t("generateWithAi", locale)}</small>
-                  </button>
-                ))}
-              </div>
-            </details>
-          ))}
-        </div>
-      </CollapsiblePanel>
-      <CollapsiblePanel title={t("knowledgePoints", locale)} meta={formatNumber(knowledge.length)}>
-        <div className="knowledge-list">
-          {knowledge.map((point) => (
-            <article key={point.id}>
-              <strong>{point.label}</strong>
-              <p>{point.description}</p>
-            </article>
-          ))}
-        </div>
-      </CollapsiblePanel>
+      <div className={settingsOpen ? "left-rail-main settings-mode" : "left-rail-main"}>
+        {settingsOpen ? settingsPanel : (
+        <>
+        <CollapsiblePanel defaultOpen title={t("businessTypes", locale)} meta={t("aiGeneratedData", locale)}>
+          <div className="business-navigator">
+            {groups.map((group) => (
+              <details className="business-group" key={group.id} open>
+                <summary>{group.label}</summary>
+                <div className="scenario-list">
+                  {templates.filter((template) => template.group === group.id).map((template) => (
+                    <button className={template.id === activeTemplateId ? "scenario-row active" : "scenario-row"} key={template.id} onClick={() => generateTrainingCase(template.id)} type="button">
+                      <em>{template.business_type}</em>
+                      <strong>{template.title}</strong>
+                      <span>{template.summary}</span>
+                      <small>{loadingTemplate === template.id ? t("aiGenerating", locale) : t("generateWithAi", locale)}</small>
+                    </button>
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+        </CollapsiblePanel>
+        <CollapsiblePanel title={t("knowledgePoints", locale)} meta={formatNumber(knowledge.length)}>
+          <div className="knowledge-list">
+            {knowledge.map((point) => (
+              <article key={point.id}>
+                <strong>{point.label}</strong>
+                <p>{point.description}</p>
+              </article>
+            ))}
+          </div>
+        </CollapsiblePanel>
+        </>
+        )}
+      </div>
+      <div className="left-rail-footer">{footer}</div>
     </aside>
   );
 }
@@ -512,26 +657,45 @@ function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, stra
   const market = caseData.market ?? {};
   const curves = market.curves ?? [];
   const [hoverIndex, setHoverIndex] = useState(null);
-  const values = curves.flatMap((curve) => (curve.points ?? []).flatMap((point) => fieldSelection.map((field) => Number(point[field])).filter(Number.isFinite)));
-  const min = values.length ? Math.min(...values) : 0;
-  const max = values.length ? Math.max(...values) : 1;
-  const range = Math.max(max - min, 0.01);
-  const width = 780;
-  const height = 310;
-  const pad = { left: 56, right: 20, top: 24, bottom: 42 };
+  const width = 860;
+  const laneHeight = 112;
+  const height = Math.max(300, 62 + Math.max(1, curves.length) * laneHeight);
+  const pad = { left: 74, right: 116, top: 22, bottom: 34 };
   const plotW = width - pad.left - pad.right;
-  const plotH = height - pad.top - pad.bottom;
   const pointCount = Math.max(...curves.map((curve) => curve.points?.length ?? 0), 1);
   const xFor = (index) => pad.left + (pointCount <= 1 ? 0 : (index / (pointCount - 1)) * plotW);
-  const yFor = (value) => pad.top + ((max - Number(value)) / range) * plotH;
   const hovered = hoverIndex == null ? null : curves.map((curve) => ({ curve, point: curve.points?.[hoverIndex] })).filter((row) => row.point);
 
-  function pathFor(points, field) {
-    return (points ?? []).map((point, index) => {
+  function curveStats(curve) {
+    const values = (curve.points ?? []).flatMap((point) => fieldSelection.map((field) => Number(point[field])).filter(Number.isFinite));
+    const min = values.length ? Math.min(...values) : 0;
+    const max = values.length ? Math.max(...values) : 1;
+    const padding = Math.max((max - min) * 0.08, 0.01);
+    return { min: min - padding, max: max + padding, range: Math.max(max - min + padding * 2, 0.01) };
+  }
+  function laneTop(index) {
+    return pad.top + index * laneHeight;
+  }
+  function yFor(curve, laneIndex, value) {
+    const stats = curveStats(curve);
+    const innerTop = laneTop(laneIndex) + 26;
+    const innerH = laneHeight - 44;
+    return innerTop + ((stats.max - Number(value)) / stats.range) * innerH;
+  }
+  function pathFor(curve, field, laneIndex) {
+    return (curve.points ?? []).map((point, index) => {
       const value = Number(point[field]);
       if (!Number.isFinite(value)) return "";
-      return `${index === 0 ? "M" : "L"} ${xFor(index).toFixed(1)} ${yFor(value).toFixed(1)}`;
+      return `${index === 0 ? "M" : "L"} ${xFor(index).toFixed(1)} ${yFor(curve, laneIndex, value).toFixed(1)}`;
     }).filter(Boolean).join(" ");
+  }
+  function pointChange(curve) {
+    const points = curve.points ?? [];
+    const last = points.at(-1) ?? {};
+    const prev = points.at(-2) ?? points[0] ?? {};
+    const change = Number(last.close) - Number(prev.close);
+    const pct = Number(prev.close) ? (change / Number(prev.close)) * 100 : 0;
+    return { change, pct };
   }
   function toggleField(field) {
     setFieldSelection((current) => {
@@ -562,24 +726,41 @@ function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, stra
       </div>
       <div className="price-chart-wrap" onMouseLeave={() => setHoverIndex(null)} onMouseMove={onMove}>
         <svg className="price-chart terminal-chart" role="img" aria-label={t("priceChart", locale)} viewBox={`0 0 ${width} ${height}`}>
-          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => <line className="grid-line" key={ratio} x1={pad.left} x2={pad.left + plotW} y1={pad.top + plotH * ratio} y2={pad.top + plotH * ratio} />)}
-          <text className="axis-label" x="8" y={pad.top + 6}>{formatNumber(max, 2)}</text>
-          <text className="axis-label" x="8" y={pad.top + plotH}>{formatNumber(min, 2)}</text>
-          {curves.map((curve) => fieldSelection.map((field) => {
-            const path = pathFor(curve.points, field);
-            if (!path) return null;
-            const color = field === "close" ? curve.color : field === "high" ? "#22c55e" : "#fb7185";
-            return <path className={`price-line field-${field}`} d={path} key={`${curve.id}-${field}`} style={{ stroke: color }} />;
-          }))}
+          {curves.map((curve, laneIndex) => {
+            const stats = curveStats(curve);
+            const top = laneTop(laneIndex);
+            const innerTop = top + 26;
+            const innerH = laneHeight - 44;
+            const last = curve.points?.at(-1) ?? {};
+            return (
+              <g className="chart-lane" key={curve.id}>
+                <rect x={pad.left} y={top + 8} width={plotW} height={laneHeight - 14} rx="7" />
+                {[0, 0.5, 1].map((ratio) => <line className="grid-line" key={ratio} x1={pad.left} x2={pad.left + plotW} y1={innerTop + innerH * ratio} y2={innerTop + innerH * ratio} />)}
+                <text className="lane-title" x="12" y={top + 24}>{curve.label}</text>
+                <text className="axis-label" x="12" y={innerTop + 5}>{formatNumber(stats.max, 2)}</text>
+                <text className="axis-label" x="12" y={innerTop + innerH}>{formatNumber(stats.min, 2)}</text>
+                <text className="lane-last" x={pad.left + plotW + 12} y={top + 32}>C {formatNumber(last.close, 2)}</text>
+                <text className="lane-last muted" x={pad.left + plotW + 12} y={top + 52}>H {formatNumber(last.high, 2)}</text>
+                <text className="lane-last muted" x={pad.left + plotW + 12} y={top + 70}>L {formatNumber(last.low, 2)}</text>
+                {fieldSelection.map((field) => {
+                  const path = pathFor(curve, field, laneIndex);
+                  if (!path) return null;
+                  const color = field === "close" ? curve.color : field === "high" ? "#7dd3a7" : "#f87171";
+                  return <path className={`price-line field-${field}`} d={path} key={`${curve.id}-${field}`} style={{ stroke: color }} />;
+                })}
+              </g>
+            );
+          })}
           {market.events?.map((event) => {
             const index = Math.max(0, (curves[0]?.points ?? []).findIndex((point) => point.date === event.date));
             const x = xFor(index < 0 ? 0 : index);
-            return <g className="event-marker" key={`${event.date}-${event.label}`}><line x1={x} x2={x} y1={pad.top} y2={pad.top + plotH} /><text x={x + 5} y={pad.top + 15}>{event.label}</text></g>;
+            return <g className="event-marker" key={`${event.date}-${event.label}`}><line x1={x} x2={x} y1={pad.top} y2={height - pad.bottom} /><text x={x + 5} y={pad.top + 15}>{event.label}</text></g>;
           })}
-          {hoverIndex != null ? <line className="hover-line" x1={xFor(hoverIndex)} x2={xFor(hoverIndex)} y1={pad.top} y2={pad.top + plotH} /> : null}
+          {hoverIndex != null ? <line className="hover-line" x1={xFor(hoverIndex)} x2={xFor(hoverIndex)} y1={pad.top} y2={height - pad.bottom} /> : null}
           {strategyLegs.map((leg, index) => {
             const x = pad.left + plotW * Math.min(0.92, 0.12 + index * 0.1);
-            return <g className="trade-marker" key={leg.id ?? index}><circle cx={x} cy={pad.top + 20 + index * 18} r="5" /><text x={x + 8} y={pad.top + 24 + index * 18}>{leg.leg_type}:{leg.side}</text></g>;
+            const y = pad.top + 18 + (index % Math.max(1, curves.length)) * laneHeight;
+            return <g className="trade-marker" key={leg.id ?? index}><circle cx={x} cy={y} r="5" /><text x={x + 8} y={y + 4}>{leg.leg_type}:{leg.side}</text></g>;
           })}
           {curves[0]?.points?.[0]?.date ? <text className="date-label" x={pad.left} y={height - 12}>{compactDate(curves[0].points[0].date)}</text> : null}
           {curves[0]?.points?.at(-1)?.date ? <text className="date-label end" x={pad.left + plotW} y={height - 12}>{compactDate(curves[0].points.at(-1).date)}</text> : null}
@@ -596,7 +777,14 @@ function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, stra
       <div className="curve-table">
         {curves.map((curve) => {
           const point = curve.points?.at(-1) ?? {};
-          return <span key={curve.id}><i style={{ background: curve.color }} /><strong>{curve.label}</strong><small>{point.date ?? "--"} C {formatNumber(point.close, 2)} H {formatNumber(point.high, 2)} L {formatNumber(point.low, 2)}</small></span>;
+          const { change, pct } = pointChange(curve);
+          return (
+            <span key={curve.id}>
+              <i style={{ background: curve.color }} />
+              <strong>{curve.label}</strong>
+              <small>{point.date ?? "--"} O {formatNumber(point.open, 2)} H {formatNumber(point.high, 2)} L {formatNumber(point.low, 2)} C {formatNumber(point.close, 2)} Δ {formatNumber(change, 2)} / {formatNumber(pct, 2)}%</small>
+            </span>
+          );
         })}
       </div>
     </section>
@@ -694,27 +882,39 @@ function AiThinkingPanel({ locale, titleKey = "aiThinkingTitle" }) {
 function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, evaluation, exam, locale, runAiAction }) {
   return (
     <aside className={aiReady ? "advisor-rail online" : "advisor-rail"}>
-      <div className="advisor-head"><span>{t("aiCoach", locale)}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div>
-      {busyAction && !["evaluate", "provider"].includes(busyAction) ? <AiThinkingPanel locale={locale} /> : null}
-      <CollapsiblePanel defaultOpen title={t("aiTrainingActions", locale)} meta={aiReady ? t("enabled", locale) : t("connectToEnable", locale)}>
-        <div className="ai-action-grid">
-          {[
-            ["advisor_review", "askHint", Boolean(evaluation)],
-            ["exam", "generateExam", true],
-            ["concept_tutor", "conceptTutor", true],
-            ["trade_playbook", "tradePlaybook", true]
-          ].map(([capability, labelKey, available]) => (
-            <button disabled={Boolean(busyAction) || !aiReady || !available} key={capability} onClick={() => runAiAction(capability)} type="button">{busyAction === capability ? t("loading", locale) : t(labelKey, locale)}</button>
-          ))}
+      <div className="advisor-head">
+        <div>
+          <span>{t("aiCoach", locale)}</span>
+          <small>{aiReady ? t("online", locale) : t("offline", locale)}</small>
         </div>
-      </CollapsiblePanel>
-      <CollapsiblePanel defaultOpen title={t("aiTrainingOutput", locale)} meta={t("markdownEnabled", locale)}>
-        {!aiReady ? <p className="service-error muted">{t("aiDisabledHint", locale)}</p> : null}
-        {error ? <p className="service-error">{error}</p> : null}
-        {advisorFeedback ? <section className="response-block"><h3>{t("advisorFeedback", locale)}</h3><MarkdownText text={advisorFeedback} /></section> : null}
-        {exam ? <section className="response-block"><h3>{t("examQuestions", locale)}</h3><MarkdownText text={exam} /></section> : null}
-        {aiOutput?.answer ? <section className="response-block"><h3>{aiOutput.title}</h3><MarkdownText text={aiOutput.answer} /></section> : null}
-      </CollapsiblePanel>
+        <strong>{aiReady ? t("enabled", locale) : t("connectToEnable", locale)}</strong>
+      </div>
+      <div className="advisor-scroll">
+        {busyAction && !["evaluate", "provider"].includes(busyAction) ? <AiThinkingPanel locale={locale} /> : null}
+        <details className="advisor-section" open>
+          <summary><span>{t("aiTrainingActions", locale)}</span><strong>{aiReady ? t("enabled", locale) : t("connectToEnable", locale)}</strong></summary>
+          <div className="ai-action-grid">
+            {[
+              ["advisor_review", "askHint", Boolean(evaluation)],
+              ["exam", "generateExam", true],
+              ["concept_tutor", "conceptTutor", true],
+              ["trade_playbook", "tradePlaybook", true]
+            ].map(([capability, labelKey, available]) => (
+              <button disabled={Boolean(busyAction) || !aiReady || !available} key={capability} onClick={() => runAiAction(capability)} type="button">{busyAction === capability ? t("loading", locale) : t(labelKey, locale)}</button>
+            ))}
+          </div>
+        </details>
+        <details className="advisor-section" open>
+          <summary><span>{t("aiTrainingOutput", locale)}</span><strong>{t("markdownEnabled", locale)}</strong></summary>
+          <div className="advisor-output">
+            {!aiReady ? <p className="service-error muted">{t("aiDisabledHint", locale)}</p> : null}
+            {error ? <p className="service-error">{error}</p> : null}
+            {advisorFeedback ? <section className="response-block"><h3>{t("advisorFeedback", locale)}</h3><MarkdownText text={advisorFeedback} /></section> : null}
+            {exam ? <section className="response-block"><h3>{t("examQuestions", locale)}</h3><MarkdownText text={exam} /></section> : null}
+            {aiOutput?.answer ? <section className="response-block"><h3>{aiOutput.title}</h3><MarkdownText text={aiOutput.answer} /></section> : null}
+          </div>
+        </details>
+      </div>
     </aside>
   );
 }
@@ -767,10 +967,42 @@ function GuidedOverlay({ locale, onClose, onNext, stepIndex }) {
   );
 }
 
+function StartupScreen({ locale, slow, stageKey }) {
+  return (
+    <main className="startup-screen" aria-live="polite">
+      <section className="startup-card">
+        <div className="startup-mark" aria-hidden="true">
+          <span>CL</span>
+          <i />
+        </div>
+        <div className="startup-copy">
+          <p>{t("startupKicker", locale)}</p>
+          <h1>Commodity Lab</h1>
+          <span>{slow ? t("startupSlow", locale) : t(stageKey, locale)}</span>
+        </div>
+        <div className="startup-progress">
+          <div />
+        </div>
+        <ol className="startup-steps">
+          {startupStageKeys.map((key) => (
+            <li className={key === stageKey ? "active" : ""} key={key}>
+              <i />
+              <span>{t(key, locale)}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+    </main>
+  );
+}
+
 export default function App() {
   const initialLocale = normalizeLocale(savedValue("commodity-lab-locale", "zh"));
   const [locale, setLocaleState] = useState(initialLocale);
   const [theme, setThemeState] = useState(() => savedValue("commodity-lab-theme", "dark"));
+  const [backendReady, setBackendReady] = useState(false);
+  const [startupStage, setStartupStage] = useState(startupStageKeys[0]);
+  const [startupSlow, setStartupSlow] = useState(false);
   const [providerStatus, setProviderStatus] = useState(null);
   const [templates, setTemplates] = useState(fallbackTemplates);
   const [activeTemplateId, setActiveTemplateId] = useState(fallbackTemplates.templates[0].id);
@@ -793,6 +1025,7 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState({ current_version: currentVersion });
   const [assistantMessages, setAssistantMessages] = useState([]);
   const [guideIndex, setGuideIndex] = useState(() => savedValue("commodity-lab-guide-complete", "") ? -1 : 0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const aiReady = Boolean(providerStatus?.haineng?.ok);
 
   function setLocale(nextLocale) {
@@ -814,26 +1047,64 @@ export default function App() {
   }, [locale, theme]);
 
   useEffect(() => {
+    let cancelled = false;
+    let timer;
+    let attempts = 0;
+
+    async function pollBackend() {
+      if (cancelled) return;
+
+      const stageIndex = Math.min(startupStageKeys.length - 1, Math.floor(attempts / 6));
+      setStartupStage(startupStageKeys[stageIndex]);
+
+      try {
+        await backendRequest("GET", "/api/health");
+        if (!cancelled) {
+          setBackendReady(true);
+        }
+      } catch (error) {
+        attempts += 1;
+        if (attempts >= 48) {
+          setStartupSlow(true);
+          setServiceMessage(formatErrorMessage(error, initialLocale));
+          setBackendReady(true);
+          return;
+        }
+        timer = window.setTimeout(pollBackend, 350);
+      }
+    }
+
+    pollBackend();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [initialLocale]);
+
+  useEffect(() => {
+    if (!backendReady) return;
     backendRequest("GET", "/api/v1/provider-status")
       .then(setProviderStatus)
       .catch((error) => {
         setProviderStatus({ haineng: { ok: false, configured: false }, ai_providers: defaultProviderCatalog });
         setServiceMessage(formatErrorMessage(error, locale));
       });
-  }, [locale]);
+  }, [backendReady, locale]);
 
   useEffect(() => {
+    if (!backendReady) return;
     backendRequest("GET", `/api/v1/business-templates?locale=${locale}`)
       .then((payload) => {
         setTemplates(payload);
         setActiveTemplateId((current) => current || payload.templates?.[0]?.id || "");
       })
       .catch(() => setTemplates(fallbackTemplates));
-  }, [locale]);
+  }, [backendReady, locale]);
 
   useEffect(() => {
+    if (!backendReady) return;
     backendRequest("GET", "/api/v1/version").then(setUpdateInfo).catch(() => {});
-  }, []);
+  }, [backendReady]);
 
   async function saveProviderSettings(form) {
     setBusyAction("provider");
@@ -845,6 +1116,24 @@ export default function App() {
       localStorage.setItem(`commodity-lab-${form.provider}-model`, form.model);
       setProviderStatus((current) => ({ ...(current ?? {}), ...payload }));
       setServiceMessage(t("providerSaved", locale));
+    } catch (error) {
+      setServiceMessage(formatErrorMessage(error, locale));
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function importLocalProviderSettings(form, sourceName = "") {
+    setBusyAction("provider-import");
+    setServiceMessage("");
+    try {
+      const payload = await backendRequest("POST", "/api/v1/provider-settings", form);
+      const status = payload.haineng ?? {};
+      if (status.provider) localStorage.setItem("commodity-lab-ai-provider", status.provider);
+      if (status.base_url && status.provider) localStorage.setItem(`commodity-lab-${status.provider}-base-url`, status.base_url);
+      if (status.model && status.provider) localStorage.setItem(`commodity-lab-${status.provider}-model`, status.model);
+      setProviderStatus((current) => ({ ...(current ?? {}), ...payload }));
+      setServiceMessage(`${t("localAiKeyLoaded", locale)}${sourceName ? `: ${sourceName}` : ""}`);
     } catch (error) {
       setServiceMessage(formatErrorMessage(error, locale));
     } finally {
@@ -962,6 +1251,10 @@ export default function App() {
 
   const activeTemplate = useMemo(() => templates.templates?.find((item) => item.id === activeTemplateId), [templates, activeTemplateId]);
 
+  if (!backendReady) {
+    return <StartupScreen locale={locale} slow={startupSlow} stageKey={startupStage} />;
+  }
+
   return (
     <main className={aiReady ? "app-shell ai-ready" : "app-shell"}>
       <header className="topbar">
@@ -972,26 +1265,38 @@ export default function App() {
         <div className="topbar-actions">
           <AiStatusBadge aiReady={aiReady} locale={locale} />
           <span className="active-template">{activeTemplate?.title ?? t("noCase", locale)}</span>
-          <SettingsMenu
-            aiReady={aiReady}
-            locale={locale}
-            onCheckUpdate={checkUpdate}
-            onRestartGuide={() => setGuideIndex(0)}
-            onSaveSettings={saveProviderSettings}
-            providerStatus={providerStatus}
-            saving={busyAction === "provider"}
-            serviceMessage={busyAction === "provider" ? "" : serviceMessage}
-            setLocale={setLocale}
-            setTheme={setTheme}
-            theme={theme}
-            updateInfo={updateInfo}
-          />
           <WindowControls locale={locale} />
         </div>
       </header>
 
       <div className="workbench-layout">
-        <BusinessNavigator activeTemplateId={activeTemplateId} businessTemplates={templates} generateTrainingCase={generateTrainingCase} loadingTemplate={loadingTemplate} locale={locale} />
+        <BusinessNavigator
+          activeTemplateId={activeTemplateId}
+          businessTemplates={templates}
+          settingsOpen={settingsOpen}
+          settingsPanel={(
+            <SettingsMenu
+              aiReady={aiReady}
+              importing={busyAction === "provider-import"}
+              locale={locale}
+              onCheckUpdate={checkUpdate}
+              onImportLocalSettings={importLocalProviderSettings}
+              onRestartGuide={() => setGuideIndex(0)}
+              onSaveSettings={saveProviderSettings}
+              providerStatus={providerStatus}
+              saving={busyAction === "provider"}
+              serviceMessage={busyAction === "provider" ? "" : serviceMessage}
+              setLocale={setLocale}
+              setTheme={setTheme}
+              theme={theme}
+              updateInfo={updateInfo}
+            />
+          )}
+          footer={<SettingsToggle locale={locale} onClick={() => setSettingsOpen((current) => !current)} open={settingsOpen} />}
+          generateTrainingCase={generateTrainingCase}
+          loadingTemplate={loadingTemplate}
+          locale={locale}
+        />
 
         <section className="workspace-main">
           <CaseWorkspace caseData={caseData} generationStages={generationStages} locale={locale} />

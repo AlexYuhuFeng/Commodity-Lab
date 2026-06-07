@@ -16,14 +16,14 @@ DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 _PROVIDER_MODEL_CATALOG: dict[str, dict[str, Any]] = {
     "haineng": {
         "label": "Haineng",
-        "default_model": "V4-Flash",
+        "default_model": "DeepSeek-V4-Flash",
         "models": {
-            "V4-Flash": {
+            "DeepSeek-V4-Flash": {
                 "resolved_model": "DeepSeek-V4-Flash",
                 "base_url": HAINENG_FLASH_BASE_URL,
                 "aliases": {"v4-flash", "v4flash", "deepseek-v4-flash", "deepseekv4flash"},
             },
-            "V4-Pro": {
+            "DeepSeek-V4": {
                 "resolved_model": "DeepSeek-V4",
                 "base_url": HAINENG_PRO_BASE_URL,
                 "aliases": {"v4-pro", "v4pro", "deepseek-v4", "deepseekv4", "deepseek-v4-pro", "deepseekv4pro"},
@@ -53,7 +53,7 @@ _PROVIDER_MODEL_CATALOG: dict[str, dict[str, Any]] = {
 class HainengSettings:
     api_key: str = ""
     base_url: str = ""
-    model: str = "V4-Flash"
+    model: str = "DeepSeek-V4-Flash"
     provider: str = DEFAULT_PROVIDER
     streaming: bool = False
     function_calling: bool = True
@@ -159,12 +159,7 @@ def _provider_from_env() -> str:
 
 def _provider_env_value(provider: str, suffix: str) -> str:
     prefix = "DEEPSEEK" if provider == "deepseek" else "HAINENG"
-    fallback_prefix = "HAINENG" if provider == "deepseek" else "DEEPSEEK"
-    return (
-        os.getenv(f"{prefix}_{suffix}", "").strip()
-        or os.getenv(f"{fallback_prefix}_{suffix}", "").strip()
-        or ""
-    )
+    return os.getenv(f"{prefix}_{suffix}", "").strip()
 
 
 def normalize_provider(provider: str | None, base_url: str | None = None) -> str:
