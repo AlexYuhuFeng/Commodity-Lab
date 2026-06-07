@@ -110,7 +110,7 @@ class HainengProviderSettingsRequest(BaseModel):
     api_key: str
     provider: str = "haineng"
     base_url: str = ""
-    model: str = "V4-Flash"
+    model: str = "DeepSeek-V4-Flash"
     streaming: bool = False
     function_calling: bool = True
 
@@ -206,7 +206,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.0.9",
+        "current_version": "1.0.10",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -215,7 +215,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.0.9"
+    current_version = "1.0.10"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -472,7 +472,7 @@ def v1_provider_settings(payload: HainengProviderSettingsRequest):
         api_key=payload.api_key.strip(),
         provider=payload.provider.strip() or "haineng",
         base_url=payload.base_url.strip(),
-        model=payload.model.strip() or "V4-Flash",
+        model=payload.model.strip() or "DeepSeek-V4-Flash",
         streaming=payload.streaming,
         function_calling=payload.function_calling,
     )

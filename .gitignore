@@ -21,6 +21,8 @@ tauri/tauri-frontend/dist/
 *.exe
 *.zip
 *.7z
+/AI密钥*
+/AI_key*
 # Local diagnostics/temp outputs
 py_files_list.txt
 py_compile_output.txt

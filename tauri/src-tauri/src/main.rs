@@ -222,9 +222,11 @@ fn main() {
             if let Ok(mut lock) = setup_backend_handle.lock() {
                 *lock = child;
             }
-            if let Err(error) = wait_for_backend(Duration::from_secs(20)) {
-                eprintln!("{}", error);
-            }
+            thread::spawn(move || {
+                if let Err(error) = wait_for_backend(Duration::from_secs(20)) {
+                    eprintln!("{}", error);
+                }
+            });
             Ok(())
         })
         .build(tauri::generate_context!())

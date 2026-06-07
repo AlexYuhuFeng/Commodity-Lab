@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from tauri.backend.main import app
@@ -53,6 +56,21 @@ def test_version_endpoint_exposes_developer_and_repo_metadata() -> None:
     assert payload["repository"] == "AlexYuhuFeng/Commodity-Lab"
 
 
+def test_windows_installer_metadata_matches_release_requirements() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    config = json.loads((repo_root / "tauri" / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
+    bundle = config["tauri"]["bundle"]
+    nsis_template = repo_root / "tauri" / "src-tauri" / bundle["windows"]["nsis"]["template"]
+    template_text = nsis_template.read_text(encoding="utf-8")
+
+    assert bundle["publisher"] == "天然气中心"
+    assert bundle["targets"] == ["nsis", "msi"]
+    assert bundle["windows"]["wix"]["language"] == "zh-CN"
+    assert bundle["windows"]["nsis"]["installerIcon"] == "icons/icon.ico"
+    assert "https://github.com/AlexYuhuFeng/Commodity-Lab" in template_text
+    assert "🎵疯狂疯狂星期四，原味鸡两块九块九🎵" in template_text
+
+
 def test_scenarios_endpoint_returns_natural_gas_only() -> None:
     response = client.get("/api/v1/scenarios", params={"locale": "en"})
     assert response.status_code == 200
@@ -89,7 +107,7 @@ def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monk
     assert payload["haineng"]["ok"] is True
     assert payload["haineng"]["provider"] == "haineng"
     assert payload["haineng"]["base_url"] == "http://localhost:9999/v1"
-    assert payload["haineng"]["model"] == "V4-Flash"
+    assert payload["haineng"]["model"] == "DeepSeek-V4-Flash"
     assert "user-secret-key" not in str(payload)
     _clear_haineng_env(monkeypatch)
 

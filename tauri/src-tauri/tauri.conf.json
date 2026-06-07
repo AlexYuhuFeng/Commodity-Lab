@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "package": {
     "productName": "Commodity Lab",
-    "version": "1.0.9"
+    "version": "1.0.10"
   },
   "build": {
     "distDir": "../tauri-frontend/dist",
@@ -26,9 +26,10 @@
     ],
     "bundle": {
       "active": true,
+      "targets": ["nsis", "msi"],
       "identifier": "com.alexyuhufeng.commoditylab",
-      "publisher": "Commodity Lab",
-      "copyright": "Copyright © 2026 Commodity Lab. All rights reserved.",
+      "publisher": "天然气中心",
+      "copyright": "Copyright © 2026 天然气中心. Repository: https://github.com/AlexYuhuFeng/Commodity-Lab",
       "category": "Education",
       "shortDescription": "AI-generated natural gas hedging training terminal.",
       "longDescription": "Commodity Lab is a Windows desktop training terminal for natural gas hedging practice with AI-generated cases, training curves, deterministic local scoring, and Haineng-compatible AI coaching.",
@@ -39,7 +40,14 @@
         "../bundled/backend/*"
       ],
       "windows": {
-        "allowDowngrades": false
+        "allowDowngrades": false,
+        "wix": {
+          "language": "zh-CN"
+        },
+        "nsis": {
+          "template": "windows/installer.nsi",
+          "installerIcon": "icons/icon.ico"
+        }
       }
     }
   }
