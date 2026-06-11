@@ -11,7 +11,8 @@ build/
 .worktrees/
 *.egg-info/
 *.sqlite
-commodity_lab.duckdb
+*.duckdb
+*.duckdb.wal
 node_modules/
 tauri/node_modules/
 tauri/tauri-frontend/node_modules/
