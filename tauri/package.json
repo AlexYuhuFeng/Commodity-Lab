@@ -1,6 +1,6 @@
 {
   "name": "commodity-lab-tauri",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "private": true,
   "scripts": {
     "tauri:dev": "tauri dev",

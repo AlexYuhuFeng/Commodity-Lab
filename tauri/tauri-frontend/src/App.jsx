@@ -3,7 +3,7 @@ import { appWindow } from "@tauri-apps/api/window";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.0.12";
+const currentVersion = "1.0.13";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -40,12 +40,161 @@ const startupStageKeys = ["startupBackend", "startupAiRuntime", "startupWorkbenc
 
 const guideSteps = [
   ["settings-menu", "guideSettingsTitle", "guideSettingsBody"],
-  ["business-sidebar", "guideBusinessTitle", "guideBusinessBody"],
+  ["case-lab", "guideBusinessTitle", "guideBusinessBody"],
   ["case-workspace", "guideCaseTitle", "guideCaseBody"],
   ["market-chart", "guideChartTitle", "guideChartBody"],
   ["strategy-builder", "guideStrategyTitle", "guideStrategyBody"],
   ["floating-assistant", "guideAssistantTitle", "guideAssistantBody"]
 ];
+
+const pageIds = {
+  home: "home",
+  caseLab: "case-lab",
+  workbench: "workbench",
+  review: "review",
+  library: "library",
+  knowledge: "knowledge",
+  progress: "progress",
+  coach: "coach",
+  settings: "settings"
+};
+
+const commodityTabs = [
+  { id: "natural-gas", zh: "天然气", en: "Natural Gas", enabled: true },
+  { id: "crude-oil", zh: "原油", en: "Crude Oil", enabled: false },
+  { id: "refined", zh: "成品油", en: "Refined Products", enabled: false },
+  { id: "power-carbon", zh: "电力与碳", en: "Power & Carbon", enabled: false },
+  { id: "all", zh: "全部商品", en: "All Commodities", enabled: false }
+];
+
+const navItems = [
+  { id: pageIds.home, icon: "home", zh: "首页", en: "Home" },
+  { id: pageIds.caseLab, icon: "sparkles", zh: "案例实验室", en: "AI Case Lab" },
+  { id: pageIds.workbench, icon: "workbench", zh: "训练工作台", en: "Training Workbench" },
+  { id: pageIds.library, icon: "library", zh: "场景库", en: "Scenario Library" },
+  { id: pageIds.review, icon: "chart", zh: "复盘反馈", en: "Review & Feedback" },
+  { id: pageIds.knowledge, icon: "map", zh: "知识图谱", en: "Knowledge Map" },
+  { id: pageIds.progress, icon: "progress", zh: "我的进度", en: "My Progress" },
+  { id: pageIds.coach, icon: "coach", zh: "AI 教练", en: "AI Coach", badge: "NEW" }
+];
+
+const learningFlow = [
+  { zh: "发现", en: "Discover", detailZh: "理解知识点与业务风险", detailEn: "Concepts and business risk" },
+  { zh: "生成", en: "Generate", detailZh: "AI 构建案例与数据", detailEn: "AI case and data" },
+  { zh: "练习", en: "Practice", detailZh: "组合实货与纸货动作", detailEn: "Build physical and paper legs" },
+  { zh: "复盘", en: "Review", detailZh: "评分、错误和对照", detailEn: "Score and compare" },
+  { zh: "强化", en: "Reinforce", detailZh: "按弱项生成变体", detailEn: "Drill weak points" }
+];
+
+const scenarioLibraryItems = [
+  {
+    id: "procurement_beach_to_germany",
+    commodity: "natural-gas",
+    titleZh: "英国上游 Beach Delivery 卖德国",
+    titleEn: "UK Beach Delivery sold into Germany",
+    summaryZh: "上游 beach 交付资源销售至德国，处理 NBP/TTF 基差、EUR/GBP、运力和 EFET/GSA 匹配。",
+    summaryEn: "UK beach gas sold into Germany with NBP/TTF basis, EUR/GBP, capacity, and EFET/GSA matching.",
+    tags: ["GSA", "TTF/NBP", "FX", "Capacity"],
+    difficultyZh: "中等",
+    difficultyEn: "Intermediate",
+    duration: "90",
+    progress: 68,
+    statusZh: "进行中",
+    statusEn: "In progress",
+    enabled: true
+  },
+  {
+    id: "sales_lng_regas",
+    commodity: "natural-gas",
+    titleZh: "LNG 船货气化销售下跌行情",
+    titleEn: "LNG regas sale during selloff",
+    summaryZh: "船货、气化窗口和下游销售之间的价格、基差、期权性和履约风险套保。",
+    summaryEn: "Hedge cargo, regas window, downstream sale, basis, optionality, and performance risk.",
+    tags: ["LNG", "Regas", "TTF", "Optionality"],
+    difficultyZh: "困难",
+    difficultyEn: "Advanced",
+    duration: "75",
+    progress: 42,
+    statusZh: "进行中",
+    statusEn: "In progress",
+    enabled: true
+  },
+  {
+    id: "procurement_eex_ocm_window",
+    commodity: "natural-gas",
+    titleZh: "EEX / OCM 窗口采购与纸货匹配",
+    titleEn: "EEX / OCM window procurement hedge",
+    summaryZh: "围绕窗口成交、期限错配和流动性风险，设计实货采购与掉期/期货组合。",
+    summaryEn: "Design physical procurement plus swaps/futures around window execution, tenor mismatch, and liquidity.",
+    tags: ["EEX", "OCM", "Swap", "Liquidity"],
+    difficultyZh: "中等",
+    difficultyEn: "Intermediate",
+    duration: "60",
+    progress: 0,
+    statusZh: "未开始",
+    statusEn: "Not started",
+    enabled: true
+  },
+  {
+    id: "sales_efet_bilateral",
+    commodity: "natural-gas",
+    titleZh: "EFET 双边销售与违约风险",
+    titleEn: "Bilateral EFET sale and credit risk",
+    summaryZh: "双边合约销售、信用限额、基差、履约和保证金占用的组合套保案例。",
+    summaryEn: "Bilateral sale, credit limits, basis, performance, and margin usage in one hedge case.",
+    tags: ["EFET", "Credit", "Basis"],
+    difficultyZh: "中等",
+    difficultyEn: "Intermediate",
+    duration: "55",
+    progress: 0,
+    statusZh: "未开始",
+    statusEn: "Not started",
+    enabled: true
+  },
+  {
+    id: "crude_placeholder",
+    commodity: "crude-oil",
+    titleZh: "原油船货套利冲击",
+    titleEn: "Crude cargo arbitrage shock",
+    summaryZh: "后续版本开放。",
+    summaryEn: "Coming in a later version.",
+    tags: ["Constructing"],
+    difficultyZh: "建设中",
+    difficultyEn: "Constructing",
+    duration: "--",
+    progress: 0,
+    statusZh: "建设中",
+    statusEn: "Constructing",
+    enabled: false
+  }
+];
+
+const knowledgeNodes = [
+  { id: "hub", x: 50, y: 48, level: "intermediate", titleZh: "Hub Pricing", titleEn: "Hub Pricing", descZh: "TTF、NBP、THE、ZTP 等枢纽定价和交割逻辑。", descEn: "TTF, NBP, THE, ZTP hub pricing and delivery logic." },
+  { id: "basis", x: 28, y: 38, level: "advanced", titleZh: "基差与价差", titleEn: "Basis & Spreads", descZh: "不同枢纽、时间和交割点之间的价差风险。", descEn: "Spread risk across hubs, tenors, and delivery points." },
+  { id: "physical", x: 34, y: 24, level: "beginner", titleZh: "实货合同", titleEn: "Physical Contracts", descZh: "GSA、EFET、LNG 船货和气化销售的履约义务。", descEn: "GSA, EFET, LNG cargo, and regas sales obligations." },
+  { id: "capacity", x: 24, y: 58, level: "intermediate", titleZh: "运力与路径", titleEn: "Capacity & Routing", descZh: "管输容量、跨境路径、拥堵和日内平衡风险。", descEn: "Pipeline capacity, cross-border routes, congestion, and balancing risk." },
+  { id: "fx", x: 70, y: 44, level: "intermediate", titleZh: "汇率套保", titleEn: "FX Hedge", descZh: "EUR/GBP 和美元计价风险的前锋或掉期处理。", descEn: "Forwards or swaps for EUR/GBP and USD-denominated exposure." },
+  { id: "lng", x: 68, y: 62, level: "beginner", titleZh: "LNG 与气化", titleEn: "LNG & Regas", descZh: "船期、气化窗口、JKM/TTF 转换和期权性。", descEn: "Cargo timing, regas windows, JKM/TTF conversion, and optionality." },
+  { id: "risk", x: 48, y: 72, level: "advanced", titleZh: "风险管理", titleEn: "Risk Management", descZh: "信用、限额、流动性、保证金和执行窗口。", descEn: "Credit, limits, liquidity, margin, and execution windows." },
+  { id: "exchange", x: 76, y: 30, level: "intermediate", titleZh: "EFET / OCM / EEX", titleEn: "EFET / OCM / EEX", descZh: "双边、窗口和交易所工具的适用边界。", descEn: "Where bilateral, window, and exchange instruments fit." },
+  { id: "storage", x: 34, y: 72, level: "beginner", titleZh: "储气与季节性", titleEn: "Storage & Seasonality", descZh: "注采节奏、库存和季节曲线对套保的影响。", descEn: "Injection/withdrawal, inventory, and seasonal curve impacts." }
+];
+
+const progressDimensions = [
+  ["exposure", "风险识别", "Exposure Identification", 78],
+  ["instrument", "工具选择", "Hedge Instrument Selection", 66],
+  ["basis", "基差逻辑", "Basis Logic", 58],
+  ["fx", "汇率逻辑", "FX Logic", 44],
+  ["capacity", "运力/物流", "Capacity & Logistics", 52],
+  ["timing", "执行时机", "Execution Timing", 61],
+  ["control", "风险控制", "Risk Control", 70],
+  ["rationale", "说明质量", "Rationale Quality", 64]
+];
+
+function copy(locale, zh, en) {
+  return normalizeLocale(locale) === "zh" ? zh : en;
+}
 
 const fallbackTemplates = {
   groups: [
@@ -410,14 +559,32 @@ function MarkdownText({ text }) {
 
 function Icon({ name }) {
   const icons = {
+    arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+    book: <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z" />,
+    chart: <path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-7" />,
+    coach: <path d="M12 3l7 4v5c0 4.5-2.8 7.4-7 9-4.2-1.6-7-4.5-7-9V7l7-4Z" />,
     close: <path d="M6 6l12 12M18 6L6 18" />,
+    flame: <path d="M12 22c3.6 0 6.5-2.4 6.5-6.3 0-2.5-1.4-4.7-3.4-6.4-.7 1.7-1.8 2.8-3.1 3.4.4-3.6-1.3-6.2-4.3-8.7.2 3-1.3 4.8-2.3 6.3A8.4 8.4 0 0 0 4 15.7C4 19.6 8.4 22 12 22Z" />,
+    folder: <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5V17a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17Z" />,
     fullscreen: <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M4 16v4h4" />,
+    globe: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3.6 9h16.8M3.6 15h16.8M12 3c2.2 2.5 3.2 5.5 3.2 9s-1 6.5-3.2 9c-2.2-2.5-3.2-5.5-3.2-9S9.8 5.5 12 3Z" />,
+    grid: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />,
+    home: <path d="M3 11l9-8 9 8M5 10v10h14V10M9 20v-6h6v6" />,
+    library: <path d="M4 19V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2ZM8 7h7M8 11h7" />,
+    map: <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3ZM9 3v15M15 6v15" />,
+    play: <path d="M8 5v14l11-7Z" />,
+    plus: <path d="M12 5v14M5 12h14" />,
+    progress: <path d="M4 19h16M7 16V9M12 16V5M17 16v-4" />,
+    search: <path d="M10.5 18a7.5 7.5 0 1 1 5.3-2.2L21 21" />,
     settings: (
       <>
         <path d="M12 8.4A3.6 3.6 0 1 0 12 15.6A3.6 3.6 0 0 0 12 8.4Z" />
         <path d="M19.4 15a1.9 1.9 0 0 0 .38 2.1l.04.04a2.2 2.2 0 0 1-3.11 3.11l-.04-.04a1.9 1.9 0 0 0-2.1-.38 1.9 1.9 0 0 0-1.15 1.74V22a2.2 2.2 0 0 1-4.4 0v-.06a1.9 1.9 0 0 0-1.24-1.74 1.9 1.9 0 0 0-2.1.38l-.04.04a2.2 2.2 0 0 1-3.11-3.11l.04-.04a1.9 1.9 0 0 0 .38-2.1 1.9 1.9 0 0 0-1.74-1.15H2a2.2 2.2 0 0 1 0-4.4h.06A1.9 1.9 0 0 0 3.8 8.6a1.9 1.9 0 0 0-.38-2.1l-.04-.04a2.2 2.2 0 0 1 3.11-3.11l.04.04a1.9 1.9 0 0 0 2.1.38h.02A1.9 1.9 0 0 0 9.8 2.06V2a2.2 2.2 0 0 1 4.4 0v.06a1.9 1.9 0 0 0 1.15 1.74 1.9 1.9 0 0 0 2.1-.38l.04-.04a2.2 2.2 0 0 1 3.11 3.11l-.04.04a1.9 1.9 0 0 0-.38 2.1v.02A1.9 1.9 0 0 0 21.94 9.8H22a2.2 2.2 0 0 1 0 4.4h-.06A1.9 1.9 0 0 0 19.4 15Z" />
       </>
-    )
+    ),
+    sparkles: <path d="M12 3l1.6 5.2L19 10l-5.4 1.8L12 17l-1.6-5.2L5 10l5.4-1.8L12 3ZM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15ZM5 3l.8 2.2L8 6l-2.2.8L5 9l-.8-2.2L2 6l2.2-.8L5 3Z" />,
+    star: <path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
+    workbench: <path d="M4 5h16v5H4zM4 14h7v5H4zM15 14h5v5h-5z" />
   };
   return (
     <svg aria-hidden="true" className="ui-icon" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -919,6 +1086,556 @@ function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, ev
   );
 }
 
+function labelFor(locale, item, zhKey = "zh", enKey = "en") {
+  return copy(locale, item[zhKey], item[enKey]);
+}
+
+function LogoMark() {
+  return (
+    <span className="cl-logo-mark" aria-hidden="true">
+      <Icon name="flame" />
+    </span>
+  );
+}
+
+function ProductTopbar({ activeCommodity, aiReady, locale, onCommodityChange, setLocale }) {
+  return (
+    <header className="cl-topbar">
+      <div className="cl-brand">
+        <LogoMark />
+        <div>
+          <strong>Commodity Lab</strong>
+          <span>{copy(locale, "AI 驱动的大宗商品交易训练平台", "AI-powered commodity trading training lab")}</span>
+        </div>
+      </div>
+      <nav className="cl-commodity-tabs" aria-label="Commodity">
+        {commodityTabs.map((tab) => (
+          <button
+            className={tab.id === activeCommodity ? "active" : ""}
+            key={tab.id}
+            onClick={() => onCommodityChange(tab)}
+            type="button"
+          >
+            <Icon name={tab.id === "natural-gas" ? "flame" : tab.id === "all" ? "grid" : "book"} />
+            <span>{labelFor(locale, tab)}</span>
+            {!tab.enabled ? <small>{copy(locale, "建设中", "Constructing")}</small> : null}
+          </button>
+        ))}
+      </nav>
+      <div className="cl-top-actions">
+        <AiStatusBadge aiReady={aiReady} locale={locale} />
+        <button className="cl-language-button" onClick={() => setLocale(locale === "zh" ? "en" : "zh")} type="button">
+          <Icon name="globe" />
+          <span>{locale === "zh" ? "中文" : "English"}</span>
+        </button>
+        <span className="cl-user-badge">AY</span>
+        <WindowControls locale={locale} />
+      </div>
+    </header>
+  );
+}
+
+function ProductSidebar({ activePage, locale, onPageChange }) {
+  return (
+    <aside className="cl-sidebar">
+      <nav className="cl-main-nav">
+        {navItems.map((item) => (
+          <button className={activePage === item.id ? "active" : ""} key={item.id} onClick={() => onPageChange(item.id)} type="button">
+            <Icon name={item.icon} />
+            <span>{labelFor(locale, item)}</span>
+            {item.badge ? <small>{item.badge}</small> : null}
+          </button>
+        ))}
+      </nav>
+      <div className="cl-sidebar-spacer" />
+      <section className="cl-data-notice">
+        <Icon name="coach" />
+        <strong>{copy(locale, "训练数据说明", "Training Data Notice")}</strong>
+        <p>{copy(locale, "所有曲线、案例和评分规则均由 AI 生成，用于教学训练，不代表真实行情或交易建议。", "All curves, cases, and rubrics are AI-generated for training only. They are not live market data or trading advice.")}</p>
+      </section>
+      <button className={activePage === pageIds.settings ? "cl-settings-entry active" : "cl-settings-entry"} data-guide="settings-menu" onClick={() => onPageChange(pageIds.settings)} type="button">
+        <Icon name="settings" />
+        <span>{t("settings", locale)}</span>
+      </button>
+    </aside>
+  );
+}
+
+function LearningStepper({ active = 2, locale }) {
+  return (
+    <ol className="cl-learning-stepper">
+      {learningFlow.map((step, index) => (
+        <li className={index === active ? "active" : index < active ? "done" : ""} key={step.en}>
+          <span>{index + 1}</span>
+          <strong>{labelFor(locale, step)}</strong>
+          <small>{copy(locale, step.detailZh, step.detailEn)}</small>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function PageTitle({ action, icon = "sparkles", locale, subtitleEn, subtitleZh, titleEn, titleZh }) {
+  return (
+    <div className="cl-page-title">
+      <div>
+        <span className="cl-title-icon"><Icon name={icon} /></span>
+        <h2>{copy(locale, titleZh, titleEn)}</h2>
+        <p>{copy(locale, subtitleZh, subtitleEn)}</p>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function HomePage({ activeTemplate, aiReady, caseData, evaluation, locale, onGenerate, onPageChange }) {
+  const score = evaluation?.baseline_score ?? 72;
+  return (
+    <section className="cl-page cl-home-page">
+      <PageTitle
+        icon="home"
+        locale={locale}
+        titleZh="今天从哪里开始"
+        titleEn="Where to start today"
+        subtitleZh="按 AI 生成案例、训练进度和天然气业务知识点组织你的下一次练习。"
+        subtitleEn="Your next session is organized by AI cases, progress, and natural gas hedging skills."
+        action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="plus" />{copy(locale, "生成新案例", "Generate Case")}</button>}
+      />
+      <div className="cl-home-grid">
+        <section className="cl-panel cl-hero-panel">
+          <div>
+            <span>{copy(locale, "推荐训练", "Recommended Training")}</span>
+            <h3>{activeTemplate?.title ?? caseData.scenario?.title}</h3>
+            <p>{caseData.scenario?.summary}</p>
+          </div>
+          <div className="cl-hero-actions">
+            <button className="cl-primary" onClick={() => onGenerate(activeTemplate?.id ?? "procurement_beach_to_germany")} type="button"><Icon name="play" />{copy(locale, "继续训练", "Continue")}</button>
+            <button className="cl-secondary" onClick={() => onPageChange(pageIds.knowledge)} type="button"><Icon name="map" />{copy(locale, "先看知识点", "Open Knowledge Map")}</button>
+          </div>
+        </section>
+        <section className="cl-panel">
+          <div className="cl-panel-heading"><span>{copy(locale, "能力快照", "Capability Snapshot")}</span><strong>{score}/100</strong></div>
+          <div className="cl-progress-ring" style={{ "--score": `${score * 3.6}deg` }}>
+            <strong>{score}</strong>
+            <span>/100</span>
+          </div>
+          <p className="cl-muted">{copy(locale, "当前弱项：基差时机、汇率覆盖比例、运力弹性。", "Weak points: basis timing, FX hedge ratio, and capacity flexibility.")}</p>
+        </section>
+        <section className="cl-panel cl-quick-actions">
+          <div className="cl-panel-heading"><span>{copy(locale, "AI 快捷入口", "AI Shortcuts")}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div>
+          {[
+            [pageIds.caseLab, "sparkles", "按业务生成案例", "Generate by business scenario"],
+            [pageIds.workbench, "workbench", "打开训练工作台", "Open training workbench"],
+            [pageIds.coach, "coach", "询问 AI 教练", "Ask AI coach"],
+            [pageIds.progress, "progress", "查看训练画像", "View progress profile"]
+          ].map(([page, icon, zh, en]) => (
+            <button key={page} onClick={() => onPageChange(page)} type="button"><Icon name={icon} /><span>{copy(locale, zh, en)}</span><Icon name="arrow" /></button>
+          ))}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, loadingTemplate, onGenerate, setActiveTemplateId }) {
+  const templates = businessTemplates.templates?.length ? businessTemplates.templates : fallbackTemplates.templates;
+  const [request, setRequest] = useState("");
+  const active = templates.find((template) => template.id === activeTemplateId) ?? templates[0];
+  const gasTemplates = templates.filter((template) => template.group === active?.group || template.id === active?.id);
+
+  function randomize() {
+    const next = templates[Math.floor(Math.random() * templates.length)];
+    setActiveTemplateId(next.id);
+  }
+
+  return (
+    <section className="cl-page cl-case-lab-page" data-guide="case-lab">
+      <PageTitle
+        icon="sparkles"
+        locale={locale}
+        titleZh="构建 AI 训练案例"
+        titleEn="Build an AI Training Case"
+        subtitleZh="选择业务参数，或者直接用自然语言描述你想训练的天然气套保问题。"
+        subtitleEn="Configure parameters or describe the natural gas hedging case you want to practice."
+        action={<button className="cl-secondary" type="button">{copy(locale, "操作说明", "How it works")}</button>}
+      />
+      <div className="cl-case-lab-grid">
+        <section className="cl-panel cl-config-panel">
+          <div className="cl-panel-heading"><span>1 {copy(locale, "配置场景", "Configure Scenario")}</span><button className="cl-secondary" onClick={randomize} type="button">{copy(locale, "随机", "Randomize")}</button></div>
+          <div className="cl-form-grid">
+            <label>{copy(locale, "商品", "Commodity")}<select value="natural-gas" disabled><option value="natural-gas">{copy(locale, "天然气", "Natural Gas")}</option></select></label>
+            <label>{copy(locale, "业务角色", "Business Role")}<select defaultValue={active?.group ?? "procurement"}><option value="procurement">{copy(locale, "采购端", "Procurement")}</option><option value="sales">{copy(locale, "销售端", "Sales")}</option></select></label>
+            <label>{copy(locale, "业务模板", "Scenario Family")}<select value={active?.id ?? ""} onChange={(event) => setActiveTemplateId(event.target.value)}>{templates.map((template) => <option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
+            <label>{copy(locale, "地区", "Region")}<select defaultValue="europe"><option value="europe">{copy(locale, "欧洲", "Europe")}</option><option value="uk">{copy(locale, "英国", "United Kingdom")}</option></select></label>
+            <label>{copy(locale, "难度", "Difficulty")}<select defaultValue="intermediate"><option>{copy(locale, "中等", "Intermediate")}</option><option>{copy(locale, "困难", "Advanced")}</option></select></label>
+            <label>{copy(locale, "风险重点", "Risk Focus")}<select defaultValue="basis"><option>{copy(locale, "价格、基差、汇率", "Price, Basis, FX")}</option><option>{copy(locale, "运力、信用、履约", "Capacity, Credit, Performance")}</option></select></label>
+          </div>
+          <label>{copy(locale, "自然语言需求", "Free-form request")}
+            <textarea value={request} onChange={(event) => setRequest(event.target.value)} placeholder={copy(locale, "例如：英国上游 beach delivery 卖德国，市场快速下跌，训练实货、基差、汇率和运力组合套保。", "Example: UK beach delivery sold into Germany during a sharp selloff; train physical, basis, FX, and capacity hedge design.")} />
+          </label>
+          <div className="cl-action-row">
+            <button className="cl-primary" disabled={!aiReady || loadingTemplate === active?.id} onClick={() => onGenerate(active?.id, request)} type="button"><Icon name="sparkles" />{loadingTemplate ? t("loading", locale) : copy(locale, "生成案例", "Generate Case")}</button>
+            <button className="cl-secondary" onClick={() => setRequest("")} type="button">{copy(locale, "清空", "Clear")}</button>
+          </div>
+        </section>
+        <section className="cl-panel cl-ai-preview">
+          <div className="cl-panel-heading"><span>{copy(locale, "AI 预览", "AI Preview")}</span><strong>{aiReady ? t("online", locale) : t("connectToEnable", locale)}</strong></div>
+          <h3>{active?.title}</h3>
+          <p>{active?.summary}</p>
+          <div className="cl-chip-row">
+            {(active?.knowledge_points ?? ["basis_spread", "physical_paper_matching"]).map((point) => <span key={point}>{point}</span>)}
+          </div>
+          <div className="cl-preview-facts">
+            <span>{copy(locale, "将生成", "Will generate")}<strong>{copy(locale, "业务背景、曲线、事件、参考动作、评分规则", "Background, curves, events, target legs, rubric")}</strong></span>
+            <span>{copy(locale, "数据性质", "Data type")}<strong>{t("aiGeneratedData", locale)}</strong></span>
+          </div>
+        </section>
+        <aside className="cl-panel cl-template-families">
+          <div className="cl-panel-heading"><span>{copy(locale, "模板族", "Template Families")}</span><strong>{formatNumber(templates.length)}</strong></div>
+          {gasTemplates.map((template) => (
+            <button className={template.id === active?.id ? "active" : ""} key={template.id} onClick={() => setActiveTemplateId(template.id)} type="button">
+              <Icon name="library" />
+              <span>{template.title}</span>
+              <small>{template.business_type}</small>
+            </button>
+          ))}
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function ScenarioLibraryPage({ activeTemplateId, locale, loadingTemplate, onGenerate, onPageChange }) {
+  const [query, setQuery] = useState("");
+  const filters = normalizeLocale(locale) === "zh"
+    ? ["商品", "地区", "业务角色", "难度", "风险重点", "状态"]
+    : ["Commodity", "Region", "Business Role", "Difficulty", "Risk Focus", "Status"];
+  const visible = scenarioLibraryItems.filter((item) => {
+    const text = `${item.titleZh} ${item.titleEn} ${item.summaryZh} ${item.summaryEn} ${item.tags.join(" ")}`.toLowerCase();
+    return text.includes(query.trim().toLowerCase());
+  });
+  return (
+    <section className="cl-page cl-library-page">
+      <PageTitle
+        icon="library"
+        locale={locale}
+        titleZh="场景库"
+        titleEn="Scenario Library"
+        subtitleZh="浏览、搜索并管理 AI 生成的训练案例，天然气场景优先开放。"
+        subtitleEn="Browse, search, and manage AI-generated training cases. Natural gas scenarios are live first."
+        action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="plus" />{copy(locale, "新建案例", "New Case")}</button>}
+      />
+      <div className="cl-library-grid">
+        <section className="cl-panel cl-library-main">
+          <div className="cl-searchbar">
+            <Icon name="search" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy(locale, "搜索场景标题、描述、标签或关键词...", "Search scenario titles, descriptions, tags, or keywords...")} />
+          </div>
+          <div className="cl-filter-row">
+            {filters.map((label) => <select key={label}><option>{copy(locale, `全部${label}`, `All ${label}`)}</option></select>)}
+          </div>
+          <div className="cl-scenario-table">
+            <div className="cl-scenario-head">
+              <span>{copy(locale, "场景", "Scenario")}</span><span>{copy(locale, "商品", "Commodity")}</span><span>{copy(locale, "难度", "Difficulty")}</span><span>{copy(locale, "预计时长", "Est.")}</span><span>{copy(locale, "进度", "Progress")}</span><span>{copy(locale, "操作", "Action")}</span>
+            </div>
+            {visible.map((item) => (
+              <article className={!item.enabled ? "disabled" : ""} key={item.id}>
+                <div className="cl-scenario-name">
+                  <div className="cl-thumb" />
+                  <div>
+                    <strong>{copy(locale, item.titleZh, item.titleEn)}</strong>
+                    <p>{copy(locale, item.summaryZh, item.summaryEn)}</p>
+                    <div className="cl-chip-row">{item.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                  </div>
+                </div>
+                <span>{item.commodity === "natural-gas" ? copy(locale, "天然气", "Natural Gas") : copy(locale, "建设中", "Constructing")}</span>
+                <span>{copy(locale, item.difficultyZh, item.difficultyEn)}</span>
+                <span>{item.duration}{item.duration === "--" ? "" : copy(locale, " 分钟", " min")}</span>
+                <span className="cl-progress-cell"><i style={{ "--pct": `${item.progress}%` }} /><b>{item.progress}%</b></span>
+                <span className="cl-row-actions">
+                  <button disabled={!item.enabled} onClick={() => onGenerate(activeTemplateId || item.id)} type="button">{item.progress ? copy(locale, "继续", "Continue") : copy(locale, "开始", "Start")}</button>
+                  <button disabled={!item.enabled} onClick={() => onPageChange(pageIds.review)} type="button">{copy(locale, "复盘", "Review")}</button>
+                </span>
+              </article>
+            ))}
+          </div>
+        </section>
+        <aside className="cl-panel cl-library-side">
+          <div className="cl-panel-heading"><span>{copy(locale, "我的集合与路径", "Collections & Paths")}</span><strong>{copy(locale, "查看全部", "View all")}</strong></div>
+          {[
+            ["我的收藏", "My Favorites", "12"],
+            ["进阶交易路径", "Advanced Trading Path", "6"],
+            ["风险管理专练", "Risk Management Drill", "8"],
+            ["熊市模型专题", "Selloff Templates", "7"]
+          ].map(([zh, en, count]) => <button key={en} type="button"><Icon name="star" /><span>{copy(locale, zh, en)}</span><small>{count}</small></button>)}
+          <div className="cl-divider" />
+          <div className="cl-panel-heading"><span>{copy(locale, "为你推荐", "Recommended")}</span><strong>{copy(locale, "换一换", "Refresh")}</strong></div>
+          {scenarioLibraryItems.filter((item) => item.enabled).slice(0, 3).map((item) => <button key={item.id} onClick={() => onGenerate(item.id)} type="button"><span>{copy(locale, item.titleZh, item.titleEn)}</span><small>{item.duration} min</small></button>)}
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function DecisionTaskPanel({ caseData, locale }) {
+  return (
+    <section className="cl-panel cl-decision-panel">
+      <div className="cl-panel-heading"><span>1 {copy(locale, "决策任务", "Decision Task")}</span><strong>{caseData.scenario?.business_type}</strong></div>
+      <MarkdownText text={caseData.prompt} />
+      <div className="cl-exposure-strip">
+        <span>{copy(locale, "方向", "Exposure")}<strong>{caseData.scenario?.exposure?.direction ?? "--"}</strong></span>
+        <span>{copy(locale, "数量", "Volume")}<strong>{formatNumber(caseData.scenario?.exposure?.volume_mmbtu)} MMBtu</strong></span>
+        <span>{copy(locale, "风险", "Risk")}<strong>{caseData.scenario?.exposure?.risk ?? "--"}</strong></span>
+      </div>
+    </section>
+  );
+}
+
+function CaseHero({ activeTemplate, caseData, locale }) {
+  return (
+    <section className="cl-case-hero" data-guide="case-workspace">
+      <div className="cl-case-image"><Icon name="flame" /></div>
+      <div>
+        <span>{activeTemplate?.business_type ?? caseData.scenario?.business_type}</span>
+        <h2>{caseData.scenario?.title}</h2>
+        <p>{caseData.scenario?.summary}</p>
+        <div className="cl-chip-row">
+          {(caseData.scenario?.knowledge_points ?? []).map((point) => <span key={point}>{point}</span>)}
+          <span>{t("aiGeneratedData", locale)}</span>
+        </div>
+      </div>
+      <dl>
+        <div><dt>{copy(locale, "敞口方向", "Exposure Direction")}</dt><dd>{copy(locale, "卖出 / Short", "Short / Sell")}</dd></div>
+        <div><dt>{copy(locale, "期限", "Tenor")}</dt><dd>1-3M</dd></div>
+        <div><dt>{copy(locale, "来源 / 交付", "Origin / Delivery")}</dt><dd>UK Beach &gt; Germany</dd></div>
+      </dl>
+    </section>
+  );
+}
+
+function WorkbenchPage({ activeTemplate, advisorProps, caseData, fieldSelection, locale, onCheckStrategy, onGenerateVariant, onSuggestTarget, strategyProps }) {
+  return (
+    <section className="cl-page cl-workbench-page">
+      <LearningStepper active={2} locale={locale} />
+      <CaseHero activeTemplate={activeTemplate} caseData={caseData} locale={locale} />
+      <div className="cl-workbench-grid">
+        <div className="cl-workbench-left">
+          <DecisionTaskPanel caseData={caseData} locale={locale} />
+          <MarketChart caseData={caseData} fieldSelection={fieldSelection.value} locale={locale} setFieldSelection={fieldSelection.set} strategyLegs={strategyProps.strategyLegs} />
+        </div>
+        <div className="cl-workbench-center">
+          <section className="cl-panel cl-strategy-tools">
+            <div className="cl-panel-heading"><span>3 {copy(locale, "策略构建辅助", "Strategy Assistance")}</span><strong>{copy(locale, "本地即时反馈", "Immediate local feedback")}</strong></div>
+            <div className="cl-action-grid">
+              <button onClick={onSuggestTarget} type="button"><Icon name="sparkles" />{copy(locale, "AI 建议策略腿", "AI Suggest Legs")}</button>
+              <button onClick={onCheckStrategy} type="button"><Icon name="coach" />{copy(locale, "提交前检查", "Check Before Submit")}</button>
+              <button onClick={onGenerateVariant} type="button"><Icon name="plus" />{copy(locale, "生成变体", "Generate Variant")}</button>
+            </div>
+          </section>
+          <StrategyBuilder {...strategyProps} />
+          <div className="cl-bottom-grid">
+            <ScorePanel evaluation={strategyProps.evaluation} locale={locale} />
+            <RubricPanel caseData={caseData} locale={locale} />
+          </div>
+        </div>
+        <AdvisorRail {...advisorProps} />
+      </div>
+    </section>
+  );
+}
+
+function ReviewPage({ caseData, evaluation, locale, onGenerateVariant, onPageChange, runAiAction, strategyLegs }) {
+  const target = caseData.target_actions ?? [];
+  return (
+    <section className="cl-page cl-review-page">
+      <LearningStepper active={3} locale={locale} />
+      <PageTitle
+        icon="chart"
+        locale={locale}
+        titleZh="复盘反馈"
+        titleEn="Review & Feedback"
+        subtitleZh="把你的组合动作和 AI 生成的目标动作逐项对照，再进入强化训练。"
+        subtitleEn="Compare your multi-leg strategy with the AI-generated target before reinforcement drills."
+        action={<button className="cl-primary" onClick={() => runAiAction("advisor_review")} disabled={!evaluation} type="button"><Icon name="coach" />{copy(locale, "AI 解释评分", "AI Explain Score")}</button>}
+      />
+      <div className="cl-review-grid">
+        <section className="cl-panel cl-score-summary">
+          <div className="cl-progress-ring large" style={{ "--score": `${(evaluation?.baseline_score ?? 0) * 3.6}deg` }}><strong>{evaluation?.baseline_score ?? "--"}</strong><span>/100</span></div>
+          <h3>{evaluation ? copy(locale, "本地评分已完成", "Local scoring complete") : copy(locale, "尚未提交策略", "No strategy submitted")}</h3>
+          <p>{copy(locale, "评分不等待 AI；AI 用于解释、追问和生成后续训练。", "Scoring does not wait for AI. AI explains, challenges, and generates follow-up drills.")}</p>
+          <div className="cl-action-row">
+            <button className="cl-secondary" onClick={() => onPageChange(pageIds.workbench)} type="button">{copy(locale, "回到工作台", "Back to Workbench")}</button>
+            <button className="cl-primary" onClick={onGenerateVariant} type="button">{copy(locale, "训练弱项变体", "Drill Weak Variant")}</button>
+          </div>
+        </section>
+        <section className="cl-panel cl-comparison-panel">
+          <div className="cl-panel-heading"><span>{copy(locale, "用户策略 vs 目标动作", "User Strategy vs Target Actions")}</span><strong>{formatNumber(strategyLegs.length)} / {formatNumber(target.length)}</strong></div>
+          <div className="cl-compare-table">
+            <div><strong>{copy(locale, "你的动作", "Your Legs")}</strong><strong>{copy(locale, "目标动作", "Target Legs")}</strong></div>
+            {Array.from({ length: Math.max(strategyLegs.length, target.length, 1) }).map((_, index) => (
+              <div key={index}>
+                <span>{strategyLegs[index] ? `${strategyLegs[index].leg_type} / ${strategyLegs[index].market} / ${strategyLegs[index].side}` : "--"}</span>
+                <span>{target[index] ? `${target[index].leg_type} / ${target[index].market} / ${target[index].side}` : "--"}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="cl-panel">
+          <div className="cl-panel-heading"><span>{copy(locale, "常见错误", "Common Mistakes")}</span><strong>{copy(locale, "随案例生成", "Generated with case")}</strong></div>
+          <ul className="cl-mistake-list">
+            {(evaluation?.mistake_tags?.length ? evaluation.mistake_tags : ["basis_timing", "capacity_optionality", "fx_hedge_ratio"]).map((tag) => <li key={tag}>{tag}</li>)}
+          </ul>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
+  const [selected, setSelected] = useState("basis");
+  const node = knowledgeNodes.find((item) => item.id === selected) ?? knowledgeNodes[0];
+  return (
+    <section className="cl-page cl-knowledge-page">
+      <PageTitle
+        icon="map"
+        locale={locale}
+        titleZh="知识图谱"
+        titleEn="Knowledge Map"
+        subtitleZh="围绕天然气交易，把概念、业务场景和训练题连接起来。"
+        subtitleEn="Connect natural gas concepts, business scenarios, and practice cases."
+        action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="sparkles" />{copy(locale, "生成学习路径", "Generate Learning Path")}</button>}
+      />
+      <div className="cl-knowledge-grid">
+        <section className="cl-panel cl-map-canvas">
+          <div className="cl-map-center"><LogoMark /><strong>{copy(locale, "天然气交易", "Natural Gas Trading")}</strong></div>
+          {knowledgeNodes.map((item) => (
+            <button className={selected === item.id ? `active ${item.level}` : item.level} key={item.id} onClick={() => setSelected(item.id)} style={{ left: `${item.x}%`, top: `${item.y}%` }} type="button">
+              <span>{labelFor(locale, item, "titleZh", "titleEn")}</span>
+              <small>{item.level}</small>
+            </button>
+          ))}
+        </section>
+        <aside className="cl-panel cl-topic-panel">
+          <div className="cl-panel-heading"><span>{copy(locale, "选中主题", "Selected Topic")}</span><strong>{node.level}</strong></div>
+          <h3>{labelFor(locale, node, "titleZh", "titleEn")}</h3>
+          <p>{copy(locale, node.descZh, node.descEn)}</p>
+          <h4>{copy(locale, "为什么重要", "Why it matters")}</h4>
+          <p>{copy(locale, "它决定实货动作和纸货工具是否真正覆盖同一个风险，尤其影响基差、汇率、运力和履约。", "It decides whether physical and paper legs truly cover the same risk, especially basis, FX, capacity, and performance.")}</p>
+          <div className="cl-action-grid">
+            <button onClick={() => runAiAction("concept_tutor")} type="button">{copy(locale, "讲解概念", "Explain Concept")}</button>
+            <button onClick={() => runAiAction("exam")} type="button">{copy(locale, "考我一下", "Quiz Me")}</button>
+            <button onClick={() => onPageChange(pageIds.caseLab)} type="button">{copy(locale, "生成练习案例", "Generate Practice Case")}</button>
+          </div>
+        </aside>
+      </div>
+      <section className="cl-panel cl-path-panel">
+        <div className="cl-panel-heading"><span>{copy(locale, "推荐路径", "Recommended Path")}</span><strong>Natural Gas</strong></div>
+        <div className="cl-path-row">{["Hub Pricing", "Basis & Spreads", "Capacity & Routing", "FX Hedge", "Integrated Hedge Design"].map((item, index) => <span key={item}><b>{index + 1}</b>{item}</span>)}</div>
+      </section>
+    </section>
+  );
+}
+
+function ProgressPage({ evaluation, locale, onPageChange }) {
+  return (
+    <section className="cl-page cl-progress-page">
+      <PageTitle
+        icon="progress"
+        locale={locale}
+        titleZh="我的进度"
+        titleEn="My Progress"
+        subtitleZh="按套保能力维度追踪弱项，而不是只看完成百分比。"
+        subtitleEn="Track hedging skill dimensions instead of only completion percentage."
+        action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="plus" />{copy(locale, "生成弱项训练", "Generate Weak-Point Drill")}</button>}
+      />
+      <div className="cl-progress-layout">
+        <section className="cl-panel">
+          <div className="cl-panel-heading"><span>{copy(locale, "能力画像", "Capability Profile")}</span><strong>{evaluation?.baseline_score ?? 72}/100</strong></div>
+          <div className="cl-skill-bars">
+            {progressDimensions.map(([id, zh, en, score]) => (
+              <div key={id}>
+                <span>{copy(locale, zh, en)}</span>
+                <i><b style={{ width: `${score}%` }} /></i>
+                <strong>{score}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="cl-panel">
+          <div className="cl-panel-heading"><span>{copy(locale, "AI 推荐下一步", "AI Recommended Next Step")}</span><strong>{copy(locale, "基于弱项", "Based on weak points")}</strong></div>
+          <h3>{copy(locale, "做一题英国上游 Beach Delivery 卖德国的下跌行情变体", "Practice a UK Beach Delivery to Germany selloff variant")}</h3>
+          <p>{copy(locale, "重点训练基差方向、EUR/GBP 覆盖比例、运力弹性和执行窗口。", "Focus on basis direction, EUR/GBP hedge ratio, capacity flexibility, and execution window.")}</p>
+          <button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button">{copy(locale, "开始推荐训练", "Start Recommended Drill")}</button>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function AiCoachPage({ aiReady, applyAction, locale, messages, onSend, thinking }) {
+  const [draft, setDraft] = useState("");
+  async function submit(event) {
+    event.preventDefault();
+    if (!draft.trim()) return;
+    await onSend(draft.trim());
+    setDraft("");
+  }
+  return (
+    <section className="cl-page cl-coach-page">
+      <PageTitle
+        icon="coach"
+        locale={locale}
+        titleZh="AI 教练"
+        titleEn="AI Coach"
+        subtitleZh="让 AI 生成案例、解释概念、检查策略，并在安全范围内改动当前工作台。"
+        subtitleEn="Ask AI to generate cases, explain concepts, check strategies, and safely customize the workspace."
+      />
+      <div className="cl-coach-grid">
+        <section className="cl-panel cl-chat-panel">
+          <div className="assistant-messages">
+            {messages.length ? messages.map((message, index) => (
+              <article className={message.role} key={index}>
+                <MarkdownText text={message.content} />
+                {message.actions?.length ? <div className="assistant-actions">{message.actions.map((action, i) => <button key={i} onClick={() => applyAction(action)} type="button">{action.label ?? action.type}</button>)}</div> : null}
+              </article>
+            )) : <p className="empty-state">{t("assistantEmpty", locale)}</p>}
+            {thinking ? <AiThinkingPanel locale={locale} titleKey="assistantWorking" /> : null}
+          </div>
+          <form className="cl-chat-form" onSubmit={submit}>
+            <textarea disabled={!aiReady || thinking} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={t("assistantPlaceholder", locale)} />
+            <button className="cl-primary" disabled={!aiReady || thinking || !draft.trim()} type="submit">{thinking ? t("loading", locale) : t("send", locale)}</button>
+          </form>
+        </section>
+        <aside className="cl-panel cl-coach-actions">
+          <div className="cl-panel-heading"><span>{copy(locale, "常用请求", "Common Requests")}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div>
+          {[
+            copy(locale, "生成一个英国上游 beach delivery 卖德国的套保训练题。", "Generate a UK beach delivery sale into Germany hedging drill."),
+            copy(locale, "解释 TTF/NBP 基差风险和实货纸货如何匹配。", "Explain TTF/NBP basis risk and physical-paper matching."),
+            copy(locale, "检查我的策略有没有漏掉汇率、运力或信用风险。", "Check whether my strategy misses FX, capacity, or credit risk."),
+            copy(locale, "根据我上一次错误生成一个更难的变体。", "Generate a harder variant based on my last mistakes.")
+          ].map((prompt) => <button key={prompt} onClick={() => onSend(prompt)} disabled={!aiReady || thinking} type="button">{prompt}</button>)}
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function SettingsPage({ locale, settingsPanel }) {
+  return (
+    <section className="cl-page cl-settings-page">
+      <PageTitle
+        icon="settings"
+        locale={locale}
+        titleZh="设置"
+        titleEn="Settings"
+        subtitleZh="管理语言、主题、AI 供应方、密钥文件导入、版本更新和开发者信息。"
+        subtitleEn="Manage language, theme, AI provider, key-file import, version updates, and developer information."
+      />
+      <section className="cl-panel cl-settings-shell">{settingsPanel}</section>
+    </section>
+  );
+}
+
 function FloatingAssistant({ aiReady, applyAction, locale, messages, onSend, thinking }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -1006,6 +1723,8 @@ export default function App() {
   const [providerStatus, setProviderStatus] = useState(null);
   const [templates, setTemplates] = useState(fallbackTemplates);
   const [activeTemplateId, setActiveTemplateId] = useState(fallbackTemplates.templates[0].id);
+  const [activePage, setActivePage] = useState(pageIds.home);
+  const [activeCommodity, setActiveCommodity] = useState("natural-gas");
   const [caseData, setCaseData] = useState(() => defaultCase(initialLocale));
   const [generationStages, setGenerationStages] = useState([]);
   const [loadingTemplate, setLoadingTemplate] = useState("");
@@ -1025,7 +1744,6 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState({ current_version: currentVersion });
   const [assistantMessages, setAssistantMessages] = useState([]);
   const [guideIndex, setGuideIndex] = useState(() => savedValue("commodity-lab-guide-complete", "") ? -1 : 0);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const aiReady = Boolean(providerStatus?.haineng?.ok);
 
   function setLocale(nextLocale) {
@@ -1155,10 +1873,12 @@ export default function App() {
     setActiveTemplateId(templateId);
     if (!aiReady) {
       setServiceMessage(t("aiRequiredForCase", locale));
+      setActivePage(pageIds.settings);
       return;
     }
     setLoadingTemplate(templateId);
     setBusyAction("case_generation");
+    setActivePage(pageIds.workbench);
     setGenerationStages([{ id: "read_template", label: t("stageReadTemplate", locale) }]);
     try {
       setGenerationStages((current) => [...current, { id: "generate_market", label: t("stageGenerateMarket", locale) }]);
@@ -1186,6 +1906,50 @@ export default function App() {
     setEvaluation(nextEvaluation);
     setAiOutput(null);
     setBusyAction("");
+    setActivePage(pageIds.review);
+  }
+
+  function suggestTargetStrategy() {
+    setStrategyLegs((caseData.target_actions ?? defaultLegs(locale)).map((leg, index) => ({ id: leg.id ?? `target-leg-${index}`, ...leg })));
+    setAiOutput({
+      title: copy(locale, "AI 建议策略腿", "AI Suggested Strategy Legs"),
+      answer: copy(
+        locale,
+        "### AI 已根据本案例目标动作填充策略腿\n\n请逐条检查实货、基差、汇率、运力和期限是否匹配，不要机械提交。",
+        "### AI filled the strategy legs from the target action set\n\nReview physical, basis, FX, capacity, and tenor alignment before submitting."
+      )
+    });
+  }
+
+  function checkStrategyBeforeSubmit() {
+    const preview = evaluateStrategy(caseData, strategyLegs, rationale);
+    const missing = preview.mistake_tags?.length ? preview.mistake_tags.join(", ") : copy(locale, "未发现明显缺口", "No obvious gap detected");
+    setEvaluation(preview);
+    setAiOutput({
+      title: copy(locale, "提交前检查", "Pre-submit Check"),
+      answer: copy(
+        locale,
+        `### 本地即时检查\n\n- 预估得分：**${preview.baseline_score}/100**\n- 主要缺口：${missing}\n- 下一步：确认每条腿覆盖的实货、纸货、汇率、运力或信用风险，再提交策略。`,
+        `### Immediate local check\n\n- Estimated score: **${preview.baseline_score}/100**\n- Main gaps: ${missing}\n- Next: confirm which physical, paper, FX, capacity, or credit exposure each leg covers before submitting.`
+      )
+    });
+  }
+
+  function generateVariant() {
+    const prompt = copy(
+      locale,
+      "基于当前案例生成一个更贴近真实业务的变体，重点放在市场剧烈波动、基差错配、汇率和运力约束。",
+      "Generate a realistic variant of the current case focused on sharp market moves, basis mismatch, FX, and capacity constraints."
+    );
+    generateTrainingCase(activeTemplateId, prompt);
+  }
+
+  function handleCommodityChange(tab) {
+    setActiveCommodity(tab.id);
+    if (!tab.enabled) {
+      setServiceMessage(copy(locale, `${labelFor(locale, tab)} 模块建设中，V1 先开放天然气训练。`, `${labelFor(locale, tab)} is under construction. V1 opens Natural Gas training first.`));
+      setActiveCommodity("natural-gas");
+    }
   }
 
   function buildAiPayload(capability) {
@@ -1250,65 +2014,113 @@ export default function App() {
   }
 
   const activeTemplate = useMemo(() => templates.templates?.find((item) => item.id === activeTemplateId), [templates, activeTemplateId]);
+  const settingsPanel = (
+    <SettingsMenu
+      aiReady={aiReady}
+      importing={busyAction === "provider-import"}
+      locale={locale}
+      onCheckUpdate={checkUpdate}
+      onImportLocalSettings={importLocalProviderSettings}
+      onRestartGuide={() => setGuideIndex(0)}
+      onSaveSettings={saveProviderSettings}
+      providerStatus={providerStatus}
+      saving={busyAction === "provider"}
+      serviceMessage={busyAction === "provider" ? "" : serviceMessage}
+      setLocale={setLocale}
+      setTheme={setTheme}
+      theme={theme}
+      updateInfo={updateInfo}
+    />
+  );
+
+  const advisorProps = {
+    aiOutput,
+    aiReady,
+    advisorFeedback,
+    busyAction,
+    error: serviceMessage && busyAction !== "provider" ? serviceMessage : "",
+    evaluation,
+    exam,
+    locale,
+    runAiAction
+  };
+
+  const strategyProps = {
+    busy: busyAction === "evaluate",
+    evaluation,
+    locale,
+    onSubmit: submitStrategy,
+    rationale,
+    setRationale,
+    setStrategyLegs,
+    strategyLegs
+  };
+
+  function renderActivePage() {
+    if (activePage === pageIds.caseLab) {
+      return (
+        <AiCaseLabPage
+          activeTemplateId={activeTemplateId}
+          aiReady={aiReady}
+          businessTemplates={templates}
+          locale={locale}
+          loadingTemplate={loadingTemplate}
+          onGenerate={generateTrainingCase}
+          setActiveTemplateId={setActiveTemplateId}
+        />
+      );
+    }
+    if (activePage === pageIds.workbench) {
+      return (
+        <WorkbenchPage
+          activeTemplate={activeTemplate}
+          advisorProps={advisorProps}
+          caseData={caseData}
+          fieldSelection={{ value: fieldSelection, set: setFieldSelection }}
+          locale={locale}
+          onCheckStrategy={checkStrategyBeforeSubmit}
+          onGenerateVariant={generateVariant}
+          onSuggestTarget={suggestTargetStrategy}
+          strategyProps={strategyProps}
+        />
+      );
+    }
+    if (activePage === pageIds.review) {
+      return <ReviewPage caseData={caseData} evaluation={evaluation} locale={locale} onGenerateVariant={generateVariant} onPageChange={setActivePage} runAiAction={runAiAction} strategyLegs={strategyLegs} />;
+    }
+    if (activePage === pageIds.library) {
+      return <ScenarioLibraryPage activeTemplateId={activeTemplateId} locale={locale} loadingTemplate={loadingTemplate} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
+    }
+    if (activePage === pageIds.knowledge) {
+      return <KnowledgeMapPage locale={locale} onPageChange={setActivePage} runAiAction={runAiAction} />;
+    }
+    if (activePage === pageIds.progress) {
+      return <ProgressPage evaluation={evaluation} locale={locale} onPageChange={setActivePage} />;
+    }
+    if (activePage === pageIds.coach) {
+      return <AiCoachPage aiReady={aiReady} applyAction={applyAssistantAction} locale={locale} messages={assistantMessages} onSend={sendAssistant} thinking={busyAction === "assistant"} />;
+    }
+    if (activePage === pageIds.settings) {
+      return <SettingsPage locale={locale} settingsPanel={settingsPanel} />;
+    }
+    return <HomePage activeTemplate={activeTemplate} aiReady={aiReady} caseData={caseData} evaluation={evaluation} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
+  }
 
   if (!backendReady) {
     return <StartupScreen locale={locale} slow={startupSlow} stageKey={startupStage} />;
   }
 
   return (
-    <main className={aiReady ? "app-shell ai-ready" : "app-shell"}>
-      <header className="topbar">
-        <div>
-          <p>{t("appKicker", locale)}</p>
-          <h1>{t("appTitle", locale)}</h1>
-        </div>
-        <div className="topbar-actions">
-          <AiStatusBadge aiReady={aiReady} locale={locale} />
-          <span className="active-template">{activeTemplate?.title ?? t("noCase", locale)}</span>
-          <WindowControls locale={locale} />
-        </div>
-      </header>
+    <main className={aiReady ? "app-shell cl-app-shell ai-ready" : "app-shell cl-app-shell"}>
+      <ProductTopbar activeCommodity={activeCommodity} aiReady={aiReady} locale={locale} onCommodityChange={handleCommodityChange} setLocale={setLocale} />
 
-      <div className="workbench-layout">
-        <BusinessNavigator
-          activeTemplateId={activeTemplateId}
-          businessTemplates={templates}
-          settingsOpen={settingsOpen}
-          settingsPanel={(
-            <SettingsMenu
-              aiReady={aiReady}
-              importing={busyAction === "provider-import"}
-              locale={locale}
-              onCheckUpdate={checkUpdate}
-              onImportLocalSettings={importLocalProviderSettings}
-              onRestartGuide={() => setGuideIndex(0)}
-              onSaveSettings={saveProviderSettings}
-              providerStatus={providerStatus}
-              saving={busyAction === "provider"}
-              serviceMessage={busyAction === "provider" ? "" : serviceMessage}
-              setLocale={setLocale}
-              setTheme={setTheme}
-              theme={theme}
-              updateInfo={updateInfo}
-            />
-          )}
-          footer={<SettingsToggle locale={locale} onClick={() => setSettingsOpen((current) => !current)} open={settingsOpen} />}
-          generateTrainingCase={generateTrainingCase}
-          loadingTemplate={loadingTemplate}
-          locale={locale}
-        />
-
-        <section className="workspace-main">
-          <CaseWorkspace caseData={caseData} generationStages={generationStages} locale={locale} />
-          <div className="workspace-grid">
-            <MarketChart caseData={caseData} fieldSelection={fieldSelection} locale={locale} setFieldSelection={setFieldSelection} strategyLegs={strategyLegs} />
-            <StrategyBuilder busy={busyAction === "evaluate"} locale={locale} onSubmit={submitStrategy} rationale={rationale} setRationale={setRationale} setStrategyLegs={setStrategyLegs} strategyLegs={strategyLegs} />
-            <ScorePanel evaluation={evaluation} locale={locale} />
-            <RubricPanel caseData={caseData} locale={locale} />
-          </div>
+      <div className="cl-app-layout">
+        <ProductSidebar activePage={activePage} locale={locale} onPageChange={setActivePage} />
+        <section className="cl-content-shell">
+          {generationStages.length && busyAction === "case_generation" ? <GenerationTimeline locale={locale} stages={generationStages} /> : null}
+          {serviceMessage && activePage !== pageIds.settings ? <p className="cl-service-banner">{serviceMessage}</p> : null}
+          {renderActivePage()}
         </section>
-
-        <AdvisorRail aiOutput={aiOutput} aiReady={aiReady} advisorFeedback={advisorFeedback} busyAction={busyAction} error={serviceMessage && busyAction !== "provider" ? serviceMessage : ""} evaluation={evaluation} exam={exam} locale={locale} runAiAction={runAiAction} />
       </div>
 
       <FloatingAssistant aiReady={aiReady} applyAction={applyAssistantAction} locale={locale} messages={assistantMessages} onSend={sendAssistant} thinking={busyAction === "assistant"} />

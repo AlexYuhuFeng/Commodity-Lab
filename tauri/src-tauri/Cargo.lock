@@ -332,7 +332,7 @@ dependencies = [
 
 [[package]]
 name = "commodity_lab_tauri"
-version = "1.0.12"
+version = "1.0.13"
 dependencies = [
  "reqwest",
  "serde",
