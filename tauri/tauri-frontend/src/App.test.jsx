@@ -131,7 +131,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.0.12",
+        current_version: "1.0.13",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -161,7 +161,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.0.12", latest_version: "1.0.12", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.0.12", assets: [] };
+      return { current_version: "1.0.13", latest_version: "1.0.13", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.0.13", assets: [] };
     }
     return {};
   };
@@ -196,7 +196,8 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("AI 全功能")).toBeInTheDocument();
     expect(screen.getByText("Commodity Lab")).toBeInTheDocument();
     expect(screen.getAllByText("设置")[0]).toBeInTheDocument();
-    expect(screen.getByText("业务类型")).toBeInTheDocument();
+    expect(screen.getByText("今天从哪里开始")).toBeInTheDocument();
+    expect(screen.getByText("案例实验室")).toBeInTheDocument();
     expect(screen.queryByText(/external market data source/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/涓|鈥|娴疯兘/)).not.toBeInTheDocument();
   });
@@ -257,8 +258,8 @@ describe("Commodity Lab shell", () => {
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
-    const templateTitle = (await screen.findAllByText("UK beach delivery sold into Germany")).find((node) => node.closest("button"));
-    fireEvent.click(templateTitle.closest("button"));
+    fireEvent.click(await screen.findByText("AI Case Lab"));
+    fireEvent.click(await screen.findByText("Generate Case"));
 
     expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Decision task" })).toBeInTheDocument();
@@ -273,6 +274,7 @@ describe("Commodity Lab shell", () => {
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
+    fireEvent.click(await screen.findByText("Training Workbench"));
     fireEvent.click(await screen.findByText("Submit strategy"));
 
     expect(await screen.findByText("91")).toBeInTheDocument();
@@ -283,6 +285,7 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
+    fireEvent.click(await screen.findByText("Training Workbench"));
     fireEvent.click(await screen.findByRole("button", { name: "AI" }));
     fireEvent.change(screen.getByPlaceholderText(/Generate a UK beach delivery/), { target: { value: "Show high low close and explain basis." } });
     fireEvent.click(screen.getByText("Send"));
