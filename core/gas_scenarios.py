@@ -513,12 +513,13 @@ def get_scenario(scenario_id: str, locale: str = "en") -> dict[str, Any]:
 
 
 def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, Any]:
-    """Return legacy built-in training market context for a scenario.
+    """Return deterministic AI-training market context for a scenario.
 
     V1 now treats market context as AI-generated training data. This function is
     retained for existing deterministic tests and offline fallback screens only.
     It never calls external market providers.
     """
+    _ = source
     scenario = _find_scenario(scenario_id)
     points = _SAMPLE_PRICE_POINTS.get(scenario_id)
     if points is None:

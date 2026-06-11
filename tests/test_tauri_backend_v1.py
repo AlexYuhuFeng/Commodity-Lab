@@ -165,7 +165,7 @@ def test_context_endpoint_returns_market_and_capacity() -> None:
 def test_context_endpoint_ignores_removed_external_source_names() -> None:
     response = client.get(
         "/api/v1/scenarios/europe_route_capacity_constraint/context",
-        params={"locale": "en", "source": "legacy_external_provider"},
+        params={"locale": "en", "source": "removed_external_provider"},
     )
     assert response.status_code == 200
     market = response.json()["market"]
@@ -202,7 +202,7 @@ def test_ai_generate_requires_haineng_when_missing(monkeypatch) -> None:
     assert "Haineng is required" in response.json()["detail"]
 
 
-def test_legacy_advisor_and_exam_require_haineng_when_missing(monkeypatch) -> None:
+def test_compat_advisor_and_exam_require_haineng_when_missing(monkeypatch) -> None:
     _clear_haineng_env(monkeypatch)
     advisor_response = client.post(
         "/api/v1/advisor/review",
@@ -341,7 +341,7 @@ def test_live_assistant_endpoint_returns_safe_action_cards(monkeypatch) -> None:
     assert [action["type"] for action in payload["actions"]] == ["set_chart_fields", "run_ai_capability"]
 
 
-def test_legacy_advisor_and_exam_return_haineng_answers_when_configured(monkeypatch) -> None:
+def test_compat_advisor_and_exam_return_haineng_answers_when_configured(monkeypatch) -> None:
     class FakeClient:
         def is_configured(self) -> bool:
             return True
@@ -372,7 +372,7 @@ def test_legacy_advisor_and_exam_return_haineng_answers_when_configured(monkeypa
     assert exam_response.json()["exam"] == "provider answer"
 
 
-def test_legacy_assistant_uses_haineng_contract(monkeypatch) -> None:
+def test_compat_assistant_uses_haineng_contract(monkeypatch) -> None:
     _clear_haineng_env(monkeypatch)
     missing = client.post("/api/assistant", json={"question": "How should I hedge TTF/NBP basis?"})
     assert missing.status_code == 428
@@ -385,13 +385,13 @@ def test_legacy_assistant_uses_haineng_contract(monkeypatch) -> None:
             text = "\n".join(message["content"] for message in messages)
             assert "TTF/NBP" in text
             assert "Haineng" in text
-            return "legacy provider answer"
+            return "compatibility provider answer"
 
     monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
     response = client.post("/api/assistant", json={"question": "How should I hedge TTF/NBP basis?"})
 
     assert response.status_code == 200
-    assert response.json()["answer"] == "legacy provider answer"
+    assert response.json()["answer"] == "compatibility provider answer"
 
 
 def test_haineng_provider_failure_returns_structured_502(monkeypatch) -> None:

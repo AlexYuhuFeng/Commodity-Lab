@@ -132,9 +132,11 @@ jobs:
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           NOTES_FILE="release-notes.md"
           cat > "$NOTES_FILE" <<'EOF'
-          Commodity Lab Windows release.
+          # Commodity Lab Windows release
 
-          This build packages the AI-powered energy trading training terminal for Windows. It includes Base Mode market training and supports Haineng-compatible AI Full Power Mode when users provide their own endpoint credentials.
+          This build packages the AI-generated natural gas hedging training terminal for Windows. It keeps generated installer artifacts in GitHub Releases instead of repository source.
+
+          本版本打包 Commodity Lab Windows 客户端，用于 AI 生成式天然气套保训练。安装包作为 GitHub Release 附件发布，不放入源码仓库。
           EOF
 
           mapfile -t files < <(find artifacts/windows -type f)
@@ -143,7 +145,15 @@ jobs:
             exit 1
           fi
 
-          gh release create "$TAG_NAME" "${files[@]}" \
-            --title "Commodity Lab $TAG_NAME" \
-            --notes-file "$NOTES_FILE" \
-            --latest
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release edit "$TAG_NAME" \
+              --title "Commodity Lab $TAG_NAME" \
+              --notes-file "$NOTES_FILE" \
+              --latest
+            gh release upload "$TAG_NAME" "${files[@]}" --clobber
+          else
+            gh release create "$TAG_NAME" "${files[@]}" \
+              --title "Commodity Lab $TAG_NAME" \
+              --notes-file "$NOTES_FILE" \
+              --latest
+          fi
