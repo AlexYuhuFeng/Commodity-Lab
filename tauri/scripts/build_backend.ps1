@@ -58,20 +58,48 @@ if (-not $SkipInstall) {
     )
 }
 
-Invoke-Step "Build backend executable" "python" @(
+$HiddenImports = @(
+    "core.db",
+    "core.energy_models",
+    "core.gas_scenarios",
+    "core.haineng_client",
+    "core.hedge",
+    "core.learner_profile",
+    "core.learning_journey",
+    "core.learning_session",
+    "core.scenario_registry",
+    "core.training_templates"
+)
+
+$PyInstallerArgs = @(
     "-m", "PyInstaller",
     "--noconfirm",
     "--clean",
     "--onefile",
     "--noconsole",
     "--name", "commodity_lab_backend",
-    "--paths", $RepoRoot,
-    "--collect-submodules", "core",
+    "--paths", $RepoRoot
+)
+
+foreach ($ModuleName in $HiddenImports) {
+    $PyInstallerArgs += @("--hidden-import", $ModuleName)
+}
+
+$PyInstallerArgs += @(
     "--distpath", $OutDir,
     "--workpath", $WorkPath,
     "--specpath", $WorkPath,
     $MainPath
 )
+
+$OriginalPythonPath = $env:PYTHONPATH
+try {
+    $env:PYTHONPATH = ""
+    Invoke-Step "Build backend executable" "python" $PyInstallerArgs
+}
+finally {
+    $env:PYTHONPATH = $OriginalPythonPath
+}
 
 $ExecutablePath = Join-Path $OutDir "commodity_lab_backend.exe"
 if ((-not $DryRun) -and (-not (Test-Path $ExecutablePath))) {

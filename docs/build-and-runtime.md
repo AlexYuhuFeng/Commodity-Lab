@@ -88,7 +88,7 @@ GitHub repo → Actions → Tauri Windows Build → Run workflow → main
 The downloadable artifact is named:
 
 ```text
-tauri-windows
+commodity-lab-windows
 ```
 
 Tag release path:

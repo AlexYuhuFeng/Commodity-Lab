@@ -167,8 +167,8 @@ def test_sample_market_context_for_route_capacity_has_prices():
     assert all("date" in point and "close" in point for point in context["price_series"])
 
 
-def test_legacy_source_argument_never_calls_external_market_providers():
-    context = get_market_context("europe_route_capacity_constraint", source="legacy_external_provider")
+def test_removed_external_source_argument_never_calls_market_providers():
+    context = get_market_context("europe_route_capacity_constraint", source="removed_external_provider")
 
     assert context["source"] == "ai_generated_training"
     assert context["source_label"] == "AI Generated Training Data"

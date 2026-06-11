@@ -95,7 +95,7 @@ For test distribution, provide users with a local `AI密钥` file instead of ask
 Commodity-Lab
 ├── core/
 │   ├── training_templates.py      Gas business workflow templates
-│   ├── gas_scenarios.py          Legacy gas scenario catalog and fallback training context
+│   ├── gas_scenarios.py          AI-generated gas fixture catalog and offline training context
 │   ├── learning_session.py       Deterministic scoring helpers
 │   └── haineng_client.py         Haineng / DeepSeek compatible AI client and prompts
 ├── tauri/

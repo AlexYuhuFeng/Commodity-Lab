@@ -3,7 +3,7 @@ import { appWindow } from "@tauri-apps/api/window";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.0.10";
+const currentVersion = "1.0.11";
 
 const defaultProviderCatalog = {
   haineng: {

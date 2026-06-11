@@ -131,7 +131,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.0.10",
+        current_version: "1.0.11",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -161,7 +161,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.0.10", latest_version: "1.0.10", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.0.10", assets: [] };
+      return { current_version: "1.0.11", latest_version: "1.0.11", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.0.11", assets: [] };
     }
     return {};
   };

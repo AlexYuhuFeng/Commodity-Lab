@@ -37,7 +37,7 @@ V1 does not fetch external prices. The generated case owns its market context:
 - expected physical, paper, FX, basis, or capacity legs;
 - scoring rubric.
 
-Legacy deterministic gas scenarios remain in `core/gas_scenarios.py` only as compatibility fixtures and offline fallback context for tests.
+Deterministic gas fixtures remain in `core/gas_scenarios.py` only as offline fallback context for regression tests and unconfigured AI sessions.
 
 ## Provider Model
 
