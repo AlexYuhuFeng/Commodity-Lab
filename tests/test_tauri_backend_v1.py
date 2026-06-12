@@ -320,6 +320,7 @@ def test_live_assistant_endpoint_returns_safe_action_cards(monkeypatch) -> None:
         def complete(self, messages, tools=None):
             text = "\n".join(message["content"] for message in messages)
             assert "Allowed action types" in text
+            assert "track_id=foundation" in text
             return """
             {
               "answer": "### Plan\\nShow high/low/close and add an FX leg.",
@@ -400,7 +401,7 @@ def test_haineng_provider_failure_returns_structured_502(monkeypatch) -> None:
             return True
 
         def complete(self, messages, tools=None):
-            raise RuntimeError("provider rejected token=secret-key")
+            raise RuntimeError("provider rejected token=secret-key; Your api key: ****96a2 is invalid; raw sk-abcdef1234567890")
 
     monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FailingClient())
     response = client.post(
@@ -411,7 +412,10 @@ def test_haineng_provider_failure_returns_structured_502(monkeypatch) -> None:
     detail = response.json()["detail"]
     assert detail["code"] == "haineng_request_failed"
     assert "secret-key" not in str(detail)
+    assert "96a2" not in str(detail)
+    assert "sk-abcdef1234567890" not in str(detail)
     assert "token=[REDACTED]" in detail["provider_message"]
+    assert "api key=[REDACTED]" in detail["provider_message"]
 
 
 def test_unknown_scenario_returns_404() -> None:

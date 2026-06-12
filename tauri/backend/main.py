@@ -206,7 +206,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.0.13",
+        "current_version": "1.1.0",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -215,7 +215,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.0.13"
+    current_version = "1.1.0"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -414,15 +414,22 @@ def _unknown_scenario(exc: KeyError) -> HTTPException:
 
 
 def _haineng_failure(exc: Exception) -> HTTPException:
-    message = re.sub(
-        r"(?i)\b(api[_-]?key|apikey|authorization|password|secret|token)\s*[:=]\s*[^,\s;]+",
-        r"\1=[REDACTED]",
-        str(exc),
-    )
+    message = _redact_provider_error(str(exc))
     return HTTPException(
         status_code=502,
         detail={"code": "haineng_request_failed", "message": "Haineng request failed.", "provider_message": message},
     )
+
+
+def _redact_provider_error(message: str) -> str:
+    redacted = re.sub(
+        r"(?i)\b(api[\s_-]?key|apikey|authorization|password|secret|token)\s*[:=]\s*[^,\s;\}\]]+",
+        lambda match: f"{match.group(1)}=[REDACTED]",
+        message,
+    )
+    redacted = re.sub(r"(?i)\bsk-[A-Za-z0-9_-]{8,}\b", "[REDACTED]", redacted)
+    redacted = re.sub(r"\*{2,}[A-Za-z0-9_-]{2,}", "[REDACTED]", redacted)
+    return redacted
 
 
 def _require_haineng_client():
@@ -669,11 +676,14 @@ def v1_ai_live_assistant(payload: LiveAssistantRequest):
 
     client = _require_haineng_client()
     available_actions = {
-        "select_template": {"template_id": "procurement_beach_to_germany"},
+        "navigate_page": {"page": "home|caseLab|workbench|library|review|knowledge|progress|settings"},
+        "generate_case": {"track_id": "foundation|procurement|sales|integrated", "template_id": "foundation_hedging_basics", "user_request": "short training goal"},
+        "select_template": {"template_id": "foundation_hedging_basics", "user_request": "optional training goal"},
         "set_chart_fields": {"fields": ["high", "low", "close"]},
         "set_strategy_legs": {"legs": [{"leg_type": "swap", "market": "TTF", "side": "sell", "quantity": 10000}]},
         "fill_rationale": {"text": "string"},
-        "run_ai_capability": {"capability": "concept_tutor"},
+        "set_exam": {"exam": "Markdown quiz content"},
+        "run_ai_capability": {"capability": "concept_tutor|exam|trade_playbook|advisor_review"},
     }
     messages = build_live_assistant_messages(
         payload.locale,
@@ -683,7 +693,10 @@ def v1_ai_live_assistant(payload: LiveAssistantRequest):
     )
     try:
         answer = client.complete(messages)
-        parsed = _parse_json_response(answer)
+        try:
+            parsed = _parse_json_response(answer)
+        except Exception:
+            parsed = {"answer": answer, "actions": []}
     except Exception as exc:
         raise _haineng_failure(exc) from exc
     return {

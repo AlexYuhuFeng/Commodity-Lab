@@ -14,6 +14,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 
 const businessTemplates = {
   groups: [
+    { id: "foundation", label: "Foundations" },
     { id: "procurement", label: "Procurement" },
     { id: "sales", label: "Sales" }
   ],
@@ -22,6 +23,16 @@ const businessTemplates = {
     { id: "physical_paper_matching", label: "Physical-paper matching", description: "Match GSA, EFET, LNG, swaps, FX, and capacity." }
   ],
   templates: [
+    {
+      id: "foundation_hedging_basics",
+      group: "foundation",
+      business_type: "Natural gas hedging foundations",
+      title: "What exposure are we hedging?",
+      summary: "Generate a beginner exposure, hedge objective, and physical-paper matching case.",
+      knowledge_points: ["outright_price", "physical_paper_matching"],
+      required_curves: ["TTF", "TRAINING_HEDGE_INDEX"],
+      suggested_leg_types: ["physical", "swap"]
+    },
     {
       id: "procurement_beach_to_germany",
       group: "procurement",
@@ -131,7 +142,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.0.13",
+        current_version: "1.1.0",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -161,7 +172,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.0.13", latest_version: "1.0.13", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.0.13", assets: [] };
+      return { current_version: "1.1.0", latest_version: "1.1.0", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.0", assets: [] };
     }
     return {};
   };
@@ -196,8 +207,8 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("AI 全功能")).toBeInTheDocument();
     expect(screen.getByText("Commodity Lab")).toBeInTheDocument();
     expect(screen.getAllByText("设置")[0]).toBeInTheDocument();
-    expect(screen.getByText("今天从哪里开始")).toBeInTheDocument();
-    expect(screen.getByText("案例实验室")).toBeInTheDocument();
+    expect(screen.getByText("天然气套保学习路径")).toBeInTheDocument();
+    expect(screen.getAllByText("生成练习").length).toBeGreaterThan(0);
     expect(screen.queryByText(/external market data source/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/涓|鈥|娴疯兘/)).not.toBeInTheDocument();
   });
@@ -253,12 +264,59 @@ describe("Commodity Lab shell", () => {
     expect(request.base_url).toBe("http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1");
   });
 
+  it("imports Haineng Python SDK sample key files without keeping quotes in settings", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    const { container } = renderShell({ aiReady: false, onCall: (call) => calls.push(call) });
+
+    fireEvent.click((await screen.findAllByText("Settings"))[0]);
+    const file = new File(
+      [
+        [
+          "from openai import OpenAI",
+          "client = OpenAI(",
+          "    api_key=\"python-secret-key\",",
+          "    base_url=\"http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1\",",
+          ")",
+          "def chat_once(prompt: str, model: str = \"DeepSeek-V4\"):",
+          "    return client.chat.completions.create(model=model, messages=[])"
+        ].join("\n")
+      ],
+      "v4-flash-thinking.py",
+      { type: "text/x-python" }
+    );
+    fireEvent.change(container.querySelector('input[type="file"]'), { target: { files: [file] } });
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/provider-settings" && call.body?.api_key === "python-secret-key")).toBe(true));
+    const request = calls.find((call) => call.path === "/api/v1/provider-settings" && call.body?.api_key === "python-secret-key")?.body;
+    expect(request.provider).toBe("haineng");
+    expect(request.model).toBe("DeepSeek-V4");
+    expect(request.base_url).toBe("http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1");
+  });
+
+  it("imports a single-line key using the currently selected provider", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    const { container } = renderShell({ aiReady: false, onCall: (call) => calls.push(call) });
+
+    fireEvent.click((await screen.findAllByText("Settings"))[0]);
+    fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "deepseek" } });
+    const file = new File(["raw-secret-key"], "AI密钥", { type: "text/plain" });
+    fireEvent.change(container.querySelector('input[type="file"]'), { target: { files: [file] } });
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/provider-settings" && call.body?.api_key === "raw-secret-key")).toBe(true));
+    const request = calls.find((call) => call.path === "/api/v1/provider-settings" && call.body?.api_key === "raw-secret-key")?.body;
+    expect(request.provider).toBe("deepseek");
+    expect(request.model).toBe("deepseek-v4-flash");
+    expect(request.base_url).toBe("https://api.deepseek.com");
+  });
+
   it("generates an AI case from a business template and renders Markdown as formatted content", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
-    fireEvent.click(await screen.findByText("AI Case Lab"));
+    fireEvent.click(await screen.findByText("Practice Generator"));
     fireEvent.click(await screen.findByText("Generate Case"));
 
     expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
@@ -266,7 +324,7 @@ describe("Commodity Lab shell", () => {
     expect(screen.queryByText(/###/)).not.toBeInTheDocument();
     expect(screen.getAllByText("TTF").length).toBeGreaterThan(0);
     expect(screen.getAllByText("NBP").length).toBeGreaterThan(0);
-    expect(calls.some((call) => call.path === "/api/v1/ai/training-case" && call.body?.template_id === "procurement_beach_to_germany")).toBe(true);
+    expect(calls.some((call) => call.path === "/api/v1/ai/training-case" && call.body?.template_id === "foundation_hedging_basics")).toBe(true);
   });
 
   it("scores a multi-leg strategy locally without waiting for AI scoring", async () => {
@@ -286,8 +344,8 @@ describe("Commodity Lab shell", () => {
     renderShell({ aiReady: true });
 
     fireEvent.click(await screen.findByText("Training Workbench"));
-    fireEvent.click(await screen.findByRole("button", { name: "AI" }));
-    fireEvent.change(screen.getByPlaceholderText(/Generate a UK beach delivery/), { target: { value: "Show high low close and explain basis." } });
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+    fireEvent.change(screen.getByPlaceholderText(/natural gas hedging from zero/), { target: { value: "Show high low close and explain basis." } });
     fireEvent.click(screen.getByText("Send"));
 
     expect(await screen.findByRole("heading", { name: "Plan" })).toBeInTheDocument();

@@ -1,6 +1,6 @@
 [package]
 name = "commodity_lab_tauri"
-version = "1.0.13"
+version = "1.1.0"
 edition = "2021"
 build = "build.rs"
 

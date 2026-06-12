@@ -270,11 +270,13 @@ def _scrub_sensitive(value: Any) -> Any:
 
 
 def _redact_sensitive_text(value: str) -> str:
-    return re.sub(
-        r"(?i)\b(api[_-]?key|apikey|authorization|password|secret|token)\s*[:=]\s*[^,\s;]+",
+    redacted = re.sub(
+        r"(?i)\b(api[\s_-]?key|apikey|authorization|password|secret|token)\s*[:=]\s*[^,\s;\}\]]+",
         lambda match: f"{match.group(1)}=[REDACTED]",
         value,
     )
+    redacted = re.sub(r"(?i)\bsk-[A-Za-z0-9_-]{8,}\b", "[REDACTED]", redacted)
+    return re.sub(r"\*{2,}[A-Za-z0-9_-]{2,}", "[REDACTED]", redacted)
 
 
 def _to_json_text(value: Any) -> str:
@@ -297,7 +299,9 @@ def _base_system(locale: str) -> str:
         f"You are {assistant_name}, an AI energy trading training coach for Commodity Lab. "
         f"{_locale_instruction(locale)} "
         "Teach as a professional energy trader and risk manager. "
+        "Use a natural teacher-student tone: explain the immediate point, then give one clear next step. "
         "Focus on energy trading practice, not generic finance. "
+        "Default to concise coaching: lead with the answer, use no more than 5 bullets, avoid long essays, and ask before expanding. "
         "Use only scenario facts, deterministic metrics, user-supplied market context, and clearly labelled assumptions. "
         "Do not invent exact prices, settlements, basis values, volatility, legal obligations, or confidential facts. "
         "When data is missing, state the missing deterministic input and proceed with a bounded training assumption. "
@@ -318,10 +322,9 @@ def build_advisor_messages(
         f"Evaluation:\n{_to_json_text(evaluation)}\n\n"
         f"User rationale:\n{_scrub_text(user_rationale)}\n\n"
         "Required output:\n"
-        "1. Decision diagnosis: what was right or wrong.\n"
-        "2. Trading logic: connect exposure, instrument, side, volume, basis/spread/capacity risk.\n"
-        "3. Risk control: what the trader should check before execution.\n"
-        "4. One concise next-step drill for the learner."
+        "Use the heading '结论' or 'Verdict' first. "
+        "Then provide exactly three bullets: strongest decision, biggest gap, next drill. "
+        "Keep the full answer under 180 words unless the learner asks for details."
     )
     return [
         {"role": "system", "content": system},
@@ -340,7 +343,8 @@ def build_socratic_coach_messages(
         _base_system(locale)
         + " In Socratic Coach mode, do not give the full answer immediately. "
         "Ask targeted questions that force the learner to identify exposure, instrument, hub, tenor, unit, FX, basis, route, capacity, liquidity, and risk-limit assumptions. "
-        "Give at most one short hint per turn. If the learner is dangerously wrong, flag the risk briefly, then ask the next diagnostic question."
+        "Give at most one short hint per turn. If the learner is dangerously wrong, flag the risk briefly, then ask the next diagnostic question. "
+        "Keep each turn under 120 words."
     )
     user = (
         "Run a Socratic coaching turn for an energy trading learner.\n\n"
@@ -350,7 +354,7 @@ def build_socratic_coach_messages(
         f"Learner message:\n{_scrub_text(learner_message)}\n\n"
         "Required output:\n"
         "1. One-sentence reflection of the learner's current reasoning.\n"
-        "2. Two to four probing questions, ordered from commercial exposure to execution/risk control.\n"
+        "2. Two probing questions, ordered from commercial exposure to execution/risk control.\n"
         "3. One short hint only if needed.\n"
         "4. Do not provide the final model answer unless the learner explicitly asks for a final answer."
     )
@@ -491,9 +495,14 @@ def build_live_assistant_messages(
     system = (
         _base_system(locale)
         + " You are also a live Commodity Lab workspace copilot. "
-        "You may recommend safe UI actions, but never claim they have been executed. "
+        "Act like a friendly teacher guiding a student through the software, not a report writer. "
+        "Prefer controlling the product with safe actions over long text. "
+        "If a UI action can answer the learner better than prose, return the action and keep the text to a short teaching cue. "
+        "When the learner asks for a quiz, case, chart change, next lesson, review, or workspace change, return the relevant action so the UI can move there. "
         "Return concise Markdown for the learner and a small list of optional actions when useful. "
-        "Allowed action types only: select_template, set_chart_fields, set_strategy_legs, fill_rationale, run_ai_capability. "
+        "The answer must be actionable and short: one direct answer plus at most 3 bullets. "
+        "If the user asks a broad question, offer a short answer and one suggested next action instead of writing a full lecture. "
+        "Allowed action types only: navigate_page, generate_case, select_template, set_chart_fields, set_strategy_legs, fill_rationale, set_exam, run_ai_capability. "
         "Each action must be directly useful for the user's current learning goal."
     )
     user = (
@@ -508,7 +517,11 @@ def build_live_assistant_messages(
         '    {"type": "set_chart_fields", "label": "Show high/low/close", "payload": {"fields": ["high", "low", "close"]}}\n'
         "  ]\n"
         "}\n"
-        "If no UI action is needed, return an empty actions array. Keep actions safe and reversible."
+        "If no UI action is needed, return an empty actions array. Keep actions safe and reversible. "
+        "For a quiz request, prefer set_exam or run_ai_capability=exam and a navigate/review outcome instead of a long chat answer. "
+        "For a new learning request, prefer generate_case with a track_id and a beginner-friendly learning goal instead of explaining the whole syllabus. "
+        "For 'learn natural gas hedging from zero' or similar requests, prefer track_id=foundation. "
+        "Keep answer under 140 words unless the learner explicitly requests a detailed explanation."
     )
     return [
         {"role": "system", "content": system},
@@ -526,6 +539,7 @@ def build_training_case_messages(
         + " Generate a complete Commodity Lab training case from a business template. "
         "The product no longer uses external market data; all market curves must be AI-generated training data. "
         "Make the case concrete and commercially realistic. "
+        "If the template group is foundation, keep the case beginner-friendly with one clear exposure and one simple physical-paper hedge before adding spread, FX, or capacity complexity. "
         "The generated curves must include enough points for visual inspection and must not claim to be live market data."
     )
     user = (

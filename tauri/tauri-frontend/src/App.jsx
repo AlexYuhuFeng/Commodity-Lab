@@ -3,7 +3,7 @@ import { appWindow } from "@tauri-apps/api/window";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.0.13";
+const currentVersion = "1.1.0";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -59,23 +59,13 @@ const pageIds = {
   settings: "settings"
 };
 
-const commodityTabs = [
-  { id: "natural-gas", zh: "天然气", en: "Natural Gas", enabled: true },
-  { id: "crude-oil", zh: "原油", en: "Crude Oil", enabled: false },
-  { id: "refined", zh: "成品油", en: "Refined Products", enabled: false },
-  { id: "power-carbon", zh: "电力与碳", en: "Power & Carbon", enabled: false },
-  { id: "all", zh: "全部商品", en: "All Commodities", enabled: false }
-];
-
 const navItems = [
-  { id: pageIds.home, icon: "home", zh: "首页", en: "Home" },
-  { id: pageIds.caseLab, icon: "sparkles", zh: "案例实验室", en: "AI Case Lab" },
+  { id: pageIds.home, icon: "home", zh: "学习路径", en: "Learning Path" },
+  { id: pageIds.caseLab, icon: "sparkles", zh: "生成练习", en: "Practice Generator" },
   { id: pageIds.workbench, icon: "workbench", zh: "训练工作台", en: "Training Workbench" },
   { id: pageIds.library, icon: "library", zh: "场景库", en: "Scenario Library" },
-  { id: pageIds.review, icon: "chart", zh: "复盘反馈", en: "Review & Feedback" },
-  { id: pageIds.knowledge, icon: "map", zh: "知识图谱", en: "Knowledge Map" },
-  { id: pageIds.progress, icon: "progress", zh: "我的进度", en: "My Progress" },
-  { id: pageIds.coach, icon: "coach", zh: "AI 教练", en: "AI Coach", badge: "NEW" }
+  { id: pageIds.knowledge, icon: "map", zh: "课程地图", en: "Course Map" },
+  { id: pageIds.progress, icon: "progress", zh: "我的进度", en: "My Progress" }
 ];
 
 const learningFlow = [
@@ -84,6 +74,65 @@ const learningFlow = [
   { zh: "练习", en: "Practice", detailZh: "组合实货与纸货动作", detailEn: "Build physical and paper legs" },
   { zh: "复盘", en: "Review", detailZh: "评分、错误和对照", detailEn: "Score and compare" },
   { zh: "强化", en: "Reinforce", detailZh: "按弱项生成变体", detailEn: "Drill weak points" }
+];
+
+const learningTracks = [
+  {
+    id: "foundation",
+    templateId: "foundation_hedging_basics",
+    zh: "套保入门",
+    en: "Hedging Foundations",
+    levelZh: "从这里开始",
+    levelEn: "Start here",
+    detailZh: "先理解敞口、套保目标、实货与纸货为什么要匹配。",
+    detailEn: "Start with exposure, hedge objective, and why physical and paper legs must match.",
+    requestZh: "生成一个入门级天然气套保训练案例：只关注敞口识别、实货/纸货匹配、买卖方向、数量和期限，不要直接使用复杂跨境 Beach Delivery。",
+    requestEn: "Generate a beginner natural gas hedging drill focused only on exposure identification, physical-paper matching, side, quantity, and tenor. Do not start with a complex cross-border Beach Delivery case.",
+    lessons: ["敞口识别", "套保工具", "实货/纸货匹配"],
+    lessonsEn: ["Exposure", "Hedge tools", "Physical-paper matching"]
+  },
+  {
+    id: "procurement",
+    templateId: "procurement_beach_to_germany",
+    zh: "采购端业务",
+    en: "Procurement Desk",
+    levelZh: "进阶",
+    levelEn: "Intermediate",
+    detailZh: "覆盖 GSA、EEX/OCM 窗口、LNG 船货、双边 EFET 的采购套保。",
+    detailEn: "GSA, EEX/OCM windows, LNG cargo procurement, and bilateral EFET hedging.",
+    requestZh: "生成采购端天然气套保案例，先说明业务背景，再训练 GSA、EEX/OCM、LNG 或 EFET 中一个具体场景。",
+    requestEn: "Generate a procurement-side gas hedging case. Explain the business context first, then train one specific GSA, EEX/OCM, LNG, or EFET scenario.",
+    lessons: ["GSA 资源", "EEX/OCM 窗口", "LNG 船货", "EFET 采购"],
+    lessonsEn: ["GSA supply", "EEX/OCM window", "LNG cargo", "EFET procurement"]
+  },
+  {
+    id: "sales",
+    templateId: "sales_efet_bilateral",
+    zh: "销售端业务",
+    en: "Sales Desk",
+    levelZh: "进阶",
+    levelEn: "Intermediate",
+    detailZh: "学习 EFET 双边、窗口销售、LNG 气化销售和客户价格风险。",
+    detailEn: "EFET bilateral sales, window sales, LNG regas sales, and customer price risk.",
+    requestZh: "生成销售端天然气套保案例，围绕 EFET 双边、窗口销售或 LNG 气化销售，强调客户定价和履约风险。",
+    requestEn: "Generate a sales-side gas hedging case around EFET bilateral sales, window sales, or LNG regas sales, emphasizing customer pricing and performance risk.",
+    lessons: ["双边销售", "窗口销售", "气化销售", "客户风险"],
+    lessonsEn: ["Bilateral sale", "Window sale", "Regas sale", "Customer risk"]
+  },
+  {
+    id: "integrated",
+    templateId: "procurement_beach_to_germany",
+    zh: "组合套保设计",
+    en: "Integrated Hedge Design",
+    levelZh: "综合",
+    levelEn: "Advanced",
+    detailZh: "把基差、汇率、运力、信用和执行窗口合成可交易的多腿策略。",
+    detailEn: "Combine basis, FX, capacity, credit, and execution windows into a tradeable multi-leg strategy.",
+    requestZh: "生成综合天然气套保训练案例：必须包含实货腿、纸货腿、汇率或运力检查，并要求用户解释每条腿覆盖的风险。",
+    requestEn: "Generate an integrated natural gas hedging drill with a physical leg, paper leg, FX or capacity check, and a requirement to explain the risk covered by each leg.",
+    lessons: ["基差", "汇率", "运力", "风控复盘"],
+    lessonsEn: ["Basis", "FX", "Capacity", "Risk review"]
+  }
 ];
 
 const scenarioLibraryItems = [
@@ -98,9 +147,6 @@ const scenarioLibraryItems = [
     difficultyZh: "中等",
     difficultyEn: "Intermediate",
     duration: "90",
-    progress: 68,
-    statusZh: "进行中",
-    statusEn: "In progress",
     enabled: true
   },
   {
@@ -114,9 +160,6 @@ const scenarioLibraryItems = [
     difficultyZh: "困难",
     difficultyEn: "Advanced",
     duration: "75",
-    progress: 42,
-    statusZh: "进行中",
-    statusEn: "In progress",
     enabled: true
   },
   {
@@ -130,9 +173,6 @@ const scenarioLibraryItems = [
     difficultyZh: "中等",
     difficultyEn: "Intermediate",
     duration: "60",
-    progress: 0,
-    statusZh: "未开始",
-    statusEn: "Not started",
     enabled: true
   },
   {
@@ -146,9 +186,6 @@ const scenarioLibraryItems = [
     difficultyZh: "中等",
     difficultyEn: "Intermediate",
     duration: "55",
-    progress: 0,
-    statusZh: "未开始",
-    statusEn: "Not started",
     enabled: true
   },
   {
@@ -162,9 +199,6 @@ const scenarioLibraryItems = [
     difficultyZh: "建设中",
     difficultyEn: "Constructing",
     duration: "--",
-    progress: 0,
-    statusZh: "建设中",
-    statusEn: "Constructing",
     enabled: false
   }
 ];
@@ -181,15 +215,17 @@ const knowledgeNodes = [
   { id: "storage", x: 34, y: 72, level: "beginner", titleZh: "储气与季节性", titleEn: "Storage & Seasonality", descZh: "注采节奏、库存和季节曲线对套保的影响。", descEn: "Injection/withdrawal, inventory, and seasonal curve impacts." }
 ];
 
-const progressDimensions = [
-  ["exposure", "风险识别", "Exposure Identification", 78],
-  ["instrument", "工具选择", "Hedge Instrument Selection", 66],
-  ["basis", "基差逻辑", "Basis Logic", 58],
-  ["fx", "汇率逻辑", "FX Logic", 44],
-  ["capacity", "运力/物流", "Capacity & Logistics", 52],
-  ["timing", "执行时机", "Execution Timing", 61],
-  ["control", "风险控制", "Risk Control", 70],
-  ["rationale", "说明质量", "Rationale Quality", 64]
+const learningRecordsKey = "commodity-lab-learning-records-v1";
+
+const skillDimensions = [
+  { id: "exposure", zh: "风险识别", en: "Exposure Identification" },
+  { id: "instrument", zh: "工具选择", en: "Hedge Instrument Selection" },
+  { id: "basis", zh: "基差逻辑", en: "Basis Logic" },
+  { id: "fx", zh: "汇率逻辑", en: "FX Logic" },
+  { id: "capacity", zh: "运力/物流", en: "Capacity & Logistics" },
+  { id: "timing", zh: "执行时机", en: "Execution Timing" },
+  { id: "control", zh: "风险控制", en: "Risk Control" },
+  { id: "rationale", zh: "说明质量", en: "Rationale Quality" }
 ];
 
 function copy(locale, zh, en) {
@@ -198,6 +234,7 @@ function copy(locale, zh, en) {
 
 const fallbackTemplates = {
   groups: [
+    { id: "foundation", label: "套保基础" },
     { id: "procurement", label: "采购端" },
     { id: "sales", label: "销售端" }
   ],
@@ -206,6 +243,16 @@ const fallbackTemplates = {
     { id: "physical_paper_matching", label: "实货与纸货匹配", description: "GSA、EFET、LNG、swap、future、FX、capacity 的组合动作。" }
   ],
   templates: [
+    {
+      id: "foundation_hedging_basics",
+      group: "foundation",
+      business_type: "天然气套保基础",
+      title: "我们到底在套保什么？",
+      summary: "入门案例：先识别敞口，再匹配实货、纸货、方向、数量和期限。",
+      knowledge_points: ["outright_price", "physical_paper_matching"],
+      required_curves: ["TTF", "TRAINING_HEDGE_INDEX"],
+      suggested_leg_types: ["physical", "swap"]
+    },
     {
       id: "procurement_beach_to_germany",
       group: "procurement",
@@ -245,12 +292,12 @@ function defaultCase(locale) {
   return {
     scenario: {
       id: "starter_case",
-      title: zh ? "选择业务模板生成案例" : "Select a business template to generate a case",
+      title: zh ? "从第一课开始：我们到底在套保什么？" : "Start with Lesson 1: what exposure are we hedging?",
       summary: zh
-        ? "Commodity Lab 现在以 AI 生成训练数据为核心。先从左侧选择采购端或销售端业务模板。"
-        : "Commodity Lab now uses AI-generated training data. Start from a procurement or sales business template.",
-      business_type: zh ? "采购端 / 销售端" : "Procurement / Sales",
-      knowledge_points: ["basis_spread", "physical_paper_matching"],
+        ? "先不用急着做跨境复杂案例。第一步只看业务敞口、套保目标、实货和纸货怎样对应。"
+        : "Do not start with a complex cross-border case. First identify exposure, hedge objective, and physical-paper matching.",
+      business_type: zh ? "天然气套保基础" : "Natural Gas Hedging Foundations",
+      knowledge_points: ["outright_price", "physical_paper_matching"],
       exposure: {
         direction: "spread",
         volume_mmbtu: 60000,
@@ -320,6 +367,17 @@ function modelConfig(catalog, provider, model) {
   return config.models.find((option) => option.id === model) ?? config.models[0];
 }
 
+function modelFromBaseUrl(provider, baseUrl, catalog = defaultProviderCatalog) {
+  const config = providerConfig(catalog, provider);
+  const url = String(baseUrl ?? "").trim().toLowerCase();
+  if (!url) return "";
+  const match = config.models.find((option) => {
+    const candidate = String(option.base_url ?? "").trim().toLowerCase();
+    return candidate && (candidate === url || url.includes(candidate) || candidate.includes(url));
+  });
+  return match?.id ?? "";
+}
+
 function baseUrlMatchesProvider(provider, value) {
   const url = String(value ?? "").trim().toLowerCase();
   if (!url) return false;
@@ -332,6 +390,21 @@ function compactKey(value) {
   return String(value ?? "").trim().toLowerCase().replaceAll("_", "-").replaceAll(" ", "");
 }
 
+function configKeyCandidates(key) {
+  const raw = String(key ?? "").trim().toLowerCase();
+  const compact = compactKey(key);
+  return [compact, compact.replaceAll("-", ""), raw, raw.replace(/[-_\s]/g, "")];
+}
+
+function cleanConfigValue(value) {
+  let cleaned = String(value ?? "").trim();
+  cleaned = cleaned.replace(/[,\)]$/g, "").trim();
+  if ((cleaned.startsWith("\"") && cleaned.endsWith("\"")) || (cleaned.startsWith("'") && cleaned.endsWith("'")) || (cleaned.startsWith("`") && cleaned.endsWith("`"))) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
 function normalizeProviderName(value, baseUrl = "") {
   const provider = compactKey(value);
   const url = String(baseUrl ?? "").toLowerCase();
@@ -341,7 +414,7 @@ function normalizeProviderName(value, baseUrl = "") {
 
 function firstConfigValue(payload, ...keys) {
   for (const key of keys) {
-    const value = payload[compactKey(key)] ?? payload[String(key).toLowerCase()];
+    const value = configKeyCandidates(key).map((candidate) => payload[candidate]).find((candidate) => candidate != null && String(candidate).trim());
     if (value != null && String(value).trim()) return String(value).trim();
   }
   return "";
@@ -352,16 +425,27 @@ function parseAiKeyFile(text) {
   if (!raw) throw new Error("AI key file is empty.");
   if (raw.startsWith("{")) {
     const parsed = JSON.parse(raw);
-    return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [compactKey(key), String(value ?? "").trim()]));
+    return Object.fromEntries(Object.entries(parsed).map(([key, value]) => [compactKey(key), cleanConfigValue(value)]));
   }
   const payload = {};
+  const assignmentPattern = /\b(provider|ai_provider|api_key|apikey|key|base_url|baseurl|url|model|haineng_api_key|deepseek_api_key|haineng_base_url|deepseek_base_url|haineng_model|deepseek_model)\b(?:\s*:\s*[^=,\)\r\n#]+)?\s*=\s*("[^"]*"|'[^']*'|`[^`]*`|[^,\)\r\n#]+)/gi;
+  raw.replace(assignmentPattern, (_, key, value) => {
+    const payloadKey = compactKey(key);
+    const cleaned = cleanConfigValue(value);
+    if (payloadKey === compactKey(cleaned)) return "";
+    payload[payloadKey] = cleaned;
+    return "";
+  });
   raw.split(/\r?\n/).forEach((line) => {
     const current = line.trim();
     if (!current || current.startsWith("#")) return;
     const index = current.includes("=") ? current.indexOf("=") : current.indexOf(":");
     if (index <= 0) return;
-    payload[compactKey(current.slice(0, index))] = current.slice(index + 1).trim();
+    payload[compactKey(current.slice(0, index))] = cleanConfigValue(current.slice(index + 1));
   });
+  if (!Object.keys(payload).length && !/[\r\n=:]/.test(raw)) {
+    payload["api-key"] = cleanConfigValue(raw);
+  }
   return payload;
 }
 
@@ -393,15 +477,16 @@ function modelForProvider(provider, model, config) {
   return config.models.some((option) => option.id === mapped) ? mapped : config.default_model;
 }
 
-function formFromAiKeyFile(text, catalog = defaultProviderCatalog) {
+function formFromAiKeyFile(text, catalog = defaultProviderCatalog, options = {}) {
   const payload = parseAiKeyFile(text);
   const baseUrlHint = firstConfigValue(payload, "base_url", "url", "haineng_base_url", "deepseek_base_url");
-  const provider = normalizeProviderName(firstConfigValue(payload, "provider", "ai_provider"), baseUrlHint);
+  const provider = normalizeProviderName(firstConfigValue(payload, "provider", "ai_provider") || options.currentProvider, baseUrlHint);
   const config = providerConfig(catalog, provider);
   const providerPrefix = provider === "deepseek" ? "deepseek" : "haineng";
-  const apiKey = firstConfigValue(payload, "api_key", "key", `${providerPrefix}_api_key`);
+  const apiKey = firstConfigValue(payload, "api_key", "apikey", "key", `${providerPrefix}_api_key`);
   if (!apiKey) throw new Error("AI key file is missing api_key.");
-  const model = modelForProvider(provider, firstConfigValue(payload, "model", `${providerPrefix}_model`) || config.default_model, config);
+  const modelHint = firstConfigValue(payload, "model", `${providerPrefix}_model`) || modelFromBaseUrl(provider, baseUrlHint, catalog) || config.default_model;
+  const model = modelForProvider(provider, modelHint, config);
   const selected = modelConfig(catalog, provider, model);
   return {
     api_key: apiKey,
@@ -467,6 +552,135 @@ function evaluateStrategy(caseData, legs, rationale) {
       fx_leg_count: legs.filter((leg) => leg.leg_type === "fx").length,
       notional_usd: legs.reduce((sum, leg) => sum + (Number(leg.quantity) || 0) * (Number(leg.price) || 0), 0)
     }
+  };
+}
+
+function clampScore(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  return Math.max(0, Math.min(100, Math.round(number)));
+}
+
+function averageScore(values) {
+  const numbers = values.map((value) => Number(value)).filter(Number.isFinite);
+  if (!numbers.length) return null;
+  return clampScore(numbers.reduce((sum, value) => sum + value, 0) / numbers.length);
+}
+
+function loadLearningRecords() {
+  if (typeof localStorage === "undefined") return [];
+  const parsed = parseSafeJson(localStorage.getItem(learningRecordsKey));
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((record) => Number.isFinite(Number(record?.evaluation?.baseline_score))).slice(-120);
+}
+
+function saveLearningRecords(records) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(learningRecordsKey, JSON.stringify(records.slice(-120)));
+}
+
+function recordLearningAttempt({ activeTemplateId, caseData, evaluation, rationale, strategyLegs }) {
+  return {
+    id: `attempt-${Date.now()}`,
+    created_at: new Date().toISOString(),
+    template_id: activeTemplateId,
+    scenario_id: caseData?.scenario?.id ?? activeTemplateId,
+    scenario_title: caseData?.scenario?.title ?? "",
+    evaluation,
+    rationale,
+    strategy_legs: strategyLegs
+  };
+}
+
+function recordText(record) {
+  return `${record?.rationale ?? ""} ${(record?.strategy_legs ?? []).map((leg) => `${leg.leg_type} ${leg.market} ${leg.side} ${leg.hedge_type}`).join(" ")}`.toLowerCase();
+}
+
+function scoreDimension(record, dimensionId) {
+  const evaluation = record?.evaluation ?? {};
+  const baseline = clampScore(evaluation.baseline_score);
+  if (baseline == null) return null;
+  const metrics = evaluation.metrics ?? {};
+  const legs = record?.strategy_legs ?? evaluation.strategy_legs ?? [];
+  const targetTypes = new Set((evaluation.target_actions ?? []).map((leg) => leg.leg_type));
+  const legTypes = new Set(legs.map((leg) => leg.leg_type));
+  const mistakes = new Set(evaluation.mistake_tags ?? []);
+  const text = recordText(record);
+  const hasPhysical = Number(metrics.physical_leg_count) > 0 || ["physical", "gsa", "lng", "efet"].some((type) => legTypes.has(type));
+  const hasPaper = Number(metrics.paper_leg_count) > 0 || ["swap", "future", "basis", "paper"].some((type) => legTypes.has(type));
+  const matchedCount = legs.filter((leg) => targetTypes.has(leg.leg_type)).length;
+  const targetCount = Math.max(1, targetTypes.size);
+  const matchedRatio = Math.min(1, matchedCount / targetCount);
+  const mentionsBasis = /(basis|spread|nbp|ttf|基差|价差)/i.test(text) || targetTypes.has("basis") || legTypes.has("basis");
+  const mentionsFx = /(fx|foreign exchange|currency|eur|gbp|usd|汇率|外汇)/i.test(text) || targetTypes.has("fx") || legTypes.has("fx");
+  const mentionsCapacity = /(capacity|pipeline|routing|transport|regas|运力|管输|气化|物流)/i.test(text) || targetTypes.has("capacity") || legTypes.has("capacity");
+  const mentionsTiming = /(tenor|month|window|execution|timing|m\+|期限|窗口|执行|交割)/i.test(text);
+  const mentionsControl = /(limit|liquidity|credit|margin|collateral|stop|VaR|风控|限额|流动性|信用|保证金)/i.test(text);
+  const rationaleLength = String(record?.rationale ?? "").trim().length;
+
+  if (dimensionId === "exposure") {
+    return clampScore(baseline + (hasPhysical ? 6 : -18) + (mistakes.has("incomplete_target_legs") ? -10 : 0));
+  }
+  if (dimensionId === "instrument") {
+    return clampScore(baseline + (hasPaper ? 6 : -16) + matchedRatio * 12 - 6);
+  }
+  if (dimensionId === "basis") {
+    if (!mentionsBasis) return null;
+    return clampScore(baseline + (legTypes.has("basis") || /basis|spread|基差|价差/i.test(text) ? 8 : -18));
+  }
+  if (dimensionId === "fx") {
+    if (!mentionsFx) return null;
+    return clampScore(baseline + (legTypes.has("fx") || /fx|eur|gbp|usd|汇率|外汇/i.test(text) ? 8 : -20));
+  }
+  if (dimensionId === "capacity") {
+    if (!mentionsCapacity) return null;
+    return clampScore(baseline + (legTypes.has("capacity") || /capacity|pipeline|运力|管输|物流/i.test(text) ? 8 : -18));
+  }
+  if (dimensionId === "timing") {
+    return clampScore(baseline + (mentionsTiming ? 8 : -14));
+  }
+  if (dimensionId === "control") {
+    return clampScore(baseline + (mentionsControl ? 8 : -18));
+  }
+  if (dimensionId === "rationale") {
+    return clampScore(baseline + (rationaleLength >= 120 ? 8 : rationaleLength >= 60 ? 0 : -18));
+  }
+  return null;
+}
+
+function summarizeLearningRecords(records) {
+  const valid = records.filter((record) => Number.isFinite(Number(record?.evaluation?.baseline_score)));
+  const latest = valid.at(-1) ?? null;
+  const dimensions = skillDimensions.map((dimension) => {
+    const scores = valid.map((record) => scoreDimension(record, dimension.id)).filter((score) => score != null);
+    return { ...dimension, score: averageScore(scores), samples: scores.length };
+  });
+  const scenarioStats = valid.reduce((stats, record) => {
+    const ids = [record.template_id, record.scenario_id].filter(Boolean);
+    ids.forEach((id) => {
+      const current = stats[id] ?? { attempts: 0, scores: [] };
+      current.attempts += 1;
+      current.scores.push(Number(record.evaluation.baseline_score));
+      stats[id] = current;
+    });
+    return stats;
+  }, {});
+  Object.keys(scenarioStats).forEach((key) => {
+    scenarioStats[key] = {
+      attempts: scenarioStats[key].attempts,
+      score: averageScore(scenarioStats[key].scores)
+    };
+  });
+  const weakest = dimensions.filter((dimension) => dimension.score != null).sort((a, b) => a.score - b.score).slice(0, 3);
+  return {
+    hasRecords: valid.length > 0,
+    attempts: valid.length,
+    latest,
+    latestScore: clampScore(latest?.evaluation?.baseline_score),
+    averageScore: averageScore(valid.map((record) => record.evaluation.baseline_score)),
+    dimensions,
+    scenarioStats,
+    weakest
   };
 }
 
@@ -669,7 +883,7 @@ function SettingsMenu({ aiReady, importing, locale, onCheckUpdate, onImportLocal
     try {
       setFileImportError("");
       const text = await file.text();
-      const importedForm = formFromAiKeyFile(text, catalog);
+      const importedForm = formFromAiKeyFile(text, catalog, { currentProvider: provider });
       await onImportLocalSettings(importedForm, file.name);
       setForm({ ...importedForm, api_key: "" });
     } catch (error) {
@@ -1098,7 +1312,7 @@ function LogoMark() {
   );
 }
 
-function ProductTopbar({ activeCommodity, aiReady, locale, onCommodityChange, setLocale }) {
+function ProductTopbar({ aiReady, locale }) {
   return (
     <header className="cl-topbar">
       <div className="cl-brand">
@@ -1108,34 +1322,15 @@ function ProductTopbar({ activeCommodity, aiReady, locale, onCommodityChange, se
           <span>{copy(locale, "AI 驱动的大宗商品交易训练平台", "AI-powered commodity trading training lab")}</span>
         </div>
       </div>
-      <nav className="cl-commodity-tabs" aria-label="Commodity">
-        {commodityTabs.map((tab) => (
-          <button
-            className={tab.id === activeCommodity ? "active" : ""}
-            key={tab.id}
-            onClick={() => onCommodityChange(tab)}
-            type="button"
-          >
-            <Icon name={tab.id === "natural-gas" ? "flame" : tab.id === "all" ? "grid" : "book"} />
-            <span>{labelFor(locale, tab)}</span>
-            {!tab.enabled ? <small>{copy(locale, "建设中", "Constructing")}</small> : null}
-          </button>
-        ))}
-      </nav>
       <div className="cl-top-actions">
         <AiStatusBadge aiReady={aiReady} locale={locale} />
-        <button className="cl-language-button" onClick={() => setLocale(locale === "zh" ? "en" : "zh")} type="button">
-          <Icon name="globe" />
-          <span>{locale === "zh" ? "中文" : "English"}</span>
-        </button>
-        <span className="cl-user-badge">AY</span>
         <WindowControls locale={locale} />
       </div>
     </header>
   );
 }
 
-function ProductSidebar({ activePage, locale, onPageChange }) {
+function ProductSidebar({ activePage, locale, onPageChange, setLocale }) {
   return (
     <aside className="cl-sidebar">
       <nav className="cl-main-nav">
@@ -1147,16 +1342,19 @@ function ProductSidebar({ activePage, locale, onPageChange }) {
           </button>
         ))}
       </nav>
-      <div className="cl-sidebar-spacer" />
-      <section className="cl-data-notice">
-        <Icon name="coach" />
-        <strong>{copy(locale, "训练数据说明", "Training Data Notice")}</strong>
-        <p>{copy(locale, "所有曲线、案例和评分规则均由 AI 生成，用于教学训练，不代表真实行情或交易建议。", "All curves, cases, and rubrics are AI-generated for training only. They are not live market data or trading advice.")}</p>
-      </section>
-      <button className={activePage === pageIds.settings ? "cl-settings-entry active" : "cl-settings-entry"} data-guide="settings-menu" onClick={() => onPageChange(pageIds.settings)} type="button">
-        <Icon name="settings" />
-        <span>{t("settings", locale)}</span>
-      </button>
+      <div className="cl-sidebar-footer">
+        <button className={activePage === pageIds.settings ? "cl-settings-entry active" : "cl-settings-entry"} data-guide="settings-menu" onClick={() => onPageChange(pageIds.settings)} type="button">
+          <Icon name="settings" />
+          <span>{t("settings", locale)}</span>
+        </button>
+        <div className="cl-sidebar-controls">
+          <button className="cl-sidebar-language" onClick={() => setLocale(locale === "zh" ? "en" : "zh")} type="button">
+            <Icon name="globe" />
+            <span>{locale === "zh" ? "中文" : "English"}</span>
+          </button>
+          <WindowControls locale={locale} />
+        </div>
+      </div>
     </aside>
   );
 }
@@ -1188,45 +1386,94 @@ function PageTitle({ action, icon = "sparkles", locale, subtitleEn, subtitleZh, 
   );
 }
 
-function HomePage({ activeTemplate, aiReady, caseData, evaluation, locale, onGenerate, onPageChange }) {
-  const score = evaluation?.baseline_score ?? 72;
+function HomePage({ aiReady, learningProgress, locale, onGenerate, onPageChange }) {
+  const score = learningProgress.latestScore;
+  const hasProgress = learningProgress.hasRecords && score != null;
+  const weakSummary = learningProgress.weakest.length
+    ? learningProgress.weakest.map((item) => labelFor(locale, item, "zh", "en")).join(" / ")
+    : copy(locale, "提交一次策略后自动生成能力画像。", "Submit a strategy once to build your capability profile.");
+  const startTrack = learningTracks[0];
+  function startTrackDrill(track) {
+    onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn));
+  }
   return (
     <section className="cl-page cl-home-page">
       <PageTitle
         icon="home"
         locale={locale}
-        titleZh="今天从哪里开始"
-        titleEn="Where to start today"
-        subtitleZh="按 AI 生成案例、训练进度和天然气业务知识点组织你的下一次练习。"
-        subtitleEn="Your next session is organized by AI cases, progress, and natural gas hedging skills."
-        action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="plus" />{copy(locale, "生成新案例", "Generate Case")}</button>}
+        titleZh="天然气套保学习路径"
+        titleEn="Natural Gas Hedging Learning Path"
+        subtitleZh="先按业务和知识点建立框架，再进入 AI 生成案例、组合操作和复盘。"
+        subtitleEn="Build the business and concept framework first, then move into AI-generated cases, multi-leg decisions, and review."
+        action={<button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={!aiReady} type="button"><Icon name="play" />{copy(locale, "开始第一课", "Start Lesson 1")}</button>}
       />
       <div className="cl-home-grid">
-        <section className="cl-panel cl-hero-panel">
+        <section className="cl-panel cl-hero-panel cl-course-hero">
           <div>
-            <span>{copy(locale, "推荐训练", "Recommended Training")}</span>
-            <h3>{activeTemplate?.title ?? caseData.scenario?.title}</h3>
-            <p>{caseData.scenario?.summary}</p>
+            <span>{copy(locale, "建议从基础课开始", "Recommended starting point")}</span>
+            <h3>{copy(locale, "不要一上来就做跨境复杂案例。先搞清楚套保到底在保护什么。", "Do not start with a complex cross-border case. First learn what the hedge is actually protecting.")}</h3>
+            <p>{copy(locale, "Commodity Lab 的训练顺序是：识别业务敞口 -> 选择实货/纸货工具 -> 做组合腿 -> 本地评分 -> AI 针对弱项生成下一题。", "Commodity Lab trains in this order: identify exposure -> choose physical/paper tools -> build multi-leg strategy -> score locally -> let AI generate the next weak-point drill.")}</p>
           </div>
           <div className="cl-hero-actions">
-            <button className="cl-primary" onClick={() => onGenerate(activeTemplate?.id ?? "procurement_beach_to_germany")} type="button"><Icon name="play" />{copy(locale, "继续训练", "Continue")}</button>
-            <button className="cl-secondary" onClick={() => onPageChange(pageIds.knowledge)} type="button"><Icon name="map" />{copy(locale, "先看知识点", "Open Knowledge Map")}</button>
+            <button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={!aiReady} type="button"><Icon name="play" />{copy(locale, "入门练习", "Beginner drill")}</button>
+            <button className="cl-secondary" onClick={() => onPageChange(pageIds.knowledge)} type="button"><Icon name="map" />{copy(locale, "看课程地图", "Open course map")}</button>
+          </div>
+        </section>
+        <section className="cl-panel cl-learning-route-panel cl-course-panel">
+          <div className="cl-panel-heading"><span>{copy(locale, "业务课程路径", "Business Course Path")}</span><strong>{copy(locale, "Coursera + Roadmap 模式", "Course + Roadmap mode")}</strong></div>
+          <div className="cl-course-grid">
+            {learningTracks.map((track, index) => (
+              <article key={track.id}>
+                <div>
+                  <b>{index + 1}</b>
+                  <span>{copy(locale, track.levelZh, track.levelEn)}</span>
+                </div>
+                <h3>{labelFor(locale, track)}</h3>
+                <p>{copy(locale, track.detailZh, track.detailEn)}</p>
+                <div className="cl-chip-row">
+                  {(locale === "zh" ? track.lessons : track.lessonsEn).map((lesson) => <span key={lesson}>{lesson}</span>)}
+                </div>
+                <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={!aiReady} onClick={() => startTrackDrill(track)} type="button">
+                  <Icon name={index === 0 ? "play" : "sparkles"} />
+                  {index === 0 ? copy(locale, "开始", "Start") : copy(locale, "生成本章练习", "Generate drill")}
+                </button>
+              </article>
+            ))}
           </div>
         </section>
         <section className="cl-panel">
-          <div className="cl-panel-heading"><span>{copy(locale, "能力快照", "Capability Snapshot")}</span><strong>{score}/100</strong></div>
-          <div className="cl-progress-ring" style={{ "--score": `${score * 3.6}deg` }}>
-            <strong>{score}</strong>
-            <span>/100</span>
-          </div>
-          <p className="cl-muted">{copy(locale, "当前弱项：基差时机、汇率覆盖比例、运力弹性。", "Weak points: basis timing, FX hedge ratio, and capacity flexibility.")}</p>
+          <div className="cl-panel-heading"><span>{copy(locale, "能力快照", "Capability Snapshot")}</span><strong>{hasProgress ? `${score}/100` : copy(locale, "本机记录", "Local records")}</strong></div>
+          {hasProgress ? (
+            <>
+              <div className="cl-progress-ring" style={{ "--score": `${score * 3.6}deg` }}>
+                <strong>{score}</strong>
+                <span>/100</span>
+              </div>
+              <p className="cl-muted">{copy(locale, "当前弱项：", "Current weak points: ")}{weakSummary}</p>
+              <div className="cl-mini-skill-grid">
+                {learningProgress.dimensions.filter((item) => item.score != null).slice(0, 4).map((item) => (
+                  <span key={item.id}>
+                    <small>{labelFor(locale, item, "zh", "en")}</small>
+                    <i><b style={{ width: `${item.score}%` }} /></i>
+                    <strong>{item.score}</strong>
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="cl-empty-progress">
+              <strong>{copy(locale, "暂无正式训练记录", "No scored training records yet")}</strong>
+              <p>{copy(locale, "生成案例并提交一次组合策略后，这里才会显示真实能力分、弱项和学习建议。", "Generate a case and submit a strategy to see real scores, weak points, and learning guidance.")}</p>
+              <button className="cl-secondary" onClick={() => onPageChange(pageIds.caseLab)} type="button">{copy(locale, "开始第一次训练", "Start first drill")}</button>
+            </div>
+          )}
         </section>
         <section className="cl-panel cl-quick-actions">
-          <div className="cl-panel-heading"><span>{copy(locale, "AI 快捷入口", "AI Shortcuts")}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div>
+          <div className="cl-panel-heading"><span>{copy(locale, "下一步", "Next Actions")}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div>
           {[
-            [pageIds.caseLab, "sparkles", "按业务生成案例", "Generate by business scenario"],
+            [pageIds.knowledge, "map", "先看知识结构", "Understand the map"],
+            [pageIds.caseLab, "sparkles", "生成章节练习", "Generate chapter drill"],
             [pageIds.workbench, "workbench", "打开训练工作台", "Open training workbench"],
-            [pageIds.coach, "coach", "询问 AI 教练", "Ask AI coach"],
             [pageIds.progress, "progress", "查看训练画像", "View progress profile"]
           ].map(([page, icon, zh, en]) => (
             <button key={page} onClick={() => onPageChange(page)} type="button"><Icon name={icon} /><span>{copy(locale, zh, en)}</span><Icon name="arrow" /></button>
@@ -1259,6 +1506,21 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
         subtitleEn="Configure parameters or describe the natural gas hedging case you want to practice."
         action={<button className="cl-secondary" type="button">{copy(locale, "操作说明", "How it works")}</button>}
       />
+      <section className="cl-panel cl-course-picker">
+        <div className="cl-panel-heading"><span>{copy(locale, "先选课程章节", "Choose a course chapter first")}</span><strong>{copy(locale, "AI 按章节生成练习", "AI generates by chapter")}</strong></div>
+        <div className="cl-course-grid compact">
+          {learningTracks.map((track, index) => (
+            <article key={track.id}>
+              <div><b>{index + 1}</b><span>{copy(locale, track.levelZh, track.levelEn)}</span></div>
+              <h3>{labelFor(locale, track)}</h3>
+              <p>{copy(locale, track.detailZh, track.detailEn)}</p>
+              <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={!aiReady || Boolean(loadingTemplate)} onClick={() => onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn))} type="button">
+                <Icon name="sparkles" />{copy(locale, "生成练习", "Generate drill")}
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
       <div className="cl-case-lab-grid">
         <section className="cl-panel cl-config-panel">
           <div className="cl-panel-heading"><span>1 {copy(locale, "配置场景", "Configure Scenario")}</span><button className="cl-secondary" onClick={randomize} type="button">{copy(locale, "随机", "Randomize")}</button></div>
@@ -1305,7 +1567,7 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
   );
 }
 
-function ScenarioLibraryPage({ activeTemplateId, locale, loadingTemplate, onGenerate, onPageChange }) {
+function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadingTemplate, onGenerate, onPageChange }) {
   const [query, setQuery] = useState("");
   const filters = normalizeLocale(locale) === "zh"
     ? ["商品", "地区", "业务角色", "难度", "风险重点", "状态"]
@@ -1314,6 +1576,8 @@ function ScenarioLibraryPage({ activeTemplateId, locale, loadingTemplate, onGene
     const text = `${item.titleZh} ${item.titleEn} ${item.summaryZh} ${item.summaryEn} ${item.tags.join(" ")}`.toLowerCase();
     return text.includes(query.trim().toLowerCase());
   });
+  const scenarioStat = (item) => learningProgress.scenarioStats[item.id] ?? null;
+  const trainedScenarios = Object.values(learningProgress.scenarioStats).filter((stat) => stat.attempts > 0).length;
   return (
     <section className="cl-page cl-library-page">
       <PageTitle
@@ -1338,7 +1602,10 @@ function ScenarioLibraryPage({ activeTemplateId, locale, loadingTemplate, onGene
             <div className="cl-scenario-head">
               <span>{copy(locale, "场景", "Scenario")}</span><span>{copy(locale, "商品", "Commodity")}</span><span>{copy(locale, "难度", "Difficulty")}</span><span>{copy(locale, "预计时长", "Est.")}</span><span>{copy(locale, "进度", "Progress")}</span><span>{copy(locale, "操作", "Action")}</span>
             </div>
-            {visible.map((item) => (
+            {visible.map((item) => {
+              const stat = scenarioStat(item);
+              const progress = stat?.score ?? null;
+              return (
               <article className={!item.enabled ? "disabled" : ""} key={item.id}>
                 <div className="cl-scenario-name">
                   <div className="cl-thumb" />
@@ -1351,23 +1618,24 @@ function ScenarioLibraryPage({ activeTemplateId, locale, loadingTemplate, onGene
                 <span>{item.commodity === "natural-gas" ? copy(locale, "天然气", "Natural Gas") : copy(locale, "建设中", "Constructing")}</span>
                 <span>{copy(locale, item.difficultyZh, item.difficultyEn)}</span>
                 <span>{item.duration}{item.duration === "--" ? "" : copy(locale, " 分钟", " min")}</span>
-                <span className="cl-progress-cell"><i style={{ "--pct": `${item.progress}%` }} /><b>{item.progress}%</b></span>
+                <span className={progress == null ? "cl-progress-cell is-empty" : "cl-progress-cell"}><i style={{ "--pct": `${progress ?? 0}%` }} /><b>{progress == null ? copy(locale, "未训练", "Not trained") : `${progress}%`}</b></span>
                 <span className="cl-row-actions">
-                  <button disabled={!item.enabled} onClick={() => onGenerate(activeTemplateId || item.id)} type="button">{item.progress ? copy(locale, "继续", "Continue") : copy(locale, "开始", "Start")}</button>
+                  <button disabled={!item.enabled} onClick={() => onGenerate(item.id || activeTemplateId)} type="button">{progress != null ? copy(locale, "继续", "Continue") : copy(locale, "开始", "Start")}</button>
                   <button disabled={!item.enabled} onClick={() => onPageChange(pageIds.review)} type="button">{copy(locale, "复盘", "Review")}</button>
                 </span>
               </article>
-            ))}
+            );
+            })}
           </div>
         </section>
         <aside className="cl-panel cl-library-side">
-          <div className="cl-panel-heading"><span>{copy(locale, "我的集合与路径", "Collections & Paths")}</span><strong>{copy(locale, "查看全部", "View all")}</strong></div>
+          <div className="cl-panel-heading"><span>{copy(locale, "我的本机记录", "My Local Records")}</span><strong>{copy(locale, "真实训练", "Actual training")}</strong></div>
           {[
-            ["我的收藏", "My Favorites", "12"],
-            ["进阶交易路径", "Advanced Trading Path", "6"],
-            ["风险管理专练", "Risk Management Drill", "8"],
-            ["熊市模型专题", "Selloff Templates", "7"]
-          ].map(([zh, en, count]) => <button key={en} type="button"><Icon name="star" /><span>{copy(locale, zh, en)}</span><small>{count}</small></button>)}
+            [copy(locale, "正式提交", "Scored attempts"), learningProgress.attempts],
+            [copy(locale, "已训练场景", "Trained scenarios"), trainedScenarios],
+            [copy(locale, "平均得分", "Average score"), learningProgress.averageScore ?? "--"],
+            [copy(locale, "最近得分", "Latest score"), learningProgress.latestScore ?? "--"]
+          ].map(([label, value]) => <button key={label} type="button"><Icon name="progress" /><span>{label}</span><small>{value}</small></button>)}
           <div className="cl-divider" />
           <div className="cl-panel-heading"><span>{copy(locale, "为你推荐", "Recommended")}</span><strong>{copy(locale, "换一换", "Refresh")}</strong></div>
           {scenarioLibraryItems.filter((item) => item.enabled).slice(0, 3).map((item) => <button key={item.id} onClick={() => onGenerate(item.id)} type="button"><span>{copy(locale, item.titleZh, item.titleEn)}</span><small>{item.duration} min</small></button>)}
@@ -1482,9 +1750,11 @@ function ReviewPage({ caseData, evaluation, locale, onGenerateVariant, onPageCha
         </section>
         <section className="cl-panel">
           <div className="cl-panel-heading"><span>{copy(locale, "常见错误", "Common Mistakes")}</span><strong>{copy(locale, "随案例生成", "Generated with case")}</strong></div>
-          <ul className="cl-mistake-list">
-            {(evaluation?.mistake_tags?.length ? evaluation.mistake_tags : ["basis_timing", "capacity_optionality", "fx_hedge_ratio"]).map((tag) => <li key={tag}>{tag}</li>)}
-          </ul>
+          {evaluation?.mistake_tags?.length ? (
+            <ul className="cl-mistake-list">
+              {evaluation.mistake_tags.map((tag) => <li key={tag}>{tag}</li>)}
+            </ul>
+          ) : <p className="empty-state">{copy(locale, "提交策略后显示真实错误标签。", "Submit a strategy to show real mistake tags.")}</p>}
         </section>
       </div>
     </section>
@@ -1536,7 +1806,11 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
   );
 }
 
-function ProgressPage({ evaluation, locale, onPageChange }) {
+function ProgressPage({ learningProgress, locale, onPageChange }) {
+  const hasProgress = learningProgress.hasRecords;
+  const weakSummary = learningProgress.weakest.length
+    ? learningProgress.weakest.map((item) => labelFor(locale, item, "zh", "en")).join(" / ")
+    : copy(locale, "完成一次评分后自动生成。", "Generated after your first scored attempt.");
   return (
     <section className="cl-page cl-progress-page">
       <PageTitle
@@ -1550,21 +1824,37 @@ function ProgressPage({ evaluation, locale, onPageChange }) {
       />
       <div className="cl-progress-layout">
         <section className="cl-panel">
-          <div className="cl-panel-heading"><span>{copy(locale, "能力画像", "Capability Profile")}</span><strong>{evaluation?.baseline_score ?? 72}/100</strong></div>
-          <div className="cl-skill-bars">
-            {progressDimensions.map(([id, zh, en, score]) => (
-              <div key={id}>
-                <span>{copy(locale, zh, en)}</span>
-                <i><b style={{ width: `${score}%` }} /></i>
-                <strong>{score}</strong>
+          <div className="cl-panel-heading"><span>{copy(locale, "能力画像", "Capability Profile")}</span><strong>{hasProgress ? `${learningProgress.latestScore}/100` : copy(locale, "暂无记录", "No records")}</strong></div>
+          {hasProgress ? (
+            <>
+              <div className="cl-progress-facts">
+                <span>{copy(locale, "正式提交", "Scored attempts")}<strong>{learningProgress.attempts}</strong></span>
+                <span>{copy(locale, "最近得分", "Latest score")}<strong>{learningProgress.latestScore ?? "--"}</strong></span>
+                <span>{copy(locale, "平均得分", "Average score")}<strong>{learningProgress.averageScore ?? "--"}</strong></span>
               </div>
-            ))}
-          </div>
+              <div className="cl-skill-bars">
+                {learningProgress.dimensions.map((item) => (
+                  <div className={item.score == null ? "is-empty" : ""} key={item.id}>
+                    <span>{labelFor(locale, item, "zh", "en")}</span>
+                    <i><b style={{ width: `${item.score ?? 0}%` }} /></i>
+                    <strong>{item.score == null ? "--" : item.score}</strong>
+                    <small>{copy(locale, `样本 ${item.samples}`, `${item.samples} samples`)}</small>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="cl-empty-progress large">
+              <strong>{copy(locale, "还没有可用于进度分析的训练记录", "No training records available for progress analysis")}</strong>
+              <p>{copy(locale, "只有点击“提交策略”完成本地评分后，Commodity Lab 才会记录能力分、弱项和场景进度。", "Commodity Lab records capability scores, weak points, and scenario progress only after you submit a strategy for local scoring.")}</p>
+              <button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button">{copy(locale, "生成第一个案例", "Generate first case")}</button>
+            </div>
+          )}
         </section>
         <section className="cl-panel">
           <div className="cl-panel-heading"><span>{copy(locale, "AI 推荐下一步", "AI Recommended Next Step")}</span><strong>{copy(locale, "基于弱项", "Based on weak points")}</strong></div>
-          <h3>{copy(locale, "做一题英国上游 Beach Delivery 卖德国的下跌行情变体", "Practice a UK Beach Delivery to Germany selloff variant")}</h3>
-          <p>{copy(locale, "重点训练基差方向、EUR/GBP 覆盖比例、运力弹性和执行窗口。", "Focus on basis direction, EUR/GBP hedge ratio, capacity flexibility, and execution window.")}</p>
+          <h3>{hasProgress ? copy(locale, "按当前弱项生成下一题", "Generate the next drill from current weak points") : copy(locale, "先完成一次正式训练", "Complete one scored drill first")}</h3>
+          <p>{hasProgress ? copy(locale, "建议重点：", "Recommended focus: ") + weakSummary : copy(locale, "进度页不会使用演示数据；第一条学习建议会在你提交策略后出现。", "This page does not use demo data; your first recommendation appears after you submit a strategy.")}</p>
           <button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button">{copy(locale, "开始推荐训练", "Start Recommended Drill")}</button>
         </section>
       </div>
@@ -1636,9 +1926,10 @@ function SettingsPage({ locale, settingsPanel }) {
   );
 }
 
-function FloatingAssistant({ aiReady, applyAction, locale, messages, onSend, thinking }) {
+function FloatingAssistant({ activePage, aiReady, applyAction, locale, messages, onSend, thinking }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
+  const currentPage = navItems.find((item) => item.id === activePage);
   async function submit(event) {
     event.preventDefault();
     if (!draft.trim()) return;
@@ -1649,20 +1940,35 @@ function FloatingAssistant({ aiReady, applyAction, locale, messages, onSend, thi
     <div className={open ? "floating-assistant open" : "floating-assistant"} data-guide="floating-assistant">
       {open ? (
         <section className="assistant-panel">
-          <header><div><span>{t("liveAssistant", locale)}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div><button className="icon-button" onClick={() => setOpen(false)} type="button">×</button></header>
+          <header>
+            <div>
+              <span>{t("liveAssistant", locale)}</span>
+              <strong>{aiReady ? t("online", locale) : t("offline", locale)} · {currentPage ? labelFor(locale, currentPage) : "Commodity Lab"}</strong>
+            </div>
+            <button className="icon-button" aria-label={t("close", locale)} onClick={() => setOpen(false)} type="button"><Icon name="close" /></button>
+          </header>
           <div className="assistant-messages">
             {messages.length ? messages.map((message, index) => (
               <article className={message.role} key={index}>
                 <MarkdownText text={message.content} />
                 {message.actions?.length ? <div className="assistant-actions">{message.actions.map((action, i) => <button key={i} onClick={() => applyAction(action)} type="button">{action.label ?? action.type}</button>)}</div> : null}
               </article>
-            )) : <p className="empty-state">{t("assistantEmpty", locale)}</p>}
+            )) : (
+              <div className="assistant-empty">
+                <strong>{copy(locale, "随时问 AI 教练", "Ask the AI coach anytime")}</strong>
+                <p>{t("assistantEmpty", locale)}</p>
+              </div>
+            )}
             {thinking ? <AiThinkingPanel locale={locale} titleKey="assistantWorking" /> : null}
           </div>
           <form onSubmit={submit}><textarea disabled={!aiReady || thinking} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={t("assistantPlaceholder", locale)} /><button className="primary" disabled={!aiReady || thinking || !draft.trim()} type="submit">{thinking ? t("loading", locale) : t("send", locale)}</button></form>
         </section>
       ) : null}
-      <button className="assistant-orb" onClick={() => setOpen((current) => !current)} type="button">AI</button>
+      <button className="assistant-orb" aria-expanded={open} aria-label={t("liveAssistant", locale)} onClick={() => setOpen((current) => !current)} type="button">
+        <span className={aiReady ? "assistant-status-dot online" : "assistant-status-dot"} />
+        <strong>AI</strong>
+        <small>{copy(locale, "助手", "Coach")}</small>
+      </button>
     </div>
   );
 }
@@ -1724,7 +2030,6 @@ export default function App() {
   const [templates, setTemplates] = useState(fallbackTemplates);
   const [activeTemplateId, setActiveTemplateId] = useState(fallbackTemplates.templates[0].id);
   const [activePage, setActivePage] = useState(pageIds.home);
-  const [activeCommodity, setActiveCommodity] = useState("natural-gas");
   const [caseData, setCaseData] = useState(() => defaultCase(initialLocale));
   const [generationStages, setGenerationStages] = useState([]);
   const [loadingTemplate, setLoadingTemplate] = useState("");
@@ -1743,8 +2048,11 @@ export default function App() {
   const [serviceMessage, setServiceMessage] = useState("");
   const [updateInfo, setUpdateInfo] = useState({ current_version: currentVersion });
   const [assistantMessages, setAssistantMessages] = useState([]);
+  const [learningRecords, setLearningRecords] = useState(() => loadLearningRecords());
+  const [aiGuidanceAction, setAiGuidanceAction] = useState("");
   const [guideIndex, setGuideIndex] = useState(() => savedValue("commodity-lab-guide-complete", "") ? -1 : 0);
   const aiReady = Boolean(providerStatus?.haineng?.ok);
+  const learningProgress = useMemo(() => summarizeLearningRecords(learningRecords), [learningRecords]);
 
   function setLocale(nextLocale) {
     localStorage.setItem("commodity-lab-locale", nextLocale);
@@ -1758,6 +2066,41 @@ export default function App() {
     localStorage.setItem("commodity-lab-guide-complete", "1");
     setGuideIndex(-1);
   }
+  function appendLearningRecord(record) {
+    setLearningRecords((current) => {
+      const next = [...current, record].slice(-120);
+      saveLearningRecords(next);
+      return next;
+    });
+  }
+  function showAiGuidance(message) {
+    setAiGuidanceAction(message);
+    window.clearTimeout(showAiGuidance.timer);
+    showAiGuidance.timer = window.setTimeout(() => setAiGuidanceAction(""), 2600);
+  }
+
+  useEffect(() => {
+    const shortcutPages = [
+      pageIds.home,
+      pageIds.caseLab,
+      pageIds.workbench,
+      pageIds.library,
+      pageIds.review,
+      pageIds.knowledge,
+      pageIds.progress,
+      pageIds.coach,
+      pageIds.settings
+    ];
+    function handleNavigationShortcut(event) {
+      if (!event.ctrlKey || !event.altKey) return;
+      const index = Number(event.key) - 1;
+      if (!Number.isInteger(index) || !shortcutPages[index]) return;
+      event.preventDefault();
+      setActivePage(shortcutPages[index]);
+    }
+    window.addEventListener("keydown", handleNavigationShortcut);
+    return () => window.removeEventListener("keydown", handleNavigationShortcut);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
@@ -1904,6 +2247,7 @@ export default function App() {
     setBusyAction("evaluate");
     const nextEvaluation = evaluateStrategy(caseData, strategyLegs, rationale);
     setEvaluation(nextEvaluation);
+    appendLearningRecord(recordLearningAttempt({ activeTemplateId, caseData, evaluation: nextEvaluation, rationale, strategyLegs }));
     setAiOutput(null);
     setBusyAction("");
     setActivePage(pageIds.review);
@@ -1944,14 +2288,6 @@ export default function App() {
     generateTrainingCase(activeTemplateId, prompt);
   }
 
-  function handleCommodityChange(tab) {
-    setActiveCommodity(tab.id);
-    if (!tab.enabled) {
-      setServiceMessage(copy(locale, `${labelFor(locale, tab)} 模块建设中，V1 先开放天然气训练。`, `${labelFor(locale, tab)} is under construction. V1 opens Natural Gas training first.`));
-      setActiveCommodity("natural-gas");
-    }
-  }
-
   function buildAiPayload(capability) {
     return {
       capability,
@@ -1960,7 +2296,8 @@ export default function App() {
       order: orderFromStrategy(strategyLegs),
       rationale,
       evaluation: evaluation ?? {},
-      attempt_history: evaluation ? [evaluation] : [],
+      attempt_history: learningRecords.map((record) => record.evaluation).filter(Boolean).slice(-12),
+      learning_progress: learningProgress,
       market_context: { case: caseData, strategy_legs: strategyLegs },
       user_request: rationale,
       concept: "basis risk, physical-paper matching, FX hedge, EEX/OCM windows, LNG cargo risk",
@@ -1975,10 +2312,19 @@ export default function App() {
     setServiceMessage("");
     try {
       const path = capability === "exam" ? "/api/v1/exam/generate" : "/api/v1/ai/generate";
-      const payload = await backendRequest("POST", path, capability === "exam" ? { scenario_id: "europe_ttf_nbp_spread", locale, attempt_history: evaluation ? [evaluation] : [] } : buildAiPayload(capability));
-      if (capability === "advisor_review") setAdvisorFeedback(payload.answer);
-      else if (capability === "exam") setExam(payload.exam);
-      else setAiOutput({ title: t(capability, locale), answer: payload.answer });
+      const payload = await backendRequest("POST", path, capability === "exam" ? { scenario_id: "europe_ttf_nbp_spread", locale, attempt_history: learningRecords.map((record) => record.evaluation).filter(Boolean).slice(-12) } : buildAiPayload(capability));
+      if (capability === "advisor_review") {
+        setAdvisorFeedback(payload.answer);
+        setActivePage(pageIds.review);
+        showAiGuidance(copy(locale, "AI 已切到复盘页并生成简短反馈。", "AI opened Review with concise feedback."));
+      } else if (capability === "exam") {
+        setExam(payload.exam);
+        setActivePage(pageIds.review);
+        showAiGuidance(copy(locale, "AI 已生成测验并切到复盘页。", "AI generated a quiz and opened Review."));
+      } else {
+        setAiOutput({ title: t(capability, locale), answer: payload.answer });
+        showAiGuidance(copy(locale, "AI 已把结果放入当前工作区。", "AI placed the result in the workspace."));
+      }
     } catch (error) {
       setServiceMessage(formatErrorMessage(error, locale));
     } finally {
@@ -1994,9 +2340,19 @@ export default function App() {
       const payload = await backendRequest("POST", "/api/v1/ai/live-assistant", {
         locale,
         message,
-        workspace_state: { case: caseData, strategy_legs: strategyLegs, evaluation, active_template_id: activeTemplateId }
+        workspace_state: {
+          active_page: activePage,
+          active_template_id: activeTemplateId,
+          case: caseData,
+          evaluation,
+          learning_progress: learningProgress,
+          recent_attempts: learningRecords.slice(-8),
+          strategy_legs: strategyLegs
+        }
       });
-      setAssistantMessages((current) => [...current, { role: "assistant", content: payload.answer, actions: payload.actions ?? [] }]);
+      const actions = payload.actions ?? [];
+      setAssistantMessages((current) => [...current, { role: "assistant", content: payload.answer, actions }]);
+      actions.filter((action) => ["navigate_page", "set_chart_fields", "set_exam", "generate_case", "select_template", "run_ai_capability"].includes(action.type)).slice(0, 1).forEach(applyAssistantAction);
     } catch (error) {
       setAssistantMessages((current) => [...current, { role: "assistant", content: formatErrorMessage(error, locale), actions: [] }]);
     } finally {
@@ -2006,10 +2362,41 @@ export default function App() {
 
   function applyAssistantAction(action) {
     const payload = action.payload ?? {};
-    if (action.type === "select_template" && payload.template_id) generateTrainingCase(payload.template_id);
-    if (action.type === "set_chart_fields" && Array.isArray(payload.fields)) setFieldSelection(payload.fields.filter((field) => chartFields.includes(field)));
-    if (action.type === "set_strategy_legs" && Array.isArray(payload.legs)) setStrategyLegs(payload.legs.map((leg, index) => ({ id: leg.id ?? `assistant-leg-${index}`, ...leg })));
-    if (action.type === "fill_rationale" && payload.text) setRationale(payload.text);
+    if (action.type === "select_template" && payload.template_id) {
+      generateTrainingCase(payload.template_id, payload.user_request ?? "");
+      showAiGuidance(copy(locale, "AI 正在按课程生成练习。", "AI is generating a course drill."));
+    }
+    if (action.type === "generate_case") {
+      const track = learningTracks.find((item) => item.id === payload.track_id) ?? learningTracks[0];
+      generateTrainingCase(payload.template_id ?? track.templateId, payload.user_request ?? copy(locale, track.requestZh, track.requestEn));
+      showAiGuidance(copy(locale, "AI 正在生成新练习并打开工作台。", "AI is generating a new drill and opening the workbench."));
+    }
+    if (action.type === "navigate_page" && (pageIds[payload.page] || Object.values(pageIds).includes(payload.page))) {
+      const page = pageIds[payload.page] ?? payload.page;
+      setActivePage(page);
+      showAiGuidance(copy(locale, "AI 已切换到对应页面。", "AI navigated to the requested page."));
+    }
+    if (action.type === "set_chart_fields" && Array.isArray(payload.fields)) {
+      const fields = payload.fields.filter((field) => chartFields.includes(field));
+      setFieldSelection(fields.length ? fields : ["close"]);
+      setActivePage(pageIds.workbench);
+      showAiGuidance(copy(locale, "AI 已切到工作台并调整图表字段。", "AI opened the workbench and adjusted chart fields."));
+    }
+    if (action.type === "set_strategy_legs" && Array.isArray(payload.legs)) {
+      setStrategyLegs(payload.legs.map((leg, index) => ({ id: leg.id ?? `assistant-leg-${index}`, ...leg })));
+      setActivePage(pageIds.workbench);
+      showAiGuidance(copy(locale, "AI 已把建议策略腿填入工作台，请你检查后再提交。", "AI filled suggested legs in the workbench. Review before submitting."));
+    }
+    if (action.type === "fill_rationale" && payload.text) {
+      setRationale(payload.text);
+      setActivePage(pageIds.workbench);
+      showAiGuidance(copy(locale, "AI 已填入策略说明草稿。", "AI filled a rationale draft."));
+    }
+    if (action.type === "set_exam" && payload.exam) {
+      setExam(payload.exam);
+      setActivePage(pageIds.review);
+      showAiGuidance(copy(locale, "AI 已创建测验并打开复盘页。", "AI created a quiz and opened Review."));
+    }
     if (action.type === "run_ai_capability" && payload.capability) runAiAction(payload.capability);
   }
 
@@ -2089,13 +2476,13 @@ export default function App() {
       return <ReviewPage caseData={caseData} evaluation={evaluation} locale={locale} onGenerateVariant={generateVariant} onPageChange={setActivePage} runAiAction={runAiAction} strategyLegs={strategyLegs} />;
     }
     if (activePage === pageIds.library) {
-      return <ScenarioLibraryPage activeTemplateId={activeTemplateId} locale={locale} loadingTemplate={loadingTemplate} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
+      return <ScenarioLibraryPage activeTemplateId={activeTemplateId} learningProgress={learningProgress} locale={locale} loadingTemplate={loadingTemplate} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
     }
     if (activePage === pageIds.knowledge) {
       return <KnowledgeMapPage locale={locale} onPageChange={setActivePage} runAiAction={runAiAction} />;
     }
     if (activePage === pageIds.progress) {
-      return <ProgressPage evaluation={evaluation} locale={locale} onPageChange={setActivePage} />;
+      return <ProgressPage learningProgress={learningProgress} locale={locale} onPageChange={setActivePage} />;
     }
     if (activePage === pageIds.coach) {
       return <AiCoachPage aiReady={aiReady} applyAction={applyAssistantAction} locale={locale} messages={assistantMessages} onSend={sendAssistant} thinking={busyAction === "assistant"} />;
@@ -2103,7 +2490,7 @@ export default function App() {
     if (activePage === pageIds.settings) {
       return <SettingsPage locale={locale} settingsPanel={settingsPanel} />;
     }
-    return <HomePage activeTemplate={activeTemplate} aiReady={aiReady} caseData={caseData} evaluation={evaluation} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
+    return <HomePage aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
   }
 
   if (!backendReady) {
@@ -2112,18 +2499,19 @@ export default function App() {
 
   return (
     <main className={aiReady ? "app-shell cl-app-shell ai-ready" : "app-shell cl-app-shell"}>
-      <ProductTopbar activeCommodity={activeCommodity} aiReady={aiReady} locale={locale} onCommodityChange={handleCommodityChange} setLocale={setLocale} />
+      <ProductTopbar aiReady={aiReady} locale={locale} />
 
       <div className="cl-app-layout">
-        <ProductSidebar activePage={activePage} locale={locale} onPageChange={setActivePage} />
+        <ProductSidebar activePage={activePage} locale={locale} onPageChange={setActivePage} setLocale={setLocale} />
         <section className="cl-content-shell">
           {generationStages.length && busyAction === "case_generation" ? <GenerationTimeline locale={locale} stages={generationStages} /> : null}
+          {aiGuidanceAction ? <p className="cl-ai-guidance"><Icon name="sparkles" />{aiGuidanceAction}</p> : null}
           {serviceMessage && activePage !== pageIds.settings ? <p className="cl-service-banner">{serviceMessage}</p> : null}
           {renderActivePage()}
         </section>
       </div>
 
-      <FloatingAssistant aiReady={aiReady} applyAction={applyAssistantAction} locale={locale} messages={assistantMessages} onSend={sendAssistant} thinking={busyAction === "assistant"} />
+      <FloatingAssistant activePage={activePage} aiReady={aiReady} applyAction={applyAssistantAction} locale={locale} messages={assistantMessages} onSend={sendAssistant} thinking={busyAction === "assistant"} />
 
       {guideIndex >= 0 ? (
         <GuidedOverlay
