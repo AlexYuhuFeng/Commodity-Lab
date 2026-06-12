@@ -56,4 +56,30 @@ model=DeepSeek-V4-Flash
 base_url=http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1
 ```
 
+`.env` style files and Python-style quoted assignments are also accepted:
+
+```text
+PROVIDER="deepseek"
+API_KEY="REPLACE_WITH_TEST_KEY"
+MODEL="deepseek-v4-flash"
+BASE_URL="https://api.deepseek.com"
+```
+
+OpenAI-compatible Python SDK samples are accepted when they contain `api_key`, `base_url`, and optionally `model` assignments or keyword arguments:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="REPLACE_WITH_TEST_KEY",
+    base_url="https://api.deepseek.com",
+)
+
+model = "deepseek-v4-flash"
+```
+
+A single-line file containing only the key is accepted. In that case Commodity Lab uses the provider currently selected in Settings.
+
+也支持 `.env` 风格文件、Python 引号变量，以及 OpenAI 兼容 SDK 示例文件。若文件只有一行密钥，Commodity Lab 会使用设置页当前选择的供应方。
+
 Supported aliases include `V4-Flash`, `V4-Pro`, `DeepSeek-V4-Flash`, and `DeepSeek-V4`; the app normalizes them to the provider-specific model names and base URLs.

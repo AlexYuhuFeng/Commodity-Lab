@@ -50,12 +50,26 @@ _KNOWLEDGE_POINTS: list[dict[str, Any]] = [
 
 
 _BUSINESS_GROUPS: list[dict[str, Any]] = [
+    {"id": "foundation", "label": {"en": "Foundations", "zh": "套保基础"}},
     {"id": "procurement", "label": {"en": "Procurement", "zh": "采购端"}},
     {"id": "sales", "label": {"en": "Sales", "zh": "销售端"}},
 ]
 
 
 _TEMPLATES: list[dict[str, Any]] = [
+    {
+        "id": "foundation_hedging_basics",
+        "group": "foundation",
+        "business_type": {"en": "Natural gas hedging foundations", "zh": "天然气套保基础"},
+        "title": {"en": "What exposure are we hedging?", "zh": "我们到底在套保什么？"},
+        "summary": {
+            "en": "A beginner case that teaches exposure direction, physical-paper matching, quantity, tenor, and basic execution checks before complex cross-border trades.",
+            "zh": "入门案例：先讲清楚敞口方向、实货/纸货匹配、数量、期限和基础执行检查，再进入复杂跨境业务。",
+        },
+        "knowledge_points": ["outright_price", "physical_paper_matching"],
+        "required_curves": ["TTF", "TRAINING_HEDGE_INDEX"],
+        "suggested_leg_types": ["physical", "swap"],
+    },
     {
         "id": "procurement_beach_to_germany",
         "group": "procurement",
@@ -165,4 +179,3 @@ def get_template(template_id: str, locale: str = "en") -> dict[str, Any]:
         if template["id"] == template_id:
             return _localize_template(template, locale)
     raise KeyError(f"Unknown business template '{template_id}'.")
-
