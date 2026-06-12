@@ -961,6 +961,83 @@ textarea:focus {
   background: #f4f7f6;
 }
 
+[data-theme="light"] .cl-app-shell,
+[data-theme="light"] .cl-content-shell {
+  color: #17202a;
+  background: #f4f7f6;
+}
+
+[data-theme="light"] .cl-page-title h2,
+[data-theme="light"] .cl-panel-heading span,
+[data-theme="light"] .cl-panel h3,
+[data-theme="light"] .cl-course-grid h3,
+[data-theme="light"] .cl-empty-progress strong,
+[data-theme="light"] .cl-route-stack strong,
+[data-theme="light"] .cl-progress-facts strong,
+[data-theme="light"] .cl-skill-bars span,
+[data-theme="light"] .cl-skill-bars strong,
+[data-theme="light"] .cl-topic-panel h4,
+[data-theme="light"] .cl-case-hero h2,
+[data-theme="light"] .cl-case-hero dd {
+  color: #111827;
+}
+
+[data-theme="light"] .cl-page-title p,
+[data-theme="light"] .cl-muted,
+[data-theme="light"] .cl-panel p,
+[data-theme="light"] .cl-course-grid p,
+[data-theme="light"] .cl-route-stack small,
+[data-theme="light"] .cl-skill-bars small,
+[data-theme="light"] .cl-progress-facts span,
+[data-theme="light"] .cl-case-hero span,
+[data-theme="light"] .cl-case-hero dt {
+  color: #526175;
+}
+
+[data-theme="light"] .cl-panel,
+[data-theme="light"] .cl-case-hero,
+[data-theme="light"] .cl-learning-stepper,
+[data-theme="light"] .cl-service-banner {
+  border-color: rgba(100, 116, 139, 0.24);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74), 0 16px 42px rgba(15, 23, 42, 0.07);
+}
+
+[data-theme="light"] .cl-course-hero {
+  background:
+    linear-gradient(120deg, rgba(31, 122, 255, 0.9), rgba(15, 71, 126, 0.88) 46%, rgba(8, 73, 68, 0.88)),
+    #0d2340;
+}
+
+[data-theme="light"] .cl-course-hero span,
+[data-theme="light"] .cl-course-hero h3,
+[data-theme="light"] .cl-course-hero p {
+  color: #f8fbff;
+}
+
+[data-theme="light"] .cl-course-hero span {
+  color: #9af1c7;
+}
+
+[data-theme="light"] .cl-course-grid article,
+[data-theme="light"] .cl-route-stack button,
+[data-theme="light"] .cl-empty-progress,
+[data-theme="light"] .cl-mini-skill-grid span,
+[data-theme="light"] .cl-progress-facts span,
+[data-theme="light"] .cl-template-card,
+[data-theme="light"] .cl-template-families button,
+[data-theme="light"] .cl-library-side button {
+  border-color: rgba(100, 116, 139, 0.22);
+  background: rgba(248, 250, 252, 0.86);
+}
+
+[data-theme="light"] .cl-chip-row span,
+[data-theme="light"] .cl-course-grid article > div:first-child span {
+  border-color: rgba(31, 122, 255, 0.22);
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.12);
+}
+
 [data-theme="light"] .panel,
 [data-theme="light"] .collapsible-panel,
 [data-theme="light"] .advisor-rail,
@@ -3016,6 +3093,9 @@ button:focus-visible {
   color: #ffffff;
   font-size: 26px;
   line-height: 1.14;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: normal;
 }
 
 .cl-hero-actions {
@@ -3944,8 +4024,13 @@ button:focus-visible {
 .cl-hero-panel {
   min-height: 164px;
   align-content: center;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.cl-hero-panel > div {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cl-course-hero {
@@ -3955,8 +4040,8 @@ button:focus-visible {
 }
 
 .cl-hero-panel h3 {
-  max-width: 980px;
-  font-size: clamp(22px, 2.3vw, 34px);
+  max-width: min(100%, 980px);
+  font-size: clamp(22px, 1.6vw, 28px);
 }
 
 .cl-progress-ring {
@@ -4039,7 +4124,7 @@ button:focus-visible {
 
 .cl-course-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
