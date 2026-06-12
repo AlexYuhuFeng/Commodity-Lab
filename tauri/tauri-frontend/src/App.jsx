@@ -87,7 +87,7 @@ const learningTracks = [
     detailZh: "先理解敞口、套保目标、实货与纸货为什么要匹配。",
     detailEn: "Start with exposure, hedge objective, and why physical and paper legs must match.",
     requestZh: "生成一个入门级天然气套保训练案例：只关注敞口识别、实货/纸货匹配、买卖方向、数量和期限，不要直接使用复杂跨境 Beach Delivery。",
-    requestEn: "Generate a beginner natural gas hedging drill focused only on exposure identification, physical-paper matching, side, quantity, and tenor. Do not start with a complex cross-border Beach Delivery case.",
+    requestEn: "Generate a beginner natural gas hedging drill focused only on exposure identification, physical-paper matching, side, quantity, and tenor. Keep the case at foundation level instead of using a complex cross-border Beach Delivery scenario.",
     lessons: ["敞口识别", "套保工具", "实货/纸货匹配"],
     lessonsEn: ["Exposure", "Hedge tools", "Physical-paper matching"]
   },
@@ -247,8 +247,8 @@ const fallbackTemplates = {
       id: "foundation_hedging_basics",
       group: "foundation",
       business_type: "天然气套保基础",
-      title: "我们到底在套保什么？",
-      summary: "入门案例：先识别敞口，再匹配实货、纸货、方向、数量和期限。",
+      title: "套保对象与风险敞口识别",
+      summary: "入门案例：识别业务敞口，并匹配实货、纸货、方向、数量和期限。",
       knowledge_points: ["outright_price", "physical_paper_matching"],
       required_curves: ["TTF", "TRAINING_HEDGE_INDEX"],
       suggested_leg_types: ["physical", "swap"]
@@ -292,10 +292,10 @@ function defaultCase(locale) {
   return {
     scenario: {
       id: "starter_case",
-      title: zh ? "从第一课开始：我们到底在套保什么？" : "Start with Lesson 1: what exposure are we hedging?",
+      title: zh ? "第一课：套保对象与风险敞口" : "Lesson 1: Hedge Object and Risk Exposure",
       summary: zh
-        ? "先不用急着做跨境复杂案例。第一步只看业务敞口、套保目标、实货和纸货怎样对应。"
-        : "Do not start with a complex cross-border case. First identify exposure, hedge objective, and physical-paper matching.",
+        ? "本课聚焦业务敞口、套保目标，以及实货与纸货的对应关系。"
+        : "This lesson focuses on business exposure, hedge objectives, and physical-paper matching.",
       business_type: zh ? "天然气套保基础" : "Natural Gas Hedging Foundations",
       knowledge_points: ["outright_price", "physical_paper_matching"],
       exposure: {
@@ -1411,7 +1411,7 @@ function HomePage({ aiReady, learningProgress, locale, onGenerate, onPageChange 
         <section className="cl-panel cl-hero-panel cl-course-hero">
           <div>
             <span>{copy(locale, "建议从基础课开始", "Recommended starting point")}</span>
-            <h3>{copy(locale, "不要一上来就做跨境复杂案例。先搞清楚套保到底在保护什么。", "Do not start with a complex cross-border case. First learn what the hedge is actually protecting.")}</h3>
+            <h3>{copy(locale, "从基础敞口识别开始，逐步掌握套保目标、工具选择与实货/纸货匹配。", "Start with exposure identification, then build hedge objectives, tool selection, and physical-paper matching.")}</h3>
             <p>{copy(locale, "Commodity Lab 的训练顺序是：识别业务敞口 -> 选择实货/纸货工具 -> 做组合腿 -> 本地评分 -> AI 针对弱项生成下一题。", "Commodity Lab trains in this order: identify exposure -> choose physical/paper tools -> build multi-leg strategy -> score locally -> let AI generate the next weak-point drill.")}</p>
           </div>
           <div className="cl-hero-actions">
