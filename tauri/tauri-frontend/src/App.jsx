@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.1";
+const currentVersion = "1.1.2";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -1458,6 +1458,7 @@ function AiThinkingPanel({ locale, titleKey = "aiThinkingTitle" }) {
 }
 
 function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, evaluation, exam, locale, runAiAction }) {
+  const hasAdvisorOutput = Boolean(error || advisorFeedback || exam || aiOutput?.answer);
   return (
     <aside className={aiReady ? "advisor-rail online" : "advisor-rail"}>
       <div className="advisor-head">
@@ -1486,6 +1487,7 @@ function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, ev
           <summary><span>{t("aiTrainingOutput", locale)}</span><strong>{t("markdownEnabled", locale)}</strong></summary>
           <div className="advisor-output">
             {!aiReady ? <p className="service-error muted">{t("aiDisabledHint", locale)}</p> : null}
+            {aiReady && !hasAdvisorOutput ? <p className="empty-state">{copy(locale, "选择一个 AI 动作，输出会显示在这里。", "Run an AI action or ask the assistant. Output appears here.")}</p> : null}
             {error ? <p className="service-error">{error}</p> : null}
             {advisorFeedback ? <section className="response-block"><h3>{t("advisorFeedback", locale)}</h3><MarkdownText text={advisorFeedback} /></section> : null}
             {exam ? <section className="response-block"><h3>{t("examQuestions", locale)}</h3><MarkdownText text={exam} /></section> : null}
