@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/tauri";
+
 const DEFAULT_BACKEND_BASE_URL = "http://127.0.0.1:8000";
 
 function normalizePath(path) {
@@ -5,7 +7,6 @@ function normalizePath(path) {
 }
 
 async function requestViaTauri(method, path, body) {
-  const { invoke } = await import("@tauri-apps/api/tauri");
   return invoke("backend_request", {
     method,
     path: normalizePath(path),

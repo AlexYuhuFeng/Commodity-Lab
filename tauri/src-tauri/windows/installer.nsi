@@ -58,7 +58,7 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "CompanyName" "${MANUFACTURER}"
 VIAddVersionKey "Comments" "Repository: ${REPOSITORYURL}"
 
-; Plugins path, currently exists for linux only
+; Additional NSIS plugin path supplied by Tauri when needed.
 !if "${PLUGINSPATH}" != ""
     !addplugindir "${PLUGINSPATH}"
 !endif

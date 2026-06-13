@@ -57,7 +57,6 @@ def _validate_expression(expression: str) -> None:
         ast.Expression,
         ast.BinOp,
         ast.UnaryOp,
-        ast.Num,
         ast.Constant,
         ast.Name,
         ast.Load,
@@ -126,8 +125,6 @@ def _eval_node(node: ast.AST, ctx: dict):
         return _eval_node(node.body, ctx)
     if isinstance(node, ast.Constant):
         return node.value
-    if isinstance(node, ast.Num):
-        return node.n
     if isinstance(node, ast.Name):
         if node.id not in ctx:
             raise ExpressionValidationError(f"unknown variable: {node.id}")
