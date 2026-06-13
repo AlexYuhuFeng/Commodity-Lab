@@ -345,7 +345,7 @@ describe("Commodity Lab shell", () => {
 
     fireEvent.click(await screen.findByText("Training Workbench"));
     fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
-    fireEvent.change(screen.getByPlaceholderText(/natural gas hedging from zero/), { target: { value: "Show high low close and explain basis." } });
+    fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Show high low close and explain basis." } });
     fireEvent.click(screen.getByText("Send"));
 
     expect(await screen.findByRole("heading", { name: "Plan" })).toBeInTheDocument();
