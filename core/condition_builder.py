@@ -480,8 +480,6 @@ class ConditionEvaluator:
             raise ValueError(f"Unknown name: {node.id}")
         elif isinstance(node, ast.Constant):
             return node.value
-        elif isinstance(node, ast.Num):
-            return node.n
 
         raise ValueError(f"Unsupported expression node: {type(node).__name__}")
     
