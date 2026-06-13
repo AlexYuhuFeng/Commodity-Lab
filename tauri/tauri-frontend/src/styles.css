@@ -1049,6 +1049,34 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.95);
 }
 
+[data-theme="light"] .assistant-quick-prompts button {
+  border-color: rgba(31, 122, 255, 0.2);
+  color: #075985;
+  background: rgba(31, 122, 255, 0.08);
+}
+
+[data-theme="light"] .assistant-panel header span,
+[data-theme="light"] .assistant-empty strong {
+  color: #111827;
+}
+
+[data-theme="light"] .assistant-panel header strong,
+[data-theme="light"] .assistant-empty p {
+  color: #526175;
+}
+
+[data-theme="light"] .assistant-empty {
+  border-color: rgba(100, 116, 139, 0.24);
+  color: #526175;
+  background: rgba(248, 250, 252, 0.78);
+}
+
+[data-theme="light"] .assistant-quick-prompts button:disabled {
+  color: #64748b;
+  background: rgba(248, 250, 252, 0.94);
+  opacity: 0.72;
+}
+
 [data-theme="light"] input,
 [data-theme="light"] select,
 [data-theme="light"] textarea {
@@ -1488,32 +1516,45 @@ textarea:focus {
   right: 18px;
   bottom: 18px;
   z-index: 65;
+  pointer-events: none;
+}
+
+.floating-assistant.open {
+  top: 86px;
+  right: 14px;
+  bottom: 14px;
+  width: min(420px, calc(100vw - 28px));
 }
 
 .assistant-orb {
   position: relative;
   display: grid;
   place-items: center;
-  width: 72px;
-  height: 72px;
+  width: 60px;
+  height: 60px;
   border: 1px solid rgba(45, 212, 191, 0.8);
-  border-radius: 18px;
+  border-radius: 999px;
   color: #041614;
   background: #8dd6c5;
   box-shadow: 0 18px 42px rgba(20, 184, 166, 0.24);
   font-weight: 900;
+  pointer-events: auto;
+}
+
+.floating-assistant.open .assistant-orb {
+  display: none;
 }
 
 .assistant-orb strong {
   color: inherit;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
 }
 
 .assistant-orb small {
-  margin-top: -7px;
+  margin-top: -6px;
   color: inherit;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 820;
 }
 
@@ -1533,19 +1574,21 @@ textarea:focus {
 }
 
 .assistant-panel {
-  position: absolute;
+  position: fixed;
   right: 0;
-  bottom: 84px;
+  top: 86px;
+  bottom: 14px;
   display: grid;
-  grid-template-rows: auto minmax(180px, 1fr) auto;
-  width: min(480px, calc(100vw - 28px));
-  height: min(620px, calc(100vh - 128px));
-  max-height: calc(100vh - 128px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(420px, calc(100vw - 28px));
+  height: auto;
+  max-height: none;
   overflow: hidden;
   border: 1px solid rgba(51, 65, 85, 0.94);
   border-radius: 8px;
   background: rgba(13, 19, 26, 0.98);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
 }
 
 .assistant-panel header {
@@ -1577,7 +1620,7 @@ textarea:focus {
 }
 
 .assistant-messages article {
-  max-width: 92%;
+  max-width: 100%;
   border: 1px solid rgba(51, 65, 85, 0.72);
   border-radius: 8px;
   padding: 9px;
@@ -1608,6 +1651,29 @@ textarea:focus {
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.assistant-quick-prompts {
+  display: grid;
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.assistant-quick-prompts button {
+  justify-content: flex-start;
+  min-height: 34px;
+  border: 1px solid rgba(45, 212, 191, 0.32);
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: #ddfff8;
+  background: rgba(5, 46, 43, 0.44);
+  font-size: 12px;
+  font-weight: 720;
+  text-align: left;
+}
+
+.assistant-quick-prompts button:disabled {
+  opacity: 0.45;
 }
 
 .assistant-actions {
@@ -1733,8 +1799,9 @@ textarea:focus {
 }
 
 .target-floating-assistant {
-  right: 92px;
-  bottom: 92px;
+  right: 432px;
+  top: 110px;
+  bottom: auto;
 }
 
 .target-settings-menu {
@@ -2175,8 +2242,8 @@ button:focus-visible {
 }
 
 .assistant-orb {
-  width: 72px;
-  height: 72px;
+  width: 60px;
+  height: 60px;
   border-color: var(--cl-border-strong);
   color: var(--cl-bg);
   background: var(--cl-text);
@@ -2184,7 +2251,8 @@ button:focus-visible {
 }
 
 .assistant-messages article,
-.assistant-actions button {
+.assistant-actions button,
+.assistant-quick-prompts button {
   border-color: var(--cl-border);
   background: rgba(255, 255, 255, 0.035);
 }
@@ -2194,7 +2262,8 @@ button:focus-visible {
   background: rgba(255, 255, 255, 0.07);
 }
 
-.assistant-actions button {
+.assistant-actions button,
+.assistant-quick-prompts button {
   color: var(--cl-text);
 }
 

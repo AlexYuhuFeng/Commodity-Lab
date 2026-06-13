@@ -1930,6 +1930,11 @@ function FloatingAssistant({ activePage, aiReady, applyAction, locale, messages,
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const currentPage = navItems.find((item) => item.id === activePage);
+  const quickPrompts = [
+    copy(locale, "按当前课程生成下一道训练题。", "Generate the next drill for the current course."),
+    copy(locale, "用三句话解释当前页面的核心知识点。", "Explain the current page concept in three sentences."),
+    copy(locale, "检查当前策略还缺少哪些风险动作。", "Check which risk actions are missing from the current strategy.")
+  ];
   async function submit(event) {
     event.preventDefault();
     if (!draft.trim()) return;
@@ -1955,8 +1960,13 @@ function FloatingAssistant({ activePage, aiReady, applyAction, locale, messages,
               </article>
             )) : (
               <div className="assistant-empty">
-                <strong>{copy(locale, "随时问 AI 教练", "Ask the AI coach anytime")}</strong>
+                <strong>{copy(locale, "AI 学习助手", "AI learning assistant")}</strong>
                 <p>{t("assistantEmpty", locale)}</p>
+                <div className="assistant-quick-prompts">
+                  {quickPrompts.map((prompt) => (
+                    <button disabled={!aiReady || thinking} key={prompt} onClick={() => onSend(prompt)} type="button">{prompt}</button>
+                  ))}
+                </div>
               </div>
             )}
             {thinking ? <AiThinkingPanel locale={locale} titleKey="assistantWorking" /> : null}
