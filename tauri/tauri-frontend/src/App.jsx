@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { appWindow } from "@tauri-apps/api/window";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.0";
+const currentVersion = "1.1.1";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -14,7 +13,7 @@ const defaultProviderCatalog = {
         id: "DeepSeek-V4-Flash",
         label: "DeepSeek-V4-Flash",
         resolved_model: "DeepSeek-V4-Flash",
-        base_url: "http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1"
+        base_url: "http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1"
       },
       {
         id: "DeepSeek-V4",
@@ -37,6 +36,7 @@ const defaultProviderCatalog = {
 const chartFields = ["close", "high", "low"];
 
 const startupStageKeys = ["startupBackend", "startupAiRuntime", "startupWorkbench", "startupFinalizing"];
+const themeModes = ["system", "light", "dark"];
 
 const guideSteps = [
   ["settings-menu", "guideSettingsTitle", "guideSettingsBody"],
@@ -58,6 +58,15 @@ const pageIds = {
   coach: "coach",
   settings: "settings"
 };
+
+function normalizeThemeMode(mode) {
+  return themeModes.includes(mode) ? mode : "system";
+}
+
+function getSystemThemePreference() {
+  if (typeof window === "undefined" || !window.matchMedia) return "dark";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
 
 const navItems = [
   { id: pageIds.home, icon: "home", zh: "学习路径", en: "Learning Path" },
@@ -713,28 +722,25 @@ function formFromAiKeyFile(text, catalog = defaultProviderCatalog, options = {})
   const providerPrefix = provider === "deepseek" ? "deepseek" : "haineng";
   const apiKey = firstConfigValue(payload, "api_key", "apikey", "key", `${providerPrefix}_api_key`);
   if (!apiKey) throw new Error("AI key file is missing api_key.");
-  const modelHint = firstConfigValue(payload, "model", `${providerPrefix}_model`) || modelFromBaseUrl(provider, baseUrlHint, catalog) || config.default_model;
-  const model = modelForProvider(provider, modelHint, config);
+  const model = config.default_model;
   const selected = modelConfig(catalog, provider, model);
   return {
     api_key: apiKey,
     provider,
     model,
-    base_url: firstConfigValue(payload, "base_url", "url", `${providerPrefix}_base_url`) || selected?.base_url || ""
+    base_url: selected?.base_url || ""
   };
 }
 
 function formForProvider(provider, catalog = defaultProviderCatalog, apiKey = "") {
   const config = providerConfig(catalog, provider);
-  const storedModel = savedValue(`commodity-lab-${provider}-model`, config.default_model);
-  const model = config.models.some((option) => option.id === storedModel) ? storedModel : config.default_model;
+  const model = config.default_model;
   const selected = modelConfig(catalog, provider, model);
-  const storedBaseUrl = savedValue(`commodity-lab-${provider}-base-url`, "");
   return {
     api_key: apiKey,
     provider,
     model,
-    base_url: baseUrlMatchesProvider(provider, storedBaseUrl) ? storedBaseUrl : selected?.base_url ?? ""
+    base_url: selected?.base_url ?? ""
   };
 }
 
@@ -1009,7 +1015,6 @@ function Icon({ name }) {
     close: <path d="M6 6l12 12M18 6L6 18" />,
     flame: <path d="M12 22c3.6 0 6.5-2.4 6.5-6.3 0-2.5-1.4-4.7-3.4-6.4-.7 1.7-1.8 2.8-3.1 3.4.4-3.6-1.3-6.2-4.3-8.7.2 3-1.3 4.8-2.3 6.3A8.4 8.4 0 0 0 4 15.7C4 19.6 8.4 22 12 22Z" />,
     folder: <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5V17a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17Z" />,
-    fullscreen: <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M4 16v4h4" />,
     globe: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3.6 9h16.8M3.6 15h16.8M12 3c2.2 2.5 3.2 5.5 3.2 9s-1 6.5-3.2 9c-2.2-2.5-3.2-5.5-3.2-9S9.8 5.5 12 3Z" />,
     grid: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />,
     home: <path d="M3 11l9-8 9 8M5 10v10h14V10M9 20v-6h6v6" />,
@@ -1066,44 +1071,15 @@ function CollapsiblePanel({ children, className = "", defaultOpen = false, meta,
   );
 }
 
-function WindowControls({ locale }) {
-  async function closeApp() {
-    try {
-      await appWindow.close();
-    } catch {
-      window.close();
-    }
-  }
-  async function toggleFullscreen() {
-    try {
-      await appWindow.setFullscreen(!(await appWindow.isFullscreen()));
-    } catch {
-      // Browser preview fallback has no native window control.
-    }
-  }
-  return (
-    <div className="window-controls">
-      <button title={t("toggleFullscreen", locale)} onClick={toggleFullscreen} type="button"><Icon name="fullscreen" /></button>
-      <button title={t("close", locale)} onClick={closeApp} type="button"><Icon name="close" /></button>
-    </div>
-  );
-}
-
 function SettingsMenu({ aiReady, importing, locale, onCheckUpdate, onImportLocalSettings, onRestartGuide, onSaveSettings, providerStatus, saving, serviceMessage, setLocale, setTheme, theme, updateInfo }) {
   const catalog = providerCatalog(providerStatus);
   const fileInputRef = useRef(null);
   const [form, setForm] = useState(() => formForProvider(savedValue("commodity-lab-ai-provider", "haineng")));
   const [fileImportError, setFileImportError] = useState("");
   const provider = catalog[form.provider] ? form.provider : "haineng";
-  const config = providerConfig(catalog, provider);
-  const model = modelConfig(catalog, provider, form.model);
 
   function changeProvider(nextProvider) {
     setForm(formForProvider(nextProvider, catalog, form.api_key));
-  }
-  function changeModel(nextModel) {
-    const next = modelConfig(catalog, provider, nextModel);
-    setForm((current) => ({ ...current, model: nextModel, base_url: next?.base_url ?? current.base_url }));
   }
   async function importAiKeyFile(event) {
     const file = event.target.files?.[0];
@@ -1131,8 +1107,9 @@ function SettingsMenu({ aiReady, importing, locale, onCheckUpdate, onImportLocal
           <label>
             {t("theme", locale)}
             <select value={theme} onChange={(event) => setTheme(event.target.value)}>
-              <option value="dark">{t("darkMode", locale)}</option>
+              <option value="system">{t("systemMode", locale)}</option>
               <option value="light">{t("lightMode", locale)}</option>
+              <option value="dark">{t("darkMode", locale)}</option>
             </select>
           </label>
         </section>
@@ -1151,16 +1128,7 @@ function SettingsMenu({ aiReady, importing, locale, onCheckUpdate, onImportLocal
               {t("apiKey", locale)}
               <input aria-label={t("apiKey", locale)} autoComplete="off" type="password" value={form.api_key} placeholder={aiReady ? "********" : t("enterKeyToUnlock", locale)} onChange={(event) => setForm({ ...form, api_key: event.target.value })} />
             </label>
-            <label>
-              {t("baseUrl", locale)}
-              <input aria-label={t("baseUrl", locale)} value={form.base_url} placeholder={model?.base_url} onChange={(event) => setForm({ ...form, base_url: event.target.value })} />
-            </label>
-            <label>
-              {t("model", locale)}
-              <select aria-label={t("model", locale)} value={form.model} onChange={(event) => changeModel(event.target.value)}>
-                {config.models.map((option) => <option key={option.id} value={option.id}>{option.label ?? option.id}</option>)}
-              </select>
-            </label>
+            <p className="settings-note settings-auto-provider">{t("autoProviderRoute", locale)}</p>
             <button className="primary" disabled={saving || importing} type="submit">{saving ? t("loading", locale) : t("saveSettings", locale)}</button>
             <button className="secondary" disabled={saving || importing} onClick={() => fileInputRef.current?.click()} type="button">{importing ? t("loading", locale) : t("loadLocalAiKey", locale)}</button>
             <input className="visually-hidden" onChange={importAiKeyFile} ref={fileInputRef} type="file" />
@@ -1533,6 +1501,18 @@ function labelFor(locale, item, zhKey = "zh", enKey = "en") {
   return copy(locale, item[zhKey], item[enKey]);
 }
 
+function pageLabelFor(locale, activePage) {
+  const navPage = navItems.find((item) => item.id === activePage);
+  if (navPage) return labelFor(locale, navPage);
+  const utilityPages = {
+    [pageIds.review]: { zh: "\u590d\u76d8\u53cd\u9988", en: "Review" },
+    [pageIds.coach]: { zh: "AI \u6559\u7ec3", en: "AI Coach" },
+    [pageIds.settings]: { zh: "\u8bbe\u7f6e", en: "Settings" }
+  };
+  const page = utilityPages[activePage];
+  return page ? labelFor(locale, page) : t("decisionLab", locale);
+}
+
 function curriculumReference(locale) {
   return {
     knowledge_coverage: hedgingKnowledgeCoverage.map((item) => ({
@@ -1581,7 +1561,8 @@ function LogoMark() {
   );
 }
 
-function ProductTopbar({ aiReady, locale }) {
+function ProductTopbar({ activePage, aiReady, locale }) {
+  const currentPageLabel = pageLabelFor(locale, activePage);
   return (
     <header className="cl-topbar">
       <div className="cl-brand">
@@ -1592,14 +1573,15 @@ function ProductTopbar({ aiReady, locale }) {
         </div>
       </div>
       <div className="cl-top-actions">
+        <span className="cl-mode-pill"><Icon name="sparkles" />{copy(locale, "训练模式", "Training Mode")}</span>
+        <span className="cl-route-pill">{currentPageLabel}</span>
         <AiStatusBadge aiReady={aiReady} locale={locale} />
-        <WindowControls locale={locale} />
       </div>
     </header>
   );
 }
 
-function ProductSidebar({ activePage, locale, onPageChange, setLocale }) {
+function ProductSidebar({ activePage, locale, onPageChange }) {
   return (
     <aside className="cl-sidebar">
       <nav className="cl-main-nav">
@@ -1616,13 +1598,6 @@ function ProductSidebar({ activePage, locale, onPageChange, setLocale }) {
           <Icon name="settings" />
           <span>{t("settings", locale)}</span>
         </button>
-        <div className="cl-sidebar-controls">
-          <button className="cl-sidebar-language" onClick={() => setLocale(locale === "zh" ? "en" : "zh")} type="button">
-            <Icon name="globe" />
-            <span>{locale === "zh" ? "中文" : "English"}</span>
-          </button>
-          <WindowControls locale={locale} />
-        </div>
       </div>
     </aside>
   );
@@ -2362,7 +2337,8 @@ function StartupScreen({ locale, slow, stageKey }) {
 export default function App() {
   const initialLocale = normalizeLocale(savedValue("commodity-lab-locale", "zh"));
   const [locale, setLocaleState] = useState(initialLocale);
-  const [theme, setThemeState] = useState(() => savedValue("commodity-lab-theme", "dark"));
+  const [theme, setThemeState] = useState(() => normalizeThemeMode(savedValue("commodity-lab-theme", "system")));
+  const [resolvedTheme, setResolvedTheme] = useState(() => getSystemThemePreference());
   const [backendReady, setBackendReady] = useState(false);
   const [startupStage, setStartupStage] = useState(startupStageKeys[0]);
   const [startupSlow, setStartupSlow] = useState(false);
@@ -2399,8 +2375,9 @@ export default function App() {
     setLocaleState(nextLocale);
   }
   function setTheme(nextTheme) {
-    localStorage.setItem("commodity-lab-theme", nextTheme);
-    setThemeState(nextTheme);
+    const normalized = normalizeThemeMode(nextTheme);
+    localStorage.setItem("commodity-lab-theme", normalized);
+    setThemeState(normalized);
   }
   function completeGuide() {
     localStorage.setItem("commodity-lab-guide-complete", "1");
@@ -2444,8 +2421,21 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
-    document.documentElement.dataset.theme = theme;
-  }, [locale, theme]);
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.dataset.themeMode = theme;
+  }, [locale, resolvedTheme, theme]);
+
+  useEffect(() => {
+    if (theme !== "system") {
+      setResolvedTheme(theme);
+      return undefined;
+    }
+    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    const updateResolvedTheme = () => setResolvedTheme(media?.matches ? "dark" : "light");
+    updateResolvedTheme();
+    media?.addEventListener?.("change", updateResolvedTheme);
+    return () => media?.removeEventListener?.("change", updateResolvedTheme);
+  }, [theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2514,10 +2504,9 @@ export default function App() {
     setBusyAction("provider");
     setServiceMessage("");
     try {
-      const payload = await backendRequest("POST", "/api/v1/provider-settings", form);
-      localStorage.setItem("commodity-lab-ai-provider", form.provider);
-      localStorage.setItem(`commodity-lab-${form.provider}-base-url`, form.base_url);
-      localStorage.setItem(`commodity-lab-${form.provider}-model`, form.model);
+      const fixedForm = formForProvider(form.provider, providerCatalog(providerStatus), form.api_key);
+      const payload = await backendRequest("POST", "/api/v1/provider-settings", fixedForm);
+      localStorage.setItem("commodity-lab-ai-provider", fixedForm.provider);
       setProviderStatus((current) => ({ ...(current ?? {}), ...payload }));
       setServiceMessage(t("providerSaved", locale));
     } catch (error) {
@@ -2531,11 +2520,10 @@ export default function App() {
     setBusyAction("provider-import");
     setServiceMessage("");
     try {
-      const payload = await backendRequest("POST", "/api/v1/provider-settings", form);
+      const fixedForm = formForProvider(form.provider, providerCatalog(providerStatus), form.api_key);
+      const payload = await backendRequest("POST", "/api/v1/provider-settings", fixedForm);
       const status = payload.haineng ?? {};
       if (status.provider) localStorage.setItem("commodity-lab-ai-provider", status.provider);
-      if (status.base_url && status.provider) localStorage.setItem(`commodity-lab-${status.provider}-base-url`, status.base_url);
-      if (status.model && status.provider) localStorage.setItem(`commodity-lab-${status.provider}-model`, status.model);
       setProviderStatus((current) => ({ ...(current ?? {}), ...payload }));
       setServiceMessage(`${t("localAiKeyLoaded", locale)}${sourceName ? `: ${sourceName}` : ""}`);
     } catch (error) {
@@ -2851,16 +2839,12 @@ export default function App() {
     return <HomePage aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
   }
 
-  if (!backendReady) {
-    return <StartupScreen locale={locale} slow={startupSlow} stageKey={startupStage} />;
-  }
-
   return (
     <main className={aiReady ? "app-shell cl-app-shell ai-ready" : "app-shell cl-app-shell"}>
-      <ProductTopbar aiReady={aiReady} locale={locale} />
+      <ProductTopbar activePage={activePage} aiReady={aiReady} locale={locale} />
 
       <div className="cl-app-layout">
-        <ProductSidebar activePage={activePage} locale={locale} onPageChange={setActivePage} setLocale={setLocale} />
+        <ProductSidebar activePage={activePage} locale={locale} onPageChange={setActivePage} />
         <section className="cl-content-shell">
           {generationStages.length && busyAction === "case_generation" ? <GenerationTimeline locale={locale} stages={generationStages} /> : null}
           {aiGuidanceAction ? <p className="cl-ai-guidance"><Icon name="sparkles" />{aiGuidanceAction}</p> : null}

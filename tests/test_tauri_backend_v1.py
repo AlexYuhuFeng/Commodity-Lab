@@ -106,13 +106,13 @@ def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monk
     payload = response.json()
     assert payload["haineng"]["ok"] is True
     assert payload["haineng"]["provider"] == "haineng"
-    assert payload["haineng"]["base_url"] == "http://localhost:9999/v1"
+    assert payload["haineng"]["base_url"] == "http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1"
     assert payload["haineng"]["model"] == "DeepSeek-V4-Flash"
     assert "user-secret-key" not in str(payload)
     _clear_haineng_env(monkeypatch)
 
 
-def test_provider_settings_endpoint_defaults_haineng_model_url(monkeypatch) -> None:
+def test_provider_settings_endpoint_forces_haineng_flash_contract(monkeypatch) -> None:
     _clear_haineng_env(monkeypatch)
     response = client.post(
         "/api/v1/provider-settings",
@@ -121,8 +121,8 @@ def test_provider_settings_endpoint_defaults_haineng_model_url(monkeypatch) -> N
     assert response.status_code == 200
     payload = response.json()
     assert payload["haineng"]["provider"] == "haineng"
-    assert payload["haineng"]["base_url"] == "http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1"
-    assert payload["haineng"]["resolved_model"] == "DeepSeek-V4"
+    assert payload["haineng"]["base_url"] == "http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1"
+    assert payload["haineng"]["resolved_model"] == "DeepSeek-V4-Flash"
     assert "user-secret-key" not in str(payload)
     _clear_haineng_env(monkeypatch)
 
@@ -135,7 +135,7 @@ def test_provider_settings_endpoint_accepts_deepseek_contract(monkeypatch) -> No
             "api_key": "user-secret-key",
             "provider": "deepseek",
             "base_url": "",
-            "model": "deepseek-v4-flash",
+            "model": "deepseek-v4-pro",
         },
     )
     assert response.status_code == 200

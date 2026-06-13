@@ -132,7 +132,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
             label: "Haineng",
             default_model: "DeepSeek-V4-Flash",
             models: [
-              { id: "DeepSeek-V4-Flash", label: "DeepSeek-V4-Flash", resolved_model: "DeepSeek-V4-Flash", base_url: "http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1" },
+              { id: "DeepSeek-V4-Flash", label: "DeepSeek-V4-Flash", resolved_model: "DeepSeek-V4-Flash", base_url: "http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1" },
               { id: "DeepSeek-V4", label: "DeepSeek-V4", resolved_model: "DeepSeek-V4", base_url: "http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1" }
             ]
           },
@@ -151,7 +151,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.1.0",
+        current_version: "1.1.1",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -181,7 +181,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.1.0", latest_version: "1.1.0", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.0", assets: [] };
+      return { current_version: "1.1.1", latest_version: "1.1.1", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.1", assets: [] };
     }
     return {};
   };
@@ -228,9 +228,10 @@ describe("Commodity Lab shell", () => {
     renderShell({ aiReady: false, onCall: (call) => calls.push(call) });
 
     fireEvent.click((await screen.findAllByText("Settings"))[0]);
+    expect(screen.queryByLabelText("Model")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Base URL")).not.toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText("API key"), { target: { value: "local-secret" } });
     fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "deepseek" } });
-    fireEvent.change(screen.getByLabelText("Model"), { target: { value: "deepseek-v4-flash" } });
     fireEvent.click(screen.getByText("Save"));
 
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/provider-settings")).toBe(true));
@@ -240,17 +241,23 @@ describe("Commodity Lab shell", () => {
     expect(request.model).toBe("deepseek-v4-flash");
   });
 
-  it("binds Haineng model names to Haineng base URLs", async () => {
+  it("uses fixed Haineng Flash routing without model or URL controls", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
-    renderShell({ aiReady: false });
+    const calls = [];
+    renderShell({ aiReady: false, onCall: (call) => calls.push(call) });
 
     fireEvent.click((await screen.findAllByText("Settings"))[0]);
     expect(screen.getByLabelText("Provider")).toHaveValue("haineng");
-    expect(screen.getByLabelText("Model")).toHaveValue("DeepSeek-V4-Flash");
-    expect(screen.getByLabelText("Base URL")).toHaveValue("http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1");
+    expect(screen.queryByLabelText("Model")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Base URL")).not.toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("API key"), { target: { value: "local-secret" } });
+    fireEvent.click(screen.getByText("Save"));
 
-    fireEvent.change(screen.getByLabelText("Model"), { target: { value: "DeepSeek-V4" } });
-    expect(screen.getByLabelText("Base URL")).toHaveValue("http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1");
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/provider-settings")).toBe(true));
+    const request = calls.find((call) => call.path === "/api/v1/provider-settings")?.body;
+    expect(request.provider).toBe("haineng");
+    expect(request.model).toBe("DeepSeek-V4-Flash");
+    expect(request.base_url).toBe("http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1");
   });
 
   it("imports an AI key file selected by the user from any location", async () => {
@@ -269,8 +276,8 @@ describe("Commodity Lab shell", () => {
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/provider-settings" && call.body?.api_key === "file-secret-key")).toBe(true));
     const request = calls.find((call) => call.path === "/api/v1/provider-settings" && call.body?.api_key === "file-secret-key")?.body;
     expect(request.provider).toBe("haineng");
-    expect(request.model).toBe("DeepSeek-V4");
-    expect(request.base_url).toBe("http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1");
+    expect(request.model).toBe("DeepSeek-V4-Flash");
+    expect(request.base_url).toBe("http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1");
   });
 
   it("imports Haineng Python SDK sample key files without keeping quotes in settings", async () => {
@@ -299,8 +306,8 @@ describe("Commodity Lab shell", () => {
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/provider-settings" && call.body?.api_key === "python-secret-key")).toBe(true));
     const request = calls.find((call) => call.path === "/api/v1/provider-settings" && call.body?.api_key === "python-secret-key")?.body;
     expect(request.provider).toBe("haineng");
-    expect(request.model).toBe("DeepSeek-V4");
-    expect(request.base_url).toBe("http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1");
+    expect(request.model).toBe("DeepSeek-V4-Flash");
+    expect(request.base_url).toBe("http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1");
   });
 
   it("imports a single-line key using the currently selected provider", async () => {

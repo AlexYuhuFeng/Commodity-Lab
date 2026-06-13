@@ -40,7 +40,7 @@ The desktop client supports two runtime provider profiles:
 - Haineng: shown as `海能` in Chinese UI and `Haineng` in English UI.
 - DeepSeek: available as a separate fallback/testing provider profile.
 
-Users provide their own API key and base URL in the app settings. Credentials are runtime-only and must not be committed to the repository.
+Users only choose the provider profile and provide an API key in the app settings. Commodity Lab fixes the endpoint and model internally: Haineng uses the current V4 Flash route, and DeepSeek uses its Flash route. Credentials are runtime-only and must not be committed to the repository.
 
 For test distribution, provide users with a local `AI密钥` file instead of asking them to type keys manually. The Windows client can import this file from any folder through the lower-left Settings menu. See [docs/key-file-import.md](docs/key-file-import.md) for safe JSON and key-value templates.
 
@@ -49,7 +49,7 @@ For test distribution, provide users with a local `AI密钥` file instead of ask
 - 海能：中文界面显示为 `海能`，英文界面显示为 `Haineng`。
 - DeepSeek：作为独立的备用/测试供应方配置。
 
-用户在软件设置里自行填写 API Key 与 Base URL。凭证只用于本地运行，禁止提交到仓库。
+用户在软件设置里只需要选择供应方并填写 API Key；模型和地址由 Commodity Lab 在程序内固定匹配。凭证只用于本地运行，禁止提交到仓库。
 
 测试分发时，可以给用户提供本机 `AI密钥` 文件，不需要用户手动输入密钥。Windows 客户端支持从左下角设置菜单导入任意位置的密钥文件。安全模板见 [docs/key-file-import.md](docs/key-file-import.md)。
 
@@ -71,18 +71,18 @@ For test distribution, provide users with a local `AI密钥` file instead of ask
 
 ## Key Features / 核心功能
 
-- Windows desktop client with fullscreen terminal-style UX.
+- Windowed Windows desktop client with a Codex-inspired native app shell.
 - Bilingual UI: Mandarin by default, English available in settings.
-- Settings menu for API provider, model, language, theme, developer info, version info, and update checks.
+- Settings menu for API provider, key-file import, language, light/dark/system theme, developer info, version info, and update checks.
 - First-run guided overlay with visual highlights.
 - Floating AI assistant with Markdown rendering and safe action cards.
 - AI thinking and action progress states so long responses do not feel frozen.
 - Local deterministic scoring from generated target actions and rubrics.
 - Professional multi-series chart for hub curves, high/low/close values, events, and strategy-leg overlays.
 
-- Windows 桌面客户端，启动进入全屏交易终端式体验。
+- Windows 桌面客户端，窗口化启动，采用参考 Codex Windows 客户端的原生软件外壳体验。
 - 双语界面：默认中文，可在设置切换英文。
-- 设置菜单集中管理 API 供应方、模型、语言、主题、开发者信息、版本信息和更新检查。
+- 设置菜单集中管理 API 供应方、密钥文件导入、语言、日间/夜间/跟随系统主题、开发者信息、版本信息和更新检查。
 - 首次启动提供蒙版高亮式引导。
 - 悬浮 AI 助手支持 Markdown 显示和安全动作卡。
 - AI 思考与动作进度可视化，避免等待时卡顿无反馈。
@@ -146,8 +146,8 @@ Environment variables are optional because the desktop settings screen can confi
 ```powershell
 $env:COMMODITY_LAB_AI_PROVIDER="haineng"   # or deepseek
 $env:HAINENG_API_KEY="<local key>"
-$env:HAINENG_BASE_URL="<local base url>"
-$env:HAINENG_MODEL="V4-Flash"
+# HAINENG_BASE_URL and HAINENG_MODEL are optional legacy hints.
+# Runtime provider endpoint and model are fixed by Commodity Lab.
 ```
 
 可选环境变量：
@@ -155,8 +155,8 @@ $env:HAINENG_MODEL="V4-Flash"
 ```powershell
 $env:COMMODITY_LAB_AI_PROVIDER="haineng"   # 或 deepseek
 $env:HAINENG_API_KEY="<本地密钥>"
-$env:HAINENG_BASE_URL="<本地地址>"
-$env:HAINENG_MODEL="V4-Flash"
+# HAINENG_BASE_URL 与 HAINENG_MODEL 仅作为兼容旧脚本的可选提示。
+# 实际运行地址与模型由 Commodity Lab 固定匹配。
 ```
 
 ## Developer Info / 开发者信息

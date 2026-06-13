@@ -9,7 +9,7 @@ from typing import Any
 
 
 DEFAULT_PROVIDER = "haineng"
-HAINENG_FLASH_BASE_URL = "http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1"
+HAINENG_FLASH_BASE_URL = "http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1"
 HAINENG_PRO_BASE_URL = "http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1"
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
@@ -80,14 +80,10 @@ def _env_bool(name: str, default: bool) -> bool:
 def settings_from_env() -> HainengSettings:
     provider = _provider_from_env()
     api_key = _provider_env_value(provider, "API_KEY")
-    base_url = _provider_env_value(provider, "BASE_URL")
-    model = _provider_env_value(provider, "MODEL")
-    if not model:
-        model = _PROVIDER_MODEL_CATALOG[provider]["default_model"]
     return HainengSettings(
         api_key=api_key,
-        base_url=base_url,
-        model=model,
+        base_url="",
+        model=_PROVIDER_MODEL_CATALOG[provider]["default_model"],
         provider=provider,
         streaming=_env_bool("HAINENG_STREAMING", False),
         function_calling=_env_bool("HAINENG_FUNCTION_CALLING", True),
@@ -163,6 +159,8 @@ def _provider_env_value(provider: str, suffix: str) -> str:
 
 
 def normalize_provider(provider: str | None, base_url: str | None = None) -> str:
+    if (provider or "").strip() == "海能":
+        return "haineng"
     normalized = _compact_key(provider or "")
     aliases = {
         "haineng": "haineng",
@@ -186,18 +184,10 @@ def _provider_name(settings: HainengSettings) -> str:
 
 def _provider_model_key(settings: HainengSettings) -> str:
     provider = _provider_name(settings)
-    model = (settings.model or "").strip() or _PROVIDER_MODEL_CATALOG[provider]["default_model"]
-    normalized = _compact_key(model)
-    models = _PROVIDER_MODEL_CATALOG[provider]["models"]
-    for model_key, model_config in models.items():
-        if normalized == _compact_key(model_key) or normalized in model_config["aliases"]:
-            return model_key
-    return model
+    return str(_PROVIDER_MODEL_CATALOG[provider]["default_model"])
 
 
 def _provider_base_url(settings: HainengSettings) -> str:
-    if settings.base_url.strip():
-        return settings.base_url.strip()
     provider = _provider_name(settings)
     model = _provider_model_key(settings)
     model_config = _PROVIDER_MODEL_CATALOG[provider]["models"].get(model)
@@ -213,6 +203,18 @@ def _provider_model_name(settings: HainengSettings) -> str:
     if model_config:
         return str(model_config["resolved_model"])
     return model
+
+
+def _provider_request_options(settings: HainengSettings) -> dict[str, Any]:
+    provider = _provider_name(settings)
+    model = _provider_model_name(settings).lower()
+    options: dict[str, Any] = {"max_tokens": 1800}
+    if "flash" in model:
+        if provider == "haineng":
+            options["extra_body"] = {"enable_thinking": False}
+        elif provider == "deepseek":
+            options["extra_body"] = {"thinking": {"type": "disabled"}}
+    return options
 
 
 def build_haineng_tools() -> list[dict[str, Any]]:
@@ -606,6 +608,7 @@ class HainengClient:
             "model": _provider_model_name(self.settings),
             "messages": messages,
             "stream": False,
+            **_provider_request_options(self.settings),
         }
         if self.settings.function_calling and tools:
             payload["tools"] = tools

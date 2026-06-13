@@ -9,7 +9,6 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-use tauri::Manager;
 
 const DEFAULT_BACKEND_HOST: &str = "127.0.0.1";
 const DEFAULT_BACKEND_PORT: u16 = 8000;
@@ -214,10 +213,6 @@ fn main() {
             }
         })
         .setup(move |app| {
-            if let Some(window) = app.get_window("main") {
-                let _ = window.maximize();
-                let _ = window.set_fullscreen(true);
-            }
             let child = start_python_backend(app.path_resolver().resource_dir());
             if let Ok(mut lock) = setup_backend_handle.lock() {
                 *lock = child;
