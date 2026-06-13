@@ -368,14 +368,16 @@ def build_exam_messages(
     locale: str,
     scenario: Any,
     attempt_history: Any,
+    curriculum_context: Any | None = None,
 ) -> list[dict[str, str]]:
     system = _base_system(locale)
     user = (
         "Write 3 to 5 assessment questions for the learner. "
         "Mix conceptual, calculation-aware, and decision-focused questions. "
-        "Questions must be grounded in the provided scenario and attempt history.\n\n"
+        "Questions must be grounded in the provided scenario, attempt history, and Commodity Lab curriculum.\n\n"
         f"Scenario:\n{_to_json_text(scenario)}\n\n"
         f"Attempt history:\n{_to_json_text(attempt_history)}\n\n"
+        f"Curriculum context:\n{_to_json_text(curriculum_context or {})}\n\n"
         "Include an answer key and explain why each question matters for energy trading practice."
     )
     return [
@@ -448,11 +450,11 @@ def build_concept_tutor_messages(
         f"Learner level:\n{_scrub_text(learner_level)}\n\n"
         f"Optional scenario context:\n{_to_json_text(scenario or {})}\n\n"
         "Required output sections:\n"
-        "1. Plain-language definition.\n"
-        "2. Why it matters in energy trading.\n"
-        "3. Practical example using futures, basis, spread, storage, capacity, or route economics.\n"
-        "4. Common mistakes.\n"
-        "5. One mini exercise with answer."
+        "1. Plain-language definition in 2 sentences or fewer.\n"
+        "2. Why it matters in the current gas business case.\n"
+        "3. One practical example using futures, forwards, swaps, basis, options, storage, capacity, or route economics.\n"
+        "4. One common mistake and one mini exercise with answer.\n"
+        "Keep the whole answer concise unless the learner explicitly asks for detail."
     )
     return [
         {"role": "system", "content": system},
@@ -533,6 +535,8 @@ def build_training_case_messages(
     locale: str,
     template: Any,
     user_request: str = "",
+    knowledge_coverage: Any | None = None,
+    gas_trading_models: Any | None = None,
 ) -> list[dict[str, str]]:
     system = (
         _base_system(locale)
@@ -540,23 +544,33 @@ def build_training_case_messages(
         "The product no longer uses external market data; all market curves must be AI-generated training data. "
         "Make the case concrete and commercially realistic. "
         "If the template group is foundation, keep the case beginner-friendly with one clear exposure and one simple physical-paper hedge before adding spread, FX, or capacity complexity. "
+        "For intermediate or advanced templates, teach the case as part of a connected curriculum instead of a standalone riddle. "
         "The generated curves must include enough points for visual inspection and must not claim to be live market data."
     )
+    reference = {
+        "textbook_style_coverage": knowledge_coverage or [],
+        "gas_trading_models": gas_trading_models or [],
+    }
     user = (
         "Generate one training case as strict JSON only.\n\n"
         f"Business template:\n{_to_json_text(template)}\n\n"
+        f"Commodity Lab curriculum reference:\n{_to_json_text(reference)}\n\n"
         f"Additional learner request:\n{_scrub_text(user_request)}\n\n"
         "Required JSON shape:\n"
         "{\n"
         '  "scenario": {"id": "string", "title": "string", "summary": "string", "business_type": "string", "knowledge_points": ["string"], "exposure": {"direction": "long|short|spread", "volume_mmbtu": 0, "risk": "string"}},\n'
         '  "market": {"unit": "string", "curves": [{"id": "TTF", "label": "TTF", "color": "#2563eb", "points": [{"date": "YYYY-MM-DD", "open": 0, "high": 0, "low": 0, "close": 0}]}], "events": [{"date": "YYYY-MM-DD", "label": "string"}]},\n'
-        '  "target_actions": [{"leg_type": "physical|swap|future|basis|fx|capacity", "market": "string", "side": "buy|sell|pay|receive", "quantity": 0, "price": 0, "tenor": "string", "rationale": "string"}],\n'
+        '  "target_actions": [{"leg_type": "physical|swap|future|basis|fx|capacity|option", "market": "string", "side": "buy|sell|pay|receive", "quantity": 0, "price": 0, "tenor": "string", "rationale": "string"}],\n'
         '  "rubric": [{"id": "string", "label": "string", "points": 0, "rule": "string"}],\n'
         '  "prompt": "Decision task shown to the learner in Markdown"\n'
         "}\n"
+        "Use scenario.knowledge_points from the template coverage where possible. "
+        "The rubric must total 100 points and should include exposure identification, instrument choice, physical-paper matching, and risk-control explanation. "
         "Include two or more curves when the business type involves a spread such as TTF/NBP. "
+        "If the case involves two hubs, show each hub as a separate curve and only add a spread curve if it helps the exercise. "
         "Use 8 to 16 price points per curve. Include high, low, and close on every point. "
-        "Use target_actions for the expected multi-leg physical/paper/FX/capacity strategy."
+        "Use target_actions for the expected multi-leg physical/paper/FX/capacity/option strategy. "
+        "Do not over-explain inside prompt; keep the learner task clear and action-oriented."
     )
     return [
         {"role": "system", "content": system},

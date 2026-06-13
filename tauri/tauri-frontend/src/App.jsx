@@ -121,7 +121,7 @@ const learningTracks = [
   },
   {
     id: "integrated",
-    templateId: "procurement_beach_to_germany",
+    templateId: "integrated_gas_portfolio",
     zh: "组合套保设计",
     en: "Integrated Hedge Design",
     levelZh: "综合",
@@ -132,6 +132,176 @@ const learningTracks = [
     requestEn: "Generate an integrated natural gas hedging drill with a physical leg, paper leg, FX or capacity check, and a requirement to explain the risk covered by each leg.",
     lessons: ["基差", "汇率", "运力", "风控复盘"],
     lessonsEn: ["Basis", "FX", "Capacity", "Risk review"]
+  }
+];
+
+const hedgingKnowledgeCoverage = [
+  {
+    id: "exposure_objective",
+    titleZh: "敞口与套保目标",
+    titleEn: "Exposure and Objective",
+    summaryZh: "先判断天然多头、空头或价差敞口，再确定锁价、锁利润、锁基差或保护下行的目标。",
+    summaryEn: "Identify long, short, or spread exposure first, then define whether the goal is locking price, margin, basis, or downside.",
+    conceptsZh: ["多头/空头套保", "敞口方向", "数量与期限", "剩余风险"],
+    conceptsEn: ["Long/short hedge", "Exposure direction", "Volume and tenor", "Residual risk"],
+    modelIds: ["simple_procurement", "customer_indexed_sale", "efet_bilateral_sale"]
+  },
+  {
+    id: "physical_paper_matching",
+    titleZh: "实货与纸货匹配",
+    titleEn: "Physical-Paper Matching",
+    summaryZh: "把 GSA、EFET、LNG、运力与 futures、swap、basis、FX、option 组合成同一个风险闭环。",
+    summaryEn: "Connect GSA, EFET, LNG, and capacity with futures, swaps, basis, FX, and options as one risk loop.",
+    conceptsZh: ["实货腿", "纸货腿", "名义量", "履约义务"],
+    conceptsEn: ["Physical leg", "Paper leg", "Notional", "Performance obligation"],
+    modelIds: ["gsa_procurement", "efet_bilateral_sale", "lng_regas_sale"]
+  },
+  {
+    id: "outright_price",
+    titleZh: "单边价格套保",
+    titleEn: "Outright Price Hedge",
+    summaryZh: "用期货、远期或掉期管理 TTF、NBP、THE、JKM 等基准价格的绝对涨跌。",
+    summaryEn: "Use futures, forwards, or swaps to manage absolute moves in TTF, NBP, THE, JKM, or similar benchmarks.",
+    conceptsZh: ["期货", "远期", "固定/浮动掉期", "保证金"],
+    conceptsEn: ["Futures", "Forwards", "Fixed-floating swaps", "Margin"],
+    modelIds: ["eex_ocm_procurement", "customer_indexed_sale", "lng_cargo_procurement"]
+  },
+  {
+    id: "basis_spread",
+    titleZh: "基差、枢纽与跨期价差",
+    titleEn: "Basis, Hub, and Calendar Spread",
+    summaryZh: "拆分地点、枢纽、期限、单位和汇率带来的价差风险，避免只盯单一基准。",
+    summaryEn: "Separate location, hub, tenor, unit, and FX basis from the benchmark price instead of watching one index.",
+    conceptsZh: ["TTF/NBP", "地点基差", "跨期价差", "单位归一"],
+    conceptsEn: ["TTF/NBP", "Location basis", "Calendar spread", "Unit normalization"],
+    modelIds: ["cross_border_sale", "pipeline_capacity", "lng_regas_sale"]
+  },
+  {
+    id: "options_optionality",
+    titleZh: "期权与运营可选性",
+    titleEn: "Options and Optionality",
+    summaryZh: "用 cap、floor、collar、摆动权、船货转港和气化窗口处理非线性或不对称风险。",
+    summaryEn: "Use caps, floors, collars, swing rights, diversion, and regas windows for nonlinear or asymmetric risk.",
+    conceptsZh: ["Cap/Floor", "Collar", "Swing", "LNG 转港"],
+    conceptsEn: ["Cap/Floor", "Collar", "Swing", "LNG diversion"],
+    modelIds: ["lng_cargo_procurement", "lng_regas_sale", "customer_indexed_sale"]
+  },
+  {
+    id: "hedge_ratio_cross_hedge",
+    titleZh: "套保比率与交叉套保",
+    titleEn: "Hedge Ratio and Cross-Hedge",
+    summaryZh: "当工具与实货不完全一致时，按相关性、价格敏感度、期限和流动性确定套保比例。",
+    summaryEn: "When the hedge instrument is imperfect, size it by correlation, price sensitivity, tenor, and liquidity.",
+    conceptsZh: ["最小方差比率", "相关性", "错配风险", "流动性"],
+    conceptsEn: ["Minimum variance ratio", "Correlation", "Mismatch risk", "Liquidity"],
+    modelIds: ["eex_ocm_procurement", "cross_border_sale", "integrated_portfolio"]
+  },
+  {
+    id: "capacity_storage_balancing",
+    titleZh: "运力、储气与平衡",
+    titleEn: "Capacity, Storage, and Balancing",
+    summaryZh: "检查管输 capacity、提名、库存、偏差和跨境路径，否则价格套保不能覆盖交付风险。",
+    summaryEn: "Check pipeline capacity, nominations, inventory, imbalance, and cross-border routes because price hedges do not cover delivery risk.",
+    conceptsZh: ["管输 capacity", "提名", "库存", "日内平衡"],
+    conceptsEn: ["Pipeline capacity", "Nominations", "Inventory", "Intraday balancing"],
+    modelIds: ["pipeline_capacity", "gsa_procurement", "lng_regas_sale"]
+  },
+  {
+    id: "risk_controls",
+    titleZh: "执行与风控",
+    titleEn: "Execution and Risk Controls",
+    summaryZh: "把流动性、信用、限额、保证金、结算、移仓和窗口截点纳入交易前检查。",
+    summaryEn: "Bring liquidity, credit, limits, margin, settlement, roll risk, and cut-off windows into the pre-trade check.",
+    conceptsZh: ["信用", "限额", "保证金", "移仓"],
+    conceptsEn: ["Credit", "Limits", "Margin", "Roll risk"],
+    modelIds: ["efet_bilateral_sale", "eex_ocm_procurement", "integrated_portfolio"]
+  }
+];
+
+const gasTradingModels = [
+  {
+    id: "gsa_procurement",
+    group: "procurement",
+    titleZh: "上游 Beach / GSA 资源",
+    titleEn: "Upstream Beach / GSA Supply",
+    summaryZh: "处理上游交付资源、合同数量、提名、NBP/TTF 基差和跨境运输。",
+    summaryEn: "Manage upstream delivery, contract quantity, nominations, NBP/TTF basis, and cross-border transport.",
+    risksZh: ["资源锁定", "基差", "运力", "汇率"],
+    risksEn: ["Supply lock-in", "Basis", "Capacity", "FX"],
+    instrumentsZh: ["实货 GSA", "基差掉期", "EUR/GBP 远期", "管输 capacity"],
+    instrumentsEn: ["Physical GSA", "Basis swap", "EUR/GBP forward", "Pipeline capacity"]
+  },
+  {
+    id: "eex_ocm_procurement",
+    group: "procurement",
+    titleZh: "EEX / OCM 窗口采购",
+    titleEn: "EEX / OCM Window Procurement",
+    summaryZh: "围绕日内、日前或月度窗口比较现货采购、期货、掉期和执行成本。",
+    summaryEn: "Compare spot procurement, futures, swaps, and execution cost around intraday, day-ahead, or monthly windows.",
+    risksZh: ["日内波动", "期限错配", "流动性", "截点"],
+    risksEn: ["Intraday volatility", "Tenor mismatch", "Liquidity", "Cut-off"],
+    instrumentsZh: ["现货窗口", "TTF 期货", "固定/浮动掉期", "限价执行"],
+    instrumentsEn: ["Spot window", "TTF future", "Fixed-floating swap", "Limit execution"]
+  },
+  {
+    id: "lng_cargo_procurement",
+    group: "procurement",
+    titleZh: "LNG 船货采购",
+    titleEn: "LNG Cargo Procurement",
+    summaryZh: "处理 JKM/TTF 指数、船期、运费、转港可选性和气化前后的价格风险。",
+    summaryEn: "Handle JKM/TTF indexing, cargo timing, freight, diversion optionality, and pre/post-regas price risk.",
+    risksZh: ["JKM/TTF", "船期", "可选性", "汇率"],
+    risksEn: ["JKM/TTF", "Cargo timing", "Optionality", "FX"],
+    instrumentsZh: ["LNG 实货", "JKM/TTF 掉期", "期权领口", "FX"],
+    instrumentsEn: ["Physical LNG", "JKM/TTF swap", "Option collar", "FX"]
+  },
+  {
+    id: "efet_bilateral_sale",
+    group: "sales",
+    titleZh: "EFET 双边销售",
+    titleEn: "Bilateral EFET Sale",
+    summaryZh: "训练交割点、客户价格公式、信用限额、履约和结算风险的套保。",
+    summaryEn: "Train delivery point, customer price formula, credit limit, performance, and settlement risk hedging.",
+    risksZh: ["履约", "信用", "枢纽错配", "结算"],
+    risksEn: ["Performance", "Credit", "Hub mismatch", "Settlement"],
+    instrumentsZh: ["EFET 实货", "TTF/NBP 基差", "掉期", "信用检查"],
+    instrumentsEn: ["Physical EFET", "TTF/NBP basis", "Swap", "Credit check"]
+  },
+  {
+    id: "lng_regas_sale",
+    group: "sales",
+    titleZh: "LNG 气化销售",
+    titleEn: "LNG Regas Sale",
+    summaryZh: "把船货到港、气化窗口、下游销售和市场下跌保护连成一套组合动作。",
+    summaryEn: "Connect cargo arrival, regas window, downstream sale, and downside protection into one strategy.",
+    risksZh: ["气化窗口", "价格下跌", "基差", "履约"],
+    risksEn: ["Regas window", "Selloff", "Basis", "Performance"],
+    instrumentsZh: ["气化能力", "TTF 掉期", "期权", "基差腿"],
+    instrumentsEn: ["Regas capacity", "TTF swap", "Option", "Basis leg"]
+  },
+  {
+    id: "pipeline_capacity",
+    group: "integrated",
+    titleZh: "管输、库存与平衡",
+    titleEn: "Pipeline, Storage, and Balancing",
+    summaryZh: "训练 capacity、库存、提名偏差和路径拥堵如何改变实货和纸货策略。",
+    summaryEn: "Train how capacity, inventory, nominations, and congestion change physical and paper strategy.",
+    risksZh: ["拥堵", "提名", "库存", "偏差"],
+    risksEn: ["Congestion", "Nominations", "Inventory", "Imbalance"],
+    instrumentsZh: ["管输 capacity", "储气", "现货平衡", "基差"],
+    instrumentsEn: ["Pipeline capacity", "Storage", "Spot balancing", "Basis"]
+  },
+  {
+    id: "customer_indexed_sale",
+    group: "sales",
+    titleZh: "客户指数化销售",
+    titleEn: "Customer Indexed Sale",
+    summaryZh: "处理客户固定价、浮动价、上限价或公式价与采购端敞口的错配。",
+    summaryEn: "Handle mismatch between fixed, floating, capped, or formula customer prices and procurement exposure.",
+    risksZh: ["客户定价", "固定/浮动", "期权性", "利润率"],
+    risksEn: ["Customer pricing", "Fixed/floating", "Optionality", "Margin"],
+    instrumentsZh: ["销售合约", "swap", "cap/floor", "collar"],
+    instrumentsEn: ["Sales contract", "Swap", "Cap/floor", "Collar"]
   }
 ];
 
@@ -236,11 +406,17 @@ const fallbackTemplates = {
   groups: [
     { id: "foundation", label: "套保基础" },
     { id: "procurement", label: "采购端" },
-    { id: "sales", label: "销售端" }
+    { id: "sales", label: "销售端" },
+    { id: "integrated", label: "组合策略" }
   ],
   knowledge_points: [
-    { id: "basis_spread", label: "基差与枢纽价差", description: "TTF/NBP、地点差、单位与汇率归一化。" },
-    { id: "physical_paper_matching", label: "实货与纸货匹配", description: "GSA、EFET、LNG、swap、future、FX、capacity 的组合动作。" }
+    { id: "exposure_objective", label: "敞口与套保目标", description: "判断多头、空头或价差敞口，再确定套保目的。" },
+    { id: "physical_paper_matching", label: "实货与纸货匹配", description: "GSA、EFET、LNG、swap、future、basis、FX、option、capacity 的组合动作。" },
+    { id: "outright_price", label: "单边价格套保", description: "使用期货、远期或掉期管理绝对价格风险。" },
+    { id: "basis_spread", label: "基差、枢纽与跨期价差", description: "TTF/NBP、地点差、跨期、单位与汇率归一化。" },
+    { id: "options_optionality", label: "期权与运营可选性", description: "cap、floor、collar、LNG 转港和气化窗口等非线性风险。" },
+    { id: "capacity_storage_balancing", label: "运力、储气与平衡", description: "管输 capacity、提名、库存、偏差和路径约束。" },
+    { id: "risk_controls", label: "执行与风控", description: "流动性、信用、限额、保证金、结算和移仓风险。" }
   ],
   templates: [
     {
@@ -249,7 +425,9 @@ const fallbackTemplates = {
       business_type: "天然气套保基础",
       title: "套保对象与风险敞口识别",
       summary: "入门案例：识别业务敞口，并匹配实货、纸货、方向、数量和期限。",
-      knowledge_points: ["outright_price", "physical_paper_matching"],
+      coverage: ["exposure_objective", "physical_paper_matching", "outright_price"],
+      gas_models: ["simple_procurement", "customer_indexed_sale"],
+      knowledge_points: ["exposure_objective", "outright_price", "physical_paper_matching"],
       required_curves: ["TTF", "TRAINING_HEDGE_INDEX"],
       suggested_leg_types: ["physical", "swap"]
     },
@@ -259,9 +437,59 @@ const fallbackTemplates = {
       business_type: "上游 Beach Delivery 资源（GSA）",
       title: "英国上游 Beach Delivery 卖德国",
       summary: "AI 生成 NBP/TTF、汇率、运输和实纸货匹配案例。",
-      knowledge_points: ["basis_spread", "fx", "physical_paper_matching"],
+      coverage: ["basis_spread", "fx", "capacity_storage_balancing", "physical_paper_matching", "risk_controls"],
+      gas_models: ["gsa_procurement", "pipeline_capacity"],
+      knowledge_points: ["basis_spread", "fx", "capacity_storage_balancing", "physical_paper_matching"],
       required_curves: ["TTF", "NBP", "EURGBP", "TTF_NBP_SPREAD"],
       suggested_leg_types: ["physical", "basis", "fx", "capacity"]
+    },
+    {
+      id: "procurement_lng_cargo",
+      group: "procurement",
+      business_type: "LNG 船货采购",
+      title: "带 JKM / TTF 可选性的 LNG 船货采购",
+      summary: "AI 生成船货、JKM/TTF、汇率、转港可选性和气化敞口案例。",
+      coverage: ["basis_spread", "fx", "options_optionality", "risk_controls"],
+      gas_models: ["lng_cargo_procurement", "lng_regas_sale"],
+      knowledge_points: ["basis_spread", "fx", "options_optionality", "risk_controls"],
+      required_curves: ["TTF", "JKM", "EURUSD", "TTF_JKM_SPREAD"],
+      suggested_leg_types: ["physical", "swap", "basis", "fx", "option"]
+    },
+    {
+      id: "sales_efet_bilateral",
+      group: "sales",
+      business_type: "EFET 双边销售",
+      title: "EFET 双边销售与枢纽错配",
+      summary: "AI 生成交割点、客户定价、信用和基差错配案例。",
+      coverage: ["physical_paper_matching", "basis_spread", "risk_controls"],
+      gas_models: ["efet_bilateral_sale"],
+      knowledge_points: ["physical_paper_matching", "basis_spread", "risk_controls"],
+      required_curves: ["TTF", "NBP", "TTF_NBP_SPREAD"],
+      suggested_leg_types: ["physical", "basis", "swap"]
+    },
+    {
+      id: "sales_lng_regas",
+      group: "sales",
+      business_type: "LNG 船货气化销售",
+      title: "市场下跌中的 LNG 气化销售",
+      summary: "AI 生成 LNG 气化销售、价格下跌、期权和履约保护案例。",
+      coverage: ["outright_price", "basis_spread", "options_optionality", "capacity_storage_balancing", "risk_controls"],
+      gas_models: ["lng_regas_sale", "customer_indexed_sale"],
+      knowledge_points: ["outright_price", "basis_spread", "options_optionality", "capacity_storage_balancing"],
+      required_curves: ["TTF", "JKM", "TTF_JKM_SPREAD", "REGAS_WINDOW"],
+      suggested_leg_types: ["physical", "swap", "basis", "option", "capacity"]
+    },
+    {
+      id: "integrated_gas_portfolio",
+      group: "integrated",
+      business_type: "天然气组合套保",
+      title: "市场压力下的多腿天然气套保",
+      summary: "AI 生成实货、纸货、基差、汇率、运力、期权和风控的综合案例。",
+      coverage: ["exposure_objective", "physical_paper_matching", "basis_spread", "fx", "capacity_storage_balancing", "options_optionality", "risk_controls"],
+      gas_models: ["gsa_procurement", "efet_bilateral_sale", "lng_regas_sale", "pipeline_capacity"],
+      knowledge_points: ["physical_paper_matching", "basis_spread", "fx", "capacity_storage_balancing", "options_optionality", "risk_controls"],
+      required_curves: ["TTF", "NBP", "JKM", "EURGBP", "TTF_NBP_SPREAD"],
+      suggested_leg_types: ["physical", "swap", "basis", "fx", "capacity", "option"]
     }
   ]
 };
@@ -511,7 +739,7 @@ function formForProvider(provider, catalog = defaultProviderCatalog, apiKey = ""
 }
 
 function orderFromStrategy(strategyLegs) {
-  const leg = strategyLegs.find((item) => ["swap", "future", "basis", "paper"].includes(item.leg_type)) ?? strategyLegs[0];
+  const leg = strategyLegs.find((item) => ["swap", "future", "basis", "paper", "option"].includes(item.leg_type)) ?? strategyLegs[0];
   return {
     side: leg?.side === "buy" ? "buy" : "sell",
     quantity: Number(leg?.quantity) || 0,
@@ -524,7 +752,7 @@ function evaluateStrategy(caseData, legs, rationale) {
   const rubric = caseData.rubric ?? [];
   const text = `${rationale} ${legs.map((leg) => `${leg.leg_type} ${leg.market} ${leg.side}`).join(" ")}`.toLowerCase();
   const hasPhysical = legs.some((leg) => ["physical", "gsa", "lng", "efet"].includes(leg.leg_type));
-  const hasPaper = legs.some((leg) => ["swap", "future", "basis", "paper"].includes(leg.leg_type));
+  const hasPaper = legs.some((leg) => ["swap", "future", "basis", "paper", "option"].includes(leg.leg_type));
   const targetTypes = new Set((caseData.target_actions ?? []).map((leg) => leg.leg_type));
   const matchedTypes = legs.filter((leg) => targetTypes.has(leg.leg_type)).length;
   const maxScore = rubric.reduce((sum, item) => sum + Number(item.points || 0), 0) || 100;
@@ -532,7 +760,7 @@ function evaluateStrategy(caseData, legs, rationale) {
   if (hasPhysical) score += 25;
   if (hasPaper) score += 30;
   score += Math.min(25, matchedTypes * 8);
-  if (/(basis|基差|spread|价差|fx|汇率|capacity|运力|limit|限额|liquidity|流动性)/i.test(text)) score += 20;
+  if (/(basis|基差|spread|价差|fx|汇率|capacity|运力|option|cap|floor|collar|期权|limit|限额|liquidity|流动性)/i.test(text)) score += 20;
   const baseline = Math.max(0, Math.min(100, Math.round((score / Math.max(100, maxScore)) * 100)));
   return {
     valid: true,
@@ -548,7 +776,7 @@ function evaluateStrategy(caseData, legs, rationale) {
     metrics: {
       strategy_leg_count: legs.length,
       physical_leg_count: legs.filter((leg) => ["physical", "gsa", "lng", "efet"].includes(leg.leg_type)).length,
-      paper_leg_count: legs.filter((leg) => ["swap", "future", "basis", "paper"].includes(leg.leg_type)).length,
+      paper_leg_count: legs.filter((leg) => ["swap", "future", "basis", "paper", "option"].includes(leg.leg_type)).length,
       fx_leg_count: legs.filter((leg) => leg.leg_type === "fx").length,
       notional_usd: legs.reduce((sum, leg) => sum + (Number(leg.quantity) || 0) * (Number(leg.price) || 0), 0)
     }
@@ -607,13 +835,14 @@ function scoreDimension(record, dimensionId) {
   const mistakes = new Set(evaluation.mistake_tags ?? []);
   const text = recordText(record);
   const hasPhysical = Number(metrics.physical_leg_count) > 0 || ["physical", "gsa", "lng", "efet"].some((type) => legTypes.has(type));
-  const hasPaper = Number(metrics.paper_leg_count) > 0 || ["swap", "future", "basis", "paper"].some((type) => legTypes.has(type));
+  const hasPaper = Number(metrics.paper_leg_count) > 0 || ["swap", "future", "basis", "paper", "option"].some((type) => legTypes.has(type));
   const matchedCount = legs.filter((leg) => targetTypes.has(leg.leg_type)).length;
   const targetCount = Math.max(1, targetTypes.size);
   const matchedRatio = Math.min(1, matchedCount / targetCount);
   const mentionsBasis = /(basis|spread|nbp|ttf|基差|价差)/i.test(text) || targetTypes.has("basis") || legTypes.has("basis");
   const mentionsFx = /(fx|foreign exchange|currency|eur|gbp|usd|汇率|外汇)/i.test(text) || targetTypes.has("fx") || legTypes.has("fx");
   const mentionsCapacity = /(capacity|pipeline|routing|transport|regas|运力|管输|气化|物流)/i.test(text) || targetTypes.has("capacity") || legTypes.has("capacity");
+  const mentionsOption = /(option|cap|floor|collar|swing|期权|上限|下限|领口|摆动)/i.test(text) || targetTypes.has("option") || legTypes.has("option");
   const mentionsTiming = /(tenor|month|window|execution|timing|m\+|期限|窗口|执行|交割)/i.test(text);
   const mentionsControl = /(limit|liquidity|credit|margin|collateral|stop|VaR|风控|限额|流动性|信用|保证金)/i.test(text);
   const rationaleLength = String(record?.rationale ?? "").trim().length;
@@ -622,7 +851,7 @@ function scoreDimension(record, dimensionId) {
     return clampScore(baseline + (hasPhysical ? 6 : -18) + (mistakes.has("incomplete_target_legs") ? -10 : 0));
   }
   if (dimensionId === "instrument") {
-    return clampScore(baseline + (hasPaper ? 6 : -16) + matchedRatio * 12 - 6);
+    return clampScore(baseline + (hasPaper ? 6 : -16) + (mentionsOption ? 3 : 0) + matchedRatio * 12 - 6);
   }
   if (dimensionId === "basis") {
     if (!mentionsBasis) return null;
@@ -1204,7 +1433,7 @@ function StrategyBuilder({ busy, locale, onSubmit, rationale, setRationale, setS
       <div className="strategy-leg-list">
         {strategyLegs.map((leg, index) => (
           <div className="strategy-leg" key={leg.id ?? index}>
-            <label>{t("legType", locale)}<select value={leg.leg_type} onChange={(event) => updateLeg(index, { leg_type: event.target.value })}><option value="physical">{t("physicalLeg", locale)}</option><option value="swap">Swap</option><option value="future">Future</option><option value="basis">{t("basisLeg", locale)}</option><option value="fx">FX</option><option value="capacity">{t("capacityLeg", locale)}</option></select></label>
+            <label>{t("legType", locale)}<select value={leg.leg_type} onChange={(event) => updateLeg(index, { leg_type: event.target.value })}><option value="physical">{t("physicalLeg", locale)}</option><option value="swap">Swap</option><option value="future">Future</option><option value="basis">{t("basisLeg", locale)}</option><option value="fx">FX</option><option value="capacity">{t("capacityLeg", locale)}</option><option value="option">{copy(locale, "期权", "Option")}</option></select></label>
             <label>{t("market", locale)}<input value={leg.market} onChange={(event) => updateLeg(index, { market: event.target.value })} /></label>
             <label>{t("side", locale)}<select value={leg.side} onChange={(event) => updateLeg(index, { side: event.target.value })}><option value="sell">{t("sell", locale)}</option><option value="buy">{t("buy", locale)}</option><option value="pay">Pay</option><option value="receive">Receive</option></select></label>
             <label>{t("quantity", locale)}<input min="0" type="number" value={leg.quantity} onChange={(event) => updateLeg(index, { quantity: Number(event.target.value) })} /></label>
@@ -1302,6 +1531,46 @@ function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, ev
 
 function labelFor(locale, item, zhKey = "zh", enKey = "en") {
   return copy(locale, item[zhKey], item[enKey]);
+}
+
+function curriculumReference(locale) {
+  return {
+    knowledge_coverage: hedgingKnowledgeCoverage.map((item) => ({
+      id: item.id,
+      title: labelFor(locale, item, "titleZh", "titleEn"),
+      summary: copy(locale, item.summaryZh, item.summaryEn),
+      concepts: copy(locale, item.conceptsZh, item.conceptsEn)
+    })),
+    gas_trading_models: gasTradingModels.map((item) => ({
+      id: item.id,
+      group: item.group,
+      title: labelFor(locale, item, "titleZh", "titleEn"),
+      summary: copy(locale, item.summaryZh, item.summaryEn),
+      risks: copy(locale, item.risksZh, item.risksEn),
+      instruments: copy(locale, item.instrumentsZh, item.instrumentsEn)
+    }))
+  };
+}
+
+function knowledgePointLabel(locale, pointId, businessTemplates) {
+  const templatePoint = businessTemplates?.knowledge_points?.find((point) => point.id === pointId);
+  if (templatePoint?.label) return templatePoint.label;
+  const coverage = hedgingKnowledgeCoverage.find((point) => point.id === pointId);
+  if (coverage) return labelFor(locale, coverage, "titleZh", "titleEn");
+  return pointId;
+}
+
+function coverageForTemplate(template) {
+  const ids = [...new Set([...(template?.coverage ?? []), ...(template?.knowledge_points ?? [])])];
+  const coverage = hedgingKnowledgeCoverage.filter((item) => ids.includes(item.id));
+  return coverage.length ? coverage : hedgingKnowledgeCoverage.slice(0, 3);
+}
+
+function modelsForTemplate(template) {
+  const ids = template?.gas_models ?? [];
+  const direct = gasTradingModels.filter((item) => ids.includes(item.id));
+  const byGroup = gasTradingModels.filter((item) => item.group === template?.group).slice(0, 3);
+  return direct.length ? direct : byGroup;
 }
 
 function LogoMark() {
@@ -1489,6 +1758,8 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
   const [request, setRequest] = useState("");
   const active = templates.find((template) => template.id === activeTemplateId) ?? templates[0];
   const gasTemplates = templates.filter((template) => template.group === active?.group || template.id === active?.id);
+  const activeCoverage = coverageForTemplate(active);
+  const activeModels = modelsForTemplate(active);
 
   function randomize() {
     const next = templates[Math.floor(Math.random() * templates.length)];
@@ -1514,6 +1785,9 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
               <div><b>{index + 1}</b><span>{copy(locale, track.levelZh, track.levelEn)}</span></div>
               <h3>{labelFor(locale, track)}</h3>
               <p>{copy(locale, track.detailZh, track.detailEn)}</p>
+              <div className="cl-mini-chip-row">
+                {copy(locale, track.lessons, track.lessonsEn).slice(0, 3).map((lesson) => <span key={lesson}>{lesson}</span>)}
+              </div>
               <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={!aiReady || Boolean(loadingTemplate)} onClick={() => onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn))} type="button">
                 <Icon name="sparkles" />{copy(locale, "生成练习", "Generate drill")}
               </button>
@@ -1545,11 +1819,27 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
           <h3>{active?.title}</h3>
           <p>{active?.summary}</p>
           <div className="cl-chip-row">
-            {(active?.knowledge_points ?? ["basis_spread", "physical_paper_matching"]).map((point) => <span key={point}>{point}</span>)}
+            {(active?.knowledge_points ?? ["basis_spread", "physical_paper_matching"]).map((point) => <span key={point}>{knowledgePointLabel(locale, point, businessTemplates)}</span>)}
           </div>
           <div className="cl-preview-facts">
             <span>{copy(locale, "将生成", "Will generate")}<strong>{copy(locale, "业务背景、曲线、事件、参考动作、评分规则", "Background, curves, events, target legs, rubric")}</strong></span>
             <span>{copy(locale, "数据性质", "Data type")}<strong>{t("aiGeneratedData", locale)}</strong></span>
+          </div>
+          <div className="cl-preview-coverage">
+            <h4>{copy(locale, "知识覆盖", "Knowledge Coverage")}</h4>
+            <div>
+              {activeCoverage.slice(0, 4).map((item) => (
+                <span key={item.id}>{labelFor(locale, item, "titleZh", "titleEn")}</span>
+              ))}
+            </div>
+          </div>
+          <div className="cl-preview-coverage">
+            <h4>{copy(locale, "业务模型", "Gas Trading Models")}</h4>
+            <div>
+              {activeModels.slice(0, 4).map((item) => (
+                <span key={item.id}>{labelFor(locale, item, "titleZh", "titleEn")}</span>
+              ))}
+            </div>
           </div>
         </section>
         <aside className="cl-panel cl-template-families">
@@ -1764,6 +2054,14 @@ function ReviewPage({ caseData, evaluation, locale, onGenerateVariant, onPageCha
 function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
   const [selected, setSelected] = useState("basis");
   const node = knowledgeNodes.find((item) => item.id === selected) ?? knowledgeNodes[0];
+  const pathItems = [
+    ["敞口与目标", "Exposure and Objective"],
+    ["实货/纸货匹配", "Physical-Paper Matching"],
+    ["单边价格套保", "Outright Price Hedge"],
+    ["基差与价差", "Basis and Spreads"],
+    ["期权与可选性", "Options and Optionality"],
+    ["执行与风控", "Execution and Controls"]
+  ];
   return (
     <section className="cl-page cl-knowledge-page">
       <PageTitle
@@ -1800,7 +2098,39 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
       </div>
       <section className="cl-panel cl-path-panel">
         <div className="cl-panel-heading"><span>{copy(locale, "推荐路径", "Recommended Path")}</span><strong>Natural Gas</strong></div>
-        <div className="cl-path-row">{["Hub Pricing", "Basis & Spreads", "Capacity & Routing", "FX Hedge", "Integrated Hedge Design"].map((item, index) => <span key={item}><b>{index + 1}</b>{item}</span>)}</div>
+        <div className="cl-path-row">{pathItems.map(([zh, en], index) => <span key={en}><b>{index + 1}</b>{copy(locale, zh, en)}</span>)}</div>
+      </section>
+      <section className="cl-panel cl-coverage-panel">
+        <div className="cl-panel-heading"><span>{copy(locale, "教材式套保知识覆盖", "Textbook-Style Hedging Coverage")}</span><strong>{copy(locale, "天然气化", "Gas-specific")}</strong></div>
+        <div className="cl-coverage-grid">
+          {hedgingKnowledgeCoverage.map((item) => (
+            <article key={item.id}>
+              <header>
+                <b>{labelFor(locale, item, "titleZh", "titleEn")}</b>
+                <small>{copy(locale, item.conceptsZh, item.conceptsEn).slice(0, 2).join(" / ")}</small>
+              </header>
+              <p>{copy(locale, item.summaryZh, item.summaryEn)}</p>
+              <div className="cl-mini-chip-row">
+                {copy(locale, item.conceptsZh, item.conceptsEn).slice(0, 4).map((concept) => <span key={concept}>{concept}</span>)}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="cl-panel cl-model-panel">
+        <div className="cl-panel-heading"><span>{copy(locale, "天然气交易模型", "Gas Trading Models")}</span><strong>{copy(locale, "用于 AI 出题", "Used by AI")}</strong></div>
+        <div className="cl-gas-model-grid">
+          {gasTradingModels.map((item) => (
+            <article key={item.id}>
+              <strong>{labelFor(locale, item, "titleZh", "titleEn")}</strong>
+              <p>{copy(locale, item.summaryZh, item.summaryEn)}</p>
+              <div className="cl-model-columns">
+                <span>{copy(locale, "风险", "Risks")}<b>{copy(locale, item.risksZh, item.risksEn).join(" / ")}</b></span>
+                <span>{copy(locale, "工具", "Tools")}<b>{copy(locale, item.instrumentsZh, item.instrumentsEn).join(" / ")}</b></span>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
     </section>
   );
@@ -2155,7 +2485,10 @@ export default function App() {
   useEffect(() => {
     if (!backendReady) return;
     backendRequest("GET", "/api/v1/provider-status")
-      .then(setProviderStatus)
+      .then((payload) => {
+        setProviderStatus(payload);
+        setServiceMessage((current) => (/failed to fetch/i.test(current) ? "" : current));
+      })
       .catch((error) => {
         setProviderStatus({ haineng: { ok: false, configured: false }, ai_providers: defaultProviderCatalog });
         setServiceMessage(formatErrorMessage(error, locale));
@@ -2235,7 +2568,13 @@ export default function App() {
     setGenerationStages([{ id: "read_template", label: t("stageReadTemplate", locale) }]);
     try {
       setGenerationStages((current) => [...current, { id: "generate_market", label: t("stageGenerateMarket", locale) }]);
-      const payload = await backendRequest("POST", "/api/v1/ai/training-case", { template_id: templateId, locale, user_request: userRequest });
+      const curriculum = curriculumReference(locale);
+      const payload = await backendRequest("POST", "/api/v1/ai/training-case", {
+        template_id: templateId,
+        locale,
+        user_request: userRequest,
+        ...curriculum
+      });
       const nextCase = payload.case ?? defaultCase(locale);
       setGenerationStages((current) => [...current, { id: "build_case", label: t("stageBuildCase", locale) }]);
       setCaseData(nextCase);
@@ -2299,6 +2638,7 @@ export default function App() {
   }
 
   function buildAiPayload(capability) {
+    const curriculum = curriculumReference(locale);
     return {
       capability,
       scenario_id: "europe_ttf_nbp_spread",
@@ -2309,8 +2649,9 @@ export default function App() {
       attempt_history: learningRecords.map((record) => record.evaluation).filter(Boolean).slice(-12),
       learning_progress: learningProgress,
       market_context: { case: caseData, strategy_legs: strategyLegs },
+      curriculum_context: curriculum,
       user_request: rationale,
-      concept: "basis risk, physical-paper matching, FX hedge, EEX/OCM windows, LNG cargo risk",
+      concept: curriculum.knowledge_coverage.map((item) => item.title).join(", "),
       commercial_goal: "Build a practical multi-leg hedge playbook for this generated gas business case."
     };
   }
@@ -2322,7 +2663,12 @@ export default function App() {
     setServiceMessage("");
     try {
       const path = capability === "exam" ? "/api/v1/exam/generate" : "/api/v1/ai/generate";
-      const payload = await backendRequest("POST", path, capability === "exam" ? { scenario_id: "europe_ttf_nbp_spread", locale, attempt_history: learningRecords.map((record) => record.evaluation).filter(Boolean).slice(-12) } : buildAiPayload(capability));
+      const payload = await backendRequest("POST", path, capability === "exam" ? {
+        scenario_id: "europe_ttf_nbp_spread",
+        locale,
+        attempt_history: learningRecords.map((record) => record.evaluation).filter(Boolean).slice(-12),
+        curriculum_context: curriculumReference(locale)
+      } : buildAiPayload(capability));
       if (capability === "advisor_review") {
         setAdvisorFeedback(payload.answer);
         setActivePage(pageIds.review);
@@ -2347,12 +2693,14 @@ export default function App() {
     setAssistantMessages((current) => [...current, userMessage]);
     setBusyAction("assistant");
     try {
+      const curriculum = curriculumReference(locale);
       const payload = await backendRequest("POST", "/api/v1/ai/live-assistant", {
         locale,
         message,
         workspace_state: {
           active_page: activePage,
           active_template_id: activeTemplateId,
+          curriculum_context: curriculum,
           case: caseData,
           evaluation,
           learning_progress: learningProgress,

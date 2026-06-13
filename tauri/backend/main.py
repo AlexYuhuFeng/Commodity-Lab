@@ -30,6 +30,7 @@ app.add_middleware(
         "http://localhost:5173",
         "tauri://localhost",
     ],
+    allow_origin_regex=r"http://(127\.0\.0\.1|localhost):\d+",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -74,6 +75,7 @@ class ExamRequest(BaseModel):
     scenario_id: str
     locale: str = "en"
     attempt_history: list[dict[str, Any]] = Field(default_factory=list)
+    curriculum_context: dict[str, Any] | None = None
 
 
 class AITrainingRequest(BaseModel):
@@ -87,6 +89,7 @@ class AITrainingRequest(BaseModel):
     attempt_history: list[dict[str, Any]] = Field(default_factory=list)
     event_context: str = ""
     concept: str = ""
+    curriculum_context: dict[str, Any] | None = None
     commercial_goal: str = ""
     learner_level: str = "intermediate"
     market_context: dict[str, Any] | None = None
@@ -98,6 +101,8 @@ class TrainingCaseGenerateRequest(BaseModel):
     template_id: str
     locale: str = "en"
     user_request: str = ""
+    knowledge_coverage: list[dict[str, Any]] = Field(default_factory=list)
+    gas_trading_models: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class LiveAssistantRequest(BaseModel):
@@ -564,7 +569,7 @@ def _strategy_leg_metrics(strategy_legs: list[dict[str, Any]]) -> dict[str, Any]
             pass
         if leg_type in {"physical", "gsa", "lng", "efet"}:
             buckets["physical"] += 1
-        elif leg_type in {"swap", "future", "basis", "paper"}:
+        elif leg_type in {"swap", "future", "basis", "paper", "option"}:
             buckets["paper"] += 1
         elif leg_type == "fx":
             buckets["fx"] += 1
@@ -599,7 +604,7 @@ def v1_ai_generate(payload: AITrainingRequest):
     if capability == "advisor_review":
         messages = build_advisor_messages(payload.locale, scenario, payload.evaluation or {}, payload.rationale)
     elif capability == "exam":
-        messages = build_exam_messages(payload.locale, scenario, payload.attempt_history)
+        messages = build_exam_messages(payload.locale, scenario, payload.attempt_history, payload.curriculum_context)
     elif capability == "case_generation":
         enriched_context = {**context, "user_request": payload.user_request}
         messages = build_case_generation_messages(payload.locale, scenario, enriched_context, payload.learner_level)
@@ -637,7 +642,13 @@ def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
         template = get_template(payload.template_id, locale=payload.locale)
     except KeyError as exc:
         raise _unknown_scenario(exc)
-    messages = build_training_case_messages(payload.locale, template, payload.user_request)
+    messages = build_training_case_messages(
+        payload.locale,
+        template,
+        payload.user_request,
+        knowledge_coverage=payload.knowledge_coverage,
+        gas_trading_models=payload.gas_trading_models,
+    )
     try:
         answer = client.complete(messages)
         case = _parse_json_response(answer)
@@ -658,7 +669,13 @@ def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
             template = get_template(payload.template_id, locale=payload.locale)
             yield _sse_event("template", template)
             yield _sse_event("stage", {"id": "generate_market", "label": "Generating AI training curves"})
-            messages = build_training_case_messages(payload.locale, template, payload.user_request)
+            messages = build_training_case_messages(
+                payload.locale,
+                template,
+                payload.user_request,
+                knowledge_coverage=payload.knowledge_coverage,
+                gas_trading_models=payload.gas_trading_models,
+            )
             answer = client.complete(messages)
             yield _sse_event("stage", {"id": "parse_case", "label": "Building scenario, target actions, and rubric"})
             case = _parse_json_response(answer)
@@ -680,7 +697,7 @@ def v1_ai_live_assistant(payload: LiveAssistantRequest):
         "generate_case": {"track_id": "foundation|procurement|sales|integrated", "template_id": "foundation_hedging_basics", "user_request": "short training goal"},
         "select_template": {"template_id": "foundation_hedging_basics", "user_request": "optional training goal"},
         "set_chart_fields": {"fields": ["high", "low", "close"]},
-        "set_strategy_legs": {"legs": [{"leg_type": "swap", "market": "TTF", "side": "sell", "quantity": 10000}]},
+        "set_strategy_legs": {"legs": [{"leg_type": "physical|swap|future|basis|fx|capacity|option", "market": "TTF", "side": "sell", "quantity": 10000}]},
         "fill_rationale": {"text": "string"},
         "set_exam": {"exam": "Markdown quiz content"},
         "run_ai_capability": {"capability": "concept_tutor|exam|trade_playbook|advisor_review"},
@@ -727,6 +744,7 @@ def v1_generate_exam(payload: ExamRequest):
             locale=payload.locale,
             scenario_id=payload.scenario_id,
             attempt_history=payload.attempt_history,
+            curriculum_context=payload.curriculum_context,
         )
     )
     return {"exam": result["answer"]}
