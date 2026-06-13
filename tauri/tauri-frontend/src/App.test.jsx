@@ -19,8 +19,11 @@ const businessTemplates = {
     { id: "sales", label: "Sales" }
   ],
   knowledge_points: [
+    { id: "exposure_objective", label: "Exposure and hedge objective", description: "Identify long, short, or spread exposure." },
     { id: "basis_spread", label: "Basis and hub spread", description: "Separate TTF/NBP, FX, and hub basis." },
-    { id: "physical_paper_matching", label: "Physical-paper matching", description: "Match GSA, EFET, LNG, swaps, FX, and capacity." }
+    { id: "physical_paper_matching", label: "Physical-paper matching", description: "Match GSA, EFET, LNG, swaps, FX, and capacity." },
+    { id: "options_optionality", label: "Options and optionality", description: "Use caps, floors, collars, and LNG optionality." },
+    { id: "hedge_ratio_cross_hedge", label: "Hedge ratio and cross-hedge quality", description: "Size imperfect hedges by sensitivity and correlation." }
   ],
   templates: [
     {
@@ -29,7 +32,9 @@ const businessTemplates = {
       business_type: "Natural gas hedging foundations",
       title: "What exposure are we hedging?",
       summary: "Generate a beginner exposure, hedge objective, and physical-paper matching case.",
-      knowledge_points: ["outright_price", "physical_paper_matching"],
+      coverage: ["exposure_objective", "outright_price", "physical_paper_matching"],
+      gas_models: ["simple_procurement", "customer_indexed_sale"],
+      knowledge_points: ["exposure_objective", "outright_price", "physical_paper_matching"],
       required_curves: ["TTF", "TRAINING_HEDGE_INDEX"],
       suggested_leg_types: ["physical", "swap"]
     },
@@ -39,6 +44,8 @@ const businessTemplates = {
       business_type: "Upstream beach delivery GSA",
       title: "UK beach delivery sold into Germany",
       summary: "Generate a NBP/TTF, FX, capacity, and physical-paper hedge case.",
+      coverage: ["basis_spread", "fx", "capacity_storage_balancing", "physical_paper_matching", "risk_controls"],
+      gas_models: ["gsa_procurement", "pipeline_capacity"],
       knowledge_points: ["basis_spread", "fx", "physical_paper_matching"],
       required_curves: ["TTF", "NBP", "EURGBP"],
       suggested_leg_types: ["physical", "basis", "fx", "capacity"]
@@ -49,9 +56,11 @@ const businessTemplates = {
       business_type: "LNG regas sale",
       title: "Regasified LNG sale during market selloff",
       summary: "Generate a LNG regas sale hedge case.",
-      knowledge_points: ["outright_price", "volatility_event"],
+      coverage: ["outright_price", "basis_spread", "options_optionality", "capacity_storage_balancing"],
+      gas_models: ["lng_regas_sale", "customer_indexed_sale"],
+      knowledge_points: ["outright_price", "volatility_event", "options_optionality"],
       required_curves: ["TTF", "JKM"],
-      suggested_leg_types: ["physical", "swap", "basis"]
+      suggested_leg_types: ["physical", "swap", "basis", "option"]
     }
   ]
 };
@@ -325,6 +334,24 @@ describe("Commodity Lab shell", () => {
     expect(screen.getAllByText("TTF").length).toBeGreaterThan(0);
     expect(screen.getAllByText("NBP").length).toBeGreaterThan(0);
     expect(calls.some((call) => call.path === "/api/v1/ai/training-case" && call.body?.template_id === "foundation_hedging_basics")).toBe(true);
+    const request = calls.find((call) => call.path === "/api/v1/ai/training-case")?.body;
+    expect(request.knowledge_coverage.map((item) => item.id)).toEqual(expect.arrayContaining(["basis_spread", "options_optionality", "hedge_ratio_cross_hedge"]));
+    expect(request.gas_trading_models.map((item) => item.id)).toEqual(expect.arrayContaining(["gsa_procurement", "lng_regas_sale", "efet_bilateral_sale"]));
+  });
+
+  it("shows textbook hedging coverage and gas trading models in the course map", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    fireEvent.click(await screen.findByText("Course Map"));
+
+    expect(await screen.findByText("Textbook-Style Hedging Coverage")).toBeInTheDocument();
+    expect(screen.getAllByText("Options and Optionality").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Hedge Ratio and Cross-Hedge").length).toBeGreaterThan(0);
+    expect(screen.getByText("Gas Trading Models")).toBeInTheDocument();
+    expect(screen.getByText("Upstream Beach / GSA Supply")).toBeInTheDocument();
+    expect(screen.getByText("LNG Regas Sale")).toBeInTheDocument();
+    expect(screen.getByText("Bilateral EFET Sale")).toBeInTheDocument();
   });
 
   it("scores a multi-leg strategy locally without waiting for AI scoring", async () => {

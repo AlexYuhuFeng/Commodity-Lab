@@ -3270,6 +3270,22 @@ button:focus-visible {
   font-weight: 650;
 }
 
+.cl-mini-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cl-mini-chip-row span {
+  border: 1px solid rgba(141, 214, 197, 0.2);
+  border-radius: 6px;
+  padding: 3px 7px;
+  color: #aee9dc;
+  background: rgba(20, 184, 166, 0.09);
+  font-size: 10.5px;
+  font-weight: 690;
+}
+
 .cl-ai-preview h3,
 .cl-progress-layout h3,
 .cl-topic-panel h3,
@@ -3307,6 +3323,34 @@ button:focus-visible {
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cl-preview-coverage {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.cl-preview-coverage h4 {
+  margin: 0;
+  color: #f8fbff;
+  font-size: 12px;
+}
+
+.cl-preview-coverage div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cl-preview-coverage span {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: #dce8f8;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .cl-template-families {
@@ -3705,7 +3749,8 @@ button:focus-visible {
   display: grid;
   grid-template-columns: minmax(520px, 1fr) 360px;
   gap: 12px;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: auto;
 }
 
 .cl-map-canvas {
@@ -3790,6 +3835,79 @@ button:focus-visible {
   height: 24px;
   border-radius: 999px;
   background: var(--cl-blue);
+}
+
+.cl-coverage-panel,
+.cl-model-panel {
+  flex: 0 0 auto;
+}
+
+.cl-coverage-grid,
+.cl-gas-model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.cl-coverage-grid article,
+.cl-gas-model-grid article {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cl-coverage-grid header {
+  display: grid;
+  gap: 4px;
+}
+
+.cl-coverage-grid b,
+.cl-gas-model-grid strong {
+  color: #f8fbff;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.cl-coverage-grid small {
+  color: #8ccfff;
+  font-size: 11px;
+}
+
+.cl-coverage-grid p,
+.cl-gas-model-grid p {
+  margin: 0;
+  color: #9fb1c5;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cl-model-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cl-model-columns span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 7px;
+  padding: 8px;
+  color: #8ea3b8;
+  background: rgba(255, 255, 255, 0.028);
+  font-size: 10.5px;
+}
+
+.cl-model-columns b {
+  color: #dce8f8;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .cl-progress-layout,
