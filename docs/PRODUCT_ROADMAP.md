@@ -30,9 +30,9 @@ Primary scope:
 
 Required V1 experience:
 
-- User lands in a fullscreen Windows trading terminal.
+- User lands in a windowed Windows desktop client with a Codex-inspired native shell.
 - User sees Mandarin by default and can switch language/theme from Settings.
-- User configures Haineng or DeepSeek separately in Settings.
+- User chooses Haineng or DeepSeek in Settings and provides only an API key or local key file; model and endpoint are fixed by the app.
 - User can generate a gas business case from procurement or sales templates.
 - User can inspect generated multi-series high/low/close curves and strategy overlays.
 - User can submit multi-leg hedges and receive immediate deterministic scoring.

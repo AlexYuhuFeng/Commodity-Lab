@@ -16,23 +16,14 @@ Commodity Lab 支持从任意文件夹导入 AI密钥文件。测试分发时，
 
 ## JSON Format / JSON 格式
 
-```json
-{
-  "provider": "haineng",
-  "api_key": "REPLACE_WITH_TEST_KEY",
-  "model": "DeepSeek-V4-Flash",
-  "base_url": "http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1"
-}
-```
+Only `provider` and `api_key` are required. Legacy `model` and `base_url` fields may remain in old sample files, but Commodity Lab ignores them for the final runtime route.
 
-Haineng Pro profile:
+只需要 `provider` 和 `api_key`。旧密钥文件里可以保留 `model` 和 `base_url` 字段，但 Commodity Lab 最终运行时会忽略这些字段，由程序固定匹配模型和地址。
 
 ```json
 {
   "provider": "haineng",
-  "api_key": "REPLACE_WITH_TEST_KEY",
-  "model": "DeepSeek-V4",
-  "base_url": "http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1"
+  "api_key": "REPLACE_WITH_TEST_KEY"
 }
 ```
 
@@ -41,9 +32,18 @@ DeepSeek fallback/testing profile:
 ```json
 {
   "provider": "deepseek",
+  "api_key": "REPLACE_WITH_TEST_KEY"
+}
+```
+
+Legacy files are still accepted:
+
+```json
+{
+  "provider": "haineng",
   "api_key": "REPLACE_WITH_TEST_KEY",
-  "model": "deepseek-v4-flash",
-  "base_url": "https://api.deepseek.com"
+  "model": "DeepSeek-V4",
+  "base_url": "http://old-or-local-url.example/v1"
 }
 ```
 
@@ -52,8 +52,6 @@ DeepSeek fallback/testing profile:
 ```text
 provider=haineng
 api_key=REPLACE_WITH_TEST_KEY
-model=DeepSeek-V4-Flash
-base_url=http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1
 ```
 
 `.env` style files and Python-style quoted assignments are also accepted:
@@ -61,11 +59,9 @@ base_url=http://model.ai.cnooc/member1/deepseek-v4-flash-284b/v1
 ```text
 PROVIDER="deepseek"
 API_KEY="REPLACE_WITH_TEST_KEY"
-MODEL="deepseek-v4-flash"
-BASE_URL="https://api.deepseek.com"
 ```
 
-OpenAI-compatible Python SDK samples are accepted when they contain `api_key`, `base_url`, and optionally `model` assignments or keyword arguments:
+OpenAI-compatible Python SDK samples are accepted when they contain `api_key`. `base_url` and `model` may exist in the sample, but Commodity Lab only uses them as provider hints and then applies its fixed runtime route:
 
 ```python
 from openai import OpenAI
@@ -82,4 +78,4 @@ A single-line file containing only the key is accepted. In that case Commodity L
 
 也支持 `.env` 风格文件、Python 引号变量，以及 OpenAI 兼容 SDK 示例文件。若文件只有一行密钥，Commodity Lab 会使用设置页当前选择的供应方。
 
-Supported aliases include `V4-Flash`, `V4-Pro`, `DeepSeek-V4-Flash`, and `DeepSeek-V4`; the app normalizes them to the provider-specific model names and base URLs.
+Supported provider aliases include `haineng`, `海能`, `deepseek`, and `ds`. Model aliases in old files are ignored for the final route.

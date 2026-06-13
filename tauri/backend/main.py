@@ -211,7 +211,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.1.0",
+        "current_version": "1.1.1",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -220,7 +220,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.1.0"
+    current_version = "1.1.1"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -476,15 +476,18 @@ def v1_provider_status():
 
 @app.post("/api/v1/provider-settings")
 def v1_provider_settings(payload: HainengProviderSettingsRequest):
-    from core.haineng_client import HainengClient, HainengSettings, set_runtime_settings
+    from core.haineng_client import HainengClient, HainengSettings, normalize_provider, provider_catalog, set_runtime_settings
 
     if not payload.api_key.strip():
         raise HTTPException(status_code=400, detail="AI provider API key is required.")
+    provider = normalize_provider(payload.provider, payload.base_url)
+    catalog = provider_catalog()
+    provider_config = catalog.get(provider) or catalog["haineng"]
     settings = HainengSettings(
         api_key=payload.api_key.strip(),
-        provider=payload.provider.strip() or "haineng",
-        base_url=payload.base_url.strip(),
-        model=payload.model.strip() or "DeepSeek-V4-Flash",
+        provider=provider,
+        base_url="",
+        model=provider_config["default_model"],
         streaming=payload.streaming,
         function_calling=payload.function_calling,
     )

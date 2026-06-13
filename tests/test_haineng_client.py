@@ -73,8 +73,8 @@ def test_settings_from_env_parses_booleans(monkeypatch: pytest.MonkeyPatch) -> N
     settings = settings_from_env()
 
     assert settings.api_key == "secret-key"
-    assert settings.base_url == "http://local/v1"
-    assert settings.model == "V4-Flash"
+    assert settings.base_url == ""
+    assert settings.model == "DeepSeek-V4-Flash"
     assert settings.streaming is True
     assert settings.function_calling is False
 
@@ -148,7 +148,7 @@ def test_complete_raises_when_model_requests_tool_call(monkeypatch: pytest.Monke
     class FakeOpenAI:
         def __init__(self, api_key: str, base_url: str) -> None:
             assert api_key == "secret-key"
-            assert base_url == "http://local/v1"
+            assert base_url == "http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1"
             self.chat = Chat()
 
     fake_openai = types.SimpleNamespace(OpenAI=FakeOpenAI)
@@ -165,10 +165,12 @@ def test_complete_raises_when_model_requests_tool_call(monkeypatch: pytest.Monke
 
     assert captured_payload["model"] == "DeepSeek-V4-Flash"
     assert captured_payload["stream"] is False
+    assert captured_payload["max_tokens"] == 1800
+    assert captured_payload["extra_body"] == {"enable_thinking": False}
     assert captured_payload["tool_choice"] == "auto"
 
 
-def test_haineng_provider_uses_haineng_v4_pro_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_haineng_provider_forces_current_v4_flash_contract(monkeypatch: pytest.MonkeyPatch) -> None:
     captured_payload: dict[str, object] = {}
 
     class Message:
@@ -192,7 +194,7 @@ def test_haineng_provider_uses_haineng_v4_pro_contract(monkeypatch: pytest.Monke
     class FakeOpenAI:
         def __init__(self, api_key: str, base_url: str) -> None:
             assert api_key == "secret-key"
-            assert base_url == "http://model.ai.cnooc/member1/deepseek-v4-pro-1-5t/v1"
+            assert base_url == "http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1"
             self.chat = Chat()
 
     fake_openai = types.SimpleNamespace(OpenAI=FakeOpenAI)
@@ -202,7 +204,8 @@ def test_haineng_provider_uses_haineng_v4_pro_contract(monkeypatch: pytest.Monke
     )
 
     assert client.complete([{"role": "user", "content": "review"}]) == "ok"
-    assert captured_payload["model"] == "DeepSeek-V4"
+    assert captured_payload["model"] == "DeepSeek-V4-Flash"
+    assert captured_payload["extra_body"] == {"enable_thinking": False}
 
 
 def test_deepseek_provider_uses_public_v4_flash_contract(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -240,3 +243,4 @@ def test_deepseek_provider_uses_public_v4_flash_contract(monkeypatch: pytest.Mon
 
     assert client.complete([{"role": "user", "content": "review"}]) == "ok"
     assert captured_payload["model"] == "deepseek-v4-flash"
+    assert captured_payload["extra_body"] == {"thinking": {"type": "disabled"}}
