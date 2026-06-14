@@ -11,8 +11,12 @@ from core.haineng_client import (
     build_advisor_messages,
     build_exam_messages,
     build_haineng_tools,
+    effective_settings,
+    load_persisted_settings,
+    save_persisted_settings,
     redact_settings,
     settings_from_env,
+    set_runtime_settings,
 )
 
 
@@ -77,6 +81,29 @@ def test_settings_from_env_parses_booleans(monkeypatch: pytest.MonkeyPatch) -> N
     assert settings.model == "DeepSeek-V4-Flash"
     assert settings.streaming is True
     assert settings.function_calling is False
+
+
+def test_persisted_settings_survive_runtime_reset(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    config_file = tmp_path / "AI密钥.json"
+    monkeypatch.setenv("COMMODITY_LAB_AI_SETTINGS_FILE", str(config_file))
+    monkeypatch.delenv("COMMODITY_LAB_DISABLE_LOCAL_AI_SETTINGS", raising=False)
+    set_runtime_settings(None)
+
+    save_persisted_settings(
+        HainengSettings(api_key="saved-secret-key", provider="deepseek", model="deepseek-v4-flash")
+    )
+    set_runtime_settings(None)
+
+    persisted = load_persisted_settings()
+    effective = effective_settings()
+
+    assert persisted is not None
+    assert persisted.api_key == "saved-secret-key"
+    assert persisted.provider == "deepseek"
+    assert effective.api_key == "saved-secret-key"
+    assert redact_settings(effective)["configured"] is True
+    assert "saved-secret-key" not in str(redact_settings(effective))
+    set_runtime_settings(None)
 
 
 def test_unconfigured_complete_raises() -> None:

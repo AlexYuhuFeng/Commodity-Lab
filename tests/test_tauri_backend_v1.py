@@ -17,6 +17,7 @@ def _clear_haineng_env(monkeypatch) -> None:
     set_runtime_settings(None)
     monkeypatch.delenv("HAINENG_API_KEY", raising=False)
     monkeypatch.delenv("HAINENG_BASE_URL", raising=False)
+    monkeypatch.setenv("COMMODITY_LAB_DISABLE_LOCAL_AI_SETTINGS", "1")
 
 
 def test_health_endpoint_returns_ok() -> None:
@@ -109,6 +110,29 @@ def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monk
     assert payload["haineng"]["base_url"] == "http://model.ai.cnooc/member1/deepseek-v4-flash-291b-1m/v1"
     assert payload["haineng"]["model"] == "DeepSeek-V4-Flash"
     assert "user-secret-key" not in str(payload)
+    _clear_haineng_env(monkeypatch)
+
+
+def test_provider_settings_persists_to_local_user_config(monkeypatch, tmp_path) -> None:
+    from core.haineng_client import HainengClient, set_runtime_settings
+
+    set_runtime_settings(None)
+    monkeypatch.delenv("COMMODITY_LAB_DISABLE_LOCAL_AI_SETTINGS", raising=False)
+    monkeypatch.setenv("COMMODITY_LAB_AI_SETTINGS_FILE", str(tmp_path / "AI密钥.json"))
+    response = client.post(
+        "/api/v1/provider-settings",
+        json={"api_key": "persisted-secret-key", "provider": "deepseek"},
+    )
+    assert response.status_code == 200
+    assert "persisted-secret-key" not in str(response.json())
+
+    set_runtime_settings(None)
+    status = HainengClient().health_check()
+
+    assert status["ok"] is True
+    assert status["provider"] == "deepseek"
+    assert status["resolved_model"] == "deepseek-v4-flash"
+    assert "persisted-secret-key" not in str(status)
     _clear_haineng_env(monkeypatch)
 
 

@@ -60,6 +60,8 @@ class HainengSettings:
 
 
 _runtime_settings: HainengSettings | None = None
+LOCAL_SETTINGS_FILE_ENV = "COMMODITY_LAB_AI_SETTINGS_FILE"
+DISABLE_LOCAL_SETTINGS_ENV = "COMMODITY_LAB_DISABLE_LOCAL_AI_SETTINGS"
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -95,8 +97,72 @@ def set_runtime_settings(settings: HainengSettings | None) -> None:
     _runtime_settings = settings
 
 
+def _user_config_dir() -> str:
+    if os.name == "nt":
+        return os.getenv("APPDATA", os.path.expanduser("~\\AppData\\Roaming"))
+    return os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+
+
+def local_settings_path() -> str:
+    explicit = os.getenv(LOCAL_SETTINGS_FILE_ENV, "").strip()
+    if explicit:
+        return explicit
+    return os.path.join(_user_config_dir(), "Commodity Lab", "AI密钥.json")
+
+
+def load_persisted_settings() -> HainengSettings | None:
+    if _env_bool(DISABLE_LOCAL_SETTINGS_ENV, False):
+        return None
+    path = local_settings_path()
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    api_key = str(payload.get("api_key", "")).strip()
+    if not api_key:
+        return None
+    provider = normalize_provider(str(payload.get("provider", "")), str(payload.get("base_url", "")))
+    provider_config = _PROVIDER_MODEL_CATALOG[provider]
+    return HainengSettings(
+        api_key=api_key,
+        base_url="",
+        model=provider_config["default_model"],
+        provider=provider,
+        streaming=bool(payload.get("streaming", False)),
+        function_calling=bool(payload.get("function_calling", True)),
+    )
+
+
+def save_persisted_settings(settings: HainengSettings) -> str:
+    if _env_bool(DISABLE_LOCAL_SETTINGS_ENV, False):
+        return local_settings_path()
+    path = local_settings_path()
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    provider = _provider_name(settings)
+    payload = {
+        "provider": provider,
+        "api_key": settings.api_key.strip(),
+        "streaming": bool(settings.streaming),
+        "function_calling": bool(settings.function_calling),
+    }
+    temp_path = f"{path}.tmp"
+    with open(temp_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+    try:
+        os.chmod(temp_path, 0o600)
+    except OSError:
+        pass
+    os.replace(temp_path, path)
+    return path
+
+
 def effective_settings() -> HainengSettings:
-    return _runtime_settings or settings_from_env()
+    return _runtime_settings or load_persisted_settings() or settings_from_env()
 
 
 def _is_configured(settings: HainengSettings) -> bool:
