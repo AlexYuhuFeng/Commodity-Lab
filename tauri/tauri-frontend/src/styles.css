@@ -994,6 +994,10 @@ textarea:focus {
   color: #526175;
 }
 
+[data-theme="light"] .cl-course-action-note {
+  color: #475569;
+}
+
 [data-theme="light"] .cl-panel,
 [data-theme="light"] .cl-case-hero,
 [data-theme="light"] .cl-learning-stepper,
@@ -4376,6 +4380,15 @@ button:focus-visible {
   justify-content: center;
   width: 100%;
   margin-top: auto;
+}
+
+.cl-course-action-note {
+  display: block;
+  min-height: 28px;
+  color: #b8c7d8;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
 }
 
 .cl-empty-progress {

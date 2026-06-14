@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.3";
+const currentVersion = "1.1.4";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -394,7 +394,7 @@ const knowledgeNodes = [
   { id: "storage", x: 34, y: 72, level: "beginner", titleZh: "储气与季节性", titleEn: "Storage & Seasonality", descZh: "注采节奏、库存和季节曲线对套保的影响。", descEn: "Injection/withdrawal, inventory, and seasonal curve impacts." }
 ];
 
-const learningRecordsKey = "commodity-lab-learning-records-v1";
+const learningRecordsKey = "commodity-lab-learning-records-v2";
 
 const skillDimensions = [
   { id: "exposure", zh: "风险识别", en: "Exposure Identification" },
@@ -1632,7 +1632,7 @@ function PageTitle({ action, icon = "sparkles", locale, subtitleEn, subtitleZh, 
   );
 }
 
-function HomePage({ aiReady, learningProgress, locale, onGenerate, onPageChange }) {
+function HomePage({ aiReady, learningProgress, loadingTemplate, locale, onGenerate, onPageChange }) {
   const score = learningProgress.latestScore;
   const hasProgress = learningProgress.hasRecords && score != null;
   const weakSummary = learningProgress.weakest.length
@@ -1642,6 +1642,16 @@ function HomePage({ aiReady, learningProgress, locale, onGenerate, onPageChange 
   function startTrackDrill(track) {
     onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn));
   }
+  function trackActionLabel(track, index) {
+    if (loadingTemplate === track.templateId) return t("loading", locale);
+    if (!aiReady) return copy(locale, "先配置 AI", "Connect AI first");
+    return index === 0
+      ? copy(locale, "生成第一课练习", "Generate first drill")
+      : copy(locale, "生成本章练习", "Generate chapter drill");
+  }
+  const actionHint = aiReady
+    ? copy(locale, "点击后 AI 会生成练习，并自动打开训练工作台。", "Click to generate a drill and open the workbench.")
+    : copy(locale, "需要先导入 AI 密钥；点击按钮会打开设置。", "Import an AI key first; clicking opens Settings.");
   return (
     <section className="cl-page cl-home-page">
       <PageTitle
@@ -1651,7 +1661,7 @@ function HomePage({ aiReady, learningProgress, locale, onGenerate, onPageChange 
         titleEn="Natural Gas Hedging Learning Path"
         subtitleZh="先按业务和知识点建立框架，再进入 AI 生成案例、组合操作和复盘。"
         subtitleEn="Build the business and concept framework first, then move into AI-generated cases, multi-leg decisions, and review."
-        action={<button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={!aiReady} type="button"><Icon name="play" />{copy(locale, "开始第一课", "Start Lesson 1")}</button>}
+        action={<button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={Boolean(loadingTemplate)} type="button"><Icon name="play" />{aiReady ? copy(locale, "开始第一课", "Start Lesson 1") : copy(locale, "配置 AI", "Connect AI")}</button>}
       />
       <div className="cl-home-grid">
         <section className="cl-panel cl-hero-panel cl-course-hero">
@@ -1661,7 +1671,7 @@ function HomePage({ aiReady, learningProgress, locale, onGenerate, onPageChange 
             <p>{copy(locale, "Commodity Lab 的训练顺序是：识别业务敞口 -> 选择实货/纸货工具 -> 做组合腿 -> 本地评分 -> AI 针对弱项生成下一题。", "Commodity Lab trains in this order: identify exposure -> choose physical/paper tools -> build multi-leg strategy -> score locally -> let AI generate the next weak-point drill.")}</p>
           </div>
           <div className="cl-hero-actions">
-            <button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={!aiReady} type="button"><Icon name="play" />{copy(locale, "入门练习", "Beginner drill")}</button>
+            <button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={Boolean(loadingTemplate)} type="button"><Icon name="play" />{aiReady ? copy(locale, "生成入门练习", "Generate beginner drill") : copy(locale, "先导入 AI 密钥", "Import AI key")}</button>
             <button className="cl-secondary" onClick={() => onPageChange(pageIds.knowledge)} type="button"><Icon name="map" />{copy(locale, "看课程地图", "Open course map")}</button>
           </div>
         </section>
@@ -1679,10 +1689,11 @@ function HomePage({ aiReady, learningProgress, locale, onGenerate, onPageChange 
                 <div className="cl-chip-row">
                   {(locale === "zh" ? track.lessons : track.lessonsEn).map((lesson) => <span key={lesson}>{lesson}</span>)}
                 </div>
-                <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={!aiReady} onClick={() => startTrackDrill(track)} type="button">
+                <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={Boolean(loadingTemplate)} onClick={() => startTrackDrill(track)} type="button">
                   <Icon name={index === 0 ? "play" : "sparkles"} />
-                  {index === 0 ? copy(locale, "开始", "Start") : copy(locale, "生成本章练习", "Generate drill")}
+                  {trackActionLabel(track, index)}
                 </button>
+                <small className="cl-course-action-note">{actionHint}</small>
               </article>
             ))}
           </div>
@@ -1765,9 +1776,19 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
               <div className="cl-mini-chip-row">
                 {copy(locale, track.lessons, track.lessonsEn).slice(0, 3).map((lesson) => <span key={lesson}>{lesson}</span>)}
               </div>
-              <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={!aiReady || Boolean(loadingTemplate)} onClick={() => onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn))} type="button">
-                <Icon name="sparkles" />{copy(locale, "生成练习", "Generate drill")}
+              <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={Boolean(loadingTemplate)} onClick={() => onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn))} type="button">
+                <Icon name="sparkles" />
+                {loadingTemplate === track.templateId
+                  ? t("loading", locale)
+                  : aiReady
+                    ? copy(locale, "生成练习并打开工作台", "Generate drill and open workbench")
+                    : copy(locale, "先配置 AI", "Connect AI first")}
               </button>
+              <small className="cl-course-action-note">
+                {aiReady
+                  ? copy(locale, "点击后会生成本章案例、曲线和参考动作。", "Generates the case, curves, and target actions.")
+                  : copy(locale, "需要先导入 AI 密钥；点击按钮会打开设置。", "Import an AI key first; clicking opens Settings.")}
+              </small>
             </article>
           ))}
         </div>
@@ -2839,7 +2860,7 @@ export default function App() {
     if (activePage === pageIds.settings) {
       return <SettingsPage locale={locale} settingsPanel={settingsPanel} />;
     }
-    return <HomePage aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
+    return <HomePage aiReady={aiReady} learningProgress={learningProgress} loadingTemplate={loadingTemplate} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
   }
 
   return (

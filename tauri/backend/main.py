@@ -211,7 +211,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.1.3",
+        "current_version": "1.1.4",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -220,7 +220,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.1.3"
+    current_version = "1.1.4"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -476,7 +476,14 @@ def v1_provider_status():
 
 @app.post("/api/v1/provider-settings")
 def v1_provider_settings(payload: HainengProviderSettingsRequest):
-    from core.haineng_client import HainengClient, HainengSettings, normalize_provider, provider_catalog, set_runtime_settings
+    from core.haineng_client import (
+        HainengClient,
+        HainengSettings,
+        normalize_provider,
+        provider_catalog,
+        save_persisted_settings,
+        set_runtime_settings,
+    )
 
     if not payload.api_key.strip():
         raise HTTPException(status_code=400, detail="AI provider API key is required.")
@@ -493,6 +500,7 @@ def v1_provider_settings(payload: HainengProviderSettingsRequest):
     )
     if not HainengClient(settings).is_configured():
         raise HTTPException(status_code=400, detail="AI provider base URL is required.")
+    save_persisted_settings(settings)
     set_runtime_settings(settings)
     return {"haineng": HainengClient().health_check()}
 

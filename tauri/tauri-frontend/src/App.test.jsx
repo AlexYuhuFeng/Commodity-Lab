@@ -151,7 +151,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.1.3",
+        current_version: "1.1.4",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -181,7 +181,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.1.3", latest_version: "1.1.3", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.3", assets: [] };
+      return { current_version: "1.1.4", latest_version: "1.1.4", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.4", assets: [] };
     }
     return {};
   };
@@ -344,6 +344,27 @@ describe("Commodity Lab shell", () => {
     const request = calls.find((call) => call.path === "/api/v1/ai/training-case")?.body;
     expect(request.knowledge_coverage.map((item) => item.id)).toEqual(expect.arrayContaining(["basis_spread", "options_optionality", "hedge_ratio_cross_hedge"]));
     expect(request.gas_trading_models.map((item) => item.id)).toEqual(expect.arrayContaining(["gsa_procurement", "lng_regas_sale", "efet_bilateral_sale"]));
+  });
+
+  it("does not show old pre-release learning scores on the home path", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    localStorage.setItem(
+      "commodity-lab-learning-records-v1",
+      JSON.stringify([{ evaluation: { baseline_score: 91 }, strategy_legs: [] }])
+    );
+    renderShell({ aiReady: true });
+
+    expect(await screen.findByText("No scored training records yet")).toBeInTheDocument();
+    expect(screen.queryByText("91/100")).not.toBeInTheDocument();
+  });
+
+  it("routes offline course actions to settings instead of appearing inert", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: false });
+
+    fireEvent.click((await screen.findAllByText("Connect AI first"))[0]);
+
+    expect(await screen.findByText("Manage language, theme, AI provider, key-file import, version updates, and developer information.")).toBeInTheDocument();
   });
 
   it("shows textbook hedging coverage and gas trading models in the course map", async () => {
