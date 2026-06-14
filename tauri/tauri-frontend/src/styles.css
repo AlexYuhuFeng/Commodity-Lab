@@ -5374,6 +5374,276 @@ textarea:focus-visible {
   }
 }
 
+/* Installed-client QA polish: the desktop window should fit above the Windows
+   taskbar and keep the active hedging ticket compact enough for real practice. */
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+[data-theme="light"] button:disabled,
+[data-theme="light"] .cl-course-grid button:disabled,
+[data-theme="light"] .cl-scenario-table article.disabled button {
+  border-color: rgba(100, 116, 139, 0.2);
+  color: #64748b;
+  background: #f8fafc;
+  opacity: 1;
+}
+
+[data-theme="light"] .cl-course-grid button:disabled::after,
+[data-theme="light"] .cl-scenario-table article.disabled button::after {
+  background: none;
+  animation: none;
+}
+
+@media (min-width: 1081px) {
+  .cl-workbench-page .cl-learning-stepper {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .cl-workbench-page .cl-learning-stepper li {
+    min-height: 50px;
+    padding: 7px 9px;
+  }
+
+  .cl-workbench-page .cl-learning-stepper strong {
+    font-size: 12px;
+  }
+
+  .cl-workbench-page .cl-learning-stepper small {
+    font-size: 10px;
+  }
+
+  .cl-workbench-page .cl-case-hero {
+    grid-template-columns: 96px minmax(0, 1fr) minmax(220px, 0.34fr);
+    gap: 12px;
+    padding: 10px;
+  }
+
+  .cl-workbench-page .cl-case-image {
+    height: 84px;
+  }
+
+  .cl-workbench-page .cl-case-hero h2 {
+    margin: 2px 0 4px;
+    font-size: 20px;
+  }
+
+  .cl-workbench-page .cl-case-hero p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .cl-workbench-page .cl-chip-row {
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .cl-workbench-page .cl-case-hero dl {
+    gap: 8px;
+    padding-left: 12px;
+  }
+
+  .cl-workbench-page .cl-panel {
+    padding: 12px;
+  }
+
+  .cl-workbench-page .cl-workbench-grid {
+    grid-template-columns: minmax(500px, 1.08fr) minmax(610px, 0.92fr);
+    gap: 10px;
+  }
+
+  .cl-workbench-page .cl-workbench-grid .advisor-rail {
+    grid-column: 1 / -1;
+  }
+
+  .cl-workbench-page .cl-decision-panel .markdown-output {
+    max-height: 72px;
+    overflow: hidden;
+  }
+
+  .cl-workbench-page .cl-exposure-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .cl-workbench-page .cl-exposure-strip span {
+    min-height: 58px;
+    padding: 8px;
+  }
+
+  .cl-workbench-page .cl-workbench-grid .price-chart-wrap,
+  .cl-workbench-page .price-chart-wrap {
+    height: clamp(260px, 32vh, 330px);
+  }
+
+  .cl-workbench-page .cl-strategy-tools {
+    padding: 10px 12px;
+  }
+
+  .cl-workbench-page .cl-action-grid {
+    gap: 8px;
+  }
+
+  .cl-workbench-page .cl-action-grid button {
+    min-height: 44px;
+  }
+
+  .cl-workbench-page .strategy-leg-list {
+    gap: 7px;
+  }
+
+  .cl-workbench-page .strategy-leg {
+    grid-template-columns: minmax(108px, 0.78fr) minmax(168px, 1.22fr) minmax(88px, 0.62fr) minmax(96px, 0.68fr) minmax(88px, 0.62fr) 38px;
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .cl-workbench-page .strategy-leg label:nth-of-type(5),
+  .cl-workbench-page .strategy-leg .icon-button {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .cl-workbench-page .strategy-leg label {
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .cl-workbench-page .strategy-leg select,
+  .cl-workbench-page .strategy-leg input {
+    min-height: 40px;
+    padding: 0 10px;
+  }
+
+  .cl-workbench-page .strategy-leg .icon-button {
+    align-self: end;
+    min-height: 40px;
+  }
+
+  .cl-workbench-page .order-ticket .secondary {
+    min-height: 40px;
+  }
+
+  .cl-workbench-page .order-ticket textarea {
+    min-height: 72px;
+    max-height: 96px;
+  }
+
+  .cl-workbench-page .order-ticket .primary {
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 1240px) and (min-width: 1081px) {
+  .cl-workbench-page .cl-workbench-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(560px, 0.95fr);
+  }
+
+  .cl-workbench-page .strategy-leg {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(80px, 0.7fr) 36px;
+  }
+
+  .cl-workbench-page .strategy-leg label:nth-of-type(4),
+  .cl-workbench-page .strategy-leg label:nth-of-type(5) {
+    grid-column: auto;
+  }
+}
+
+/* Installed exe QA guard: the default desktop window is narrower than the
+   design mockups once the left rail and Windows scaling are accounted for. */
+.cl-content-shell,
+.cl-page,
+.cl-workbench-page {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.cl-page {
+  overflow-y: auto;
+}
+
+.cl-workbench-page .cl-workbench-grid,
+.cl-workbench-page .cl-workbench-left,
+.cl-workbench-page .cl-workbench-center,
+.cl-workbench-page .order-ticket,
+.cl-workbench-page .strategy-leg,
+.cl-workbench-page .strategy-leg label {
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 1081px) {
+  .cl-workbench-page .cl-workbench-grid {
+    grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.02fr) !important;
+    width: 100%;
+    gap: 10px;
+    overflow: visible;
+  }
+
+  .cl-workbench-page .cl-workbench-grid .advisor-rail {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+  }
+
+  .cl-workbench-page .cl-decision-panel .markdown-output {
+    max-height: 84px;
+    overflow: hidden;
+  }
+
+  .cl-workbench-page .cl-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .cl-workbench-page .cl-submit-inline {
+    border-color: rgba(31, 122, 255, 0.38);
+    color: #f8fbff;
+    background: linear-gradient(180deg, #1f7aff, #1456c8);
+  }
+
+  .cl-workbench-page .cl-workbench-grid .price-chart-wrap,
+  .cl-workbench-page .price-chart-wrap {
+    height: clamp(220px, 28vh, 290px) !important;
+  }
+
+  .cl-workbench-page .strategy-leg {
+    grid-template-columns: minmax(104px, 0.85fr) minmax(150px, 1.25fr) minmax(92px, 0.8fr) 38px !important;
+    align-items: end;
+  }
+
+  .cl-workbench-page .strategy-leg label:nth-of-type(4) {
+    grid-column: 1 / 2 !important;
+    grid-row: 2 !important;
+  }
+
+  .cl-workbench-page .strategy-leg label:nth-of-type(5) {
+    grid-column: 2 / 4 !important;
+    grid-row: 2 !important;
+  }
+
+  .cl-workbench-page .strategy-leg .icon-button {
+    grid-column: 4 !important;
+    grid-row: 1 !important;
+  }
+
+  .cl-workbench-page .strategy-leg select,
+  .cl-workbench-page .strategy-leg input,
+  .cl-workbench-page .order-ticket textarea {
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+
+[data-theme="light"] .cl-workbench-page .cl-submit-inline {
+  border-color: rgba(31, 122, 255, 0.35);
+  color: #ffffff;
+  background: linear-gradient(180deg, #1f7aff, #1456c8);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

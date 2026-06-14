@@ -151,7 +151,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.1.2",
+        current_version: "1.1.3",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -181,7 +181,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.1.2", latest_version: "1.1.2", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.2", assets: [] };
+      return { current_version: "1.1.3", latest_version: "1.1.3", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.3", assets: [] };
     }
     return {};
   };
@@ -367,7 +367,8 @@ describe("Commodity Lab shell", () => {
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
     fireEvent.click(await screen.findByText("Training Workbench"));
-    fireEvent.click(await screen.findByText("Submit strategy"));
+    const submitButtons = await screen.findAllByText("Submit strategy");
+    fireEvent.click(submitButtons[0]);
 
     expect(await screen.findByText("91")).toBeInTheDocument();
     expect(calls.some((call) => call.path === "/api/v1/attempts/evaluate")).toBe(false);
