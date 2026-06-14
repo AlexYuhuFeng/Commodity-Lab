@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.2";
+const currentVersion = "1.1.3";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -1965,6 +1965,7 @@ function WorkbenchPage({ activeTemplate, advisorProps, caseData, fieldSelection,
               <button onClick={onSuggestTarget} type="button"><Icon name="sparkles" />{copy(locale, "AI 建议策略腿", "AI Suggest Legs")}</button>
               <button onClick={onCheckStrategy} type="button"><Icon name="coach" />{copy(locale, "提交前检查", "Check Before Submit")}</button>
               <button onClick={onGenerateVariant} type="button"><Icon name="plus" />{copy(locale, "生成变体", "Generate Variant")}</button>
+              <button className="cl-submit-inline" disabled={strategyProps.busy} onClick={strategyProps.onSubmit} type="button"><Icon name="chart" />{strategyProps.busy ? t("loading", locale) : t("submitOrder", locale)}</button>
             </div>
           </section>
           <StrategyBuilder {...strategyProps} />

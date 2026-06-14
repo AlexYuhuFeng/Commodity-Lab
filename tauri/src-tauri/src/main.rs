@@ -4,6 +4,7 @@ use reqwest::blocking::Client as BlockingClient;
 use reqwest::Client;
 use serde_json::Value;
 use std::env;
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -31,6 +32,24 @@ fn backend_port() -> u16 {
 
 fn backend_base_url() -> String {
     format!("http://{}:{}", backend_host(), backend_port())
+}
+
+fn configure_backend_port() {
+    if env::var("COMMODITY_LAB_BACKEND_PORT")
+        .ok()
+        .and_then(|value| value.trim().parse::<u16>().ok())
+        .filter(|port| *port > 0)
+        .is_some()
+    {
+        return;
+    }
+
+    let host = backend_host();
+    if let Ok(listener) = TcpListener::bind((host.as_str(), 0)) {
+        if let Ok(addr) = listener.local_addr() {
+            env::set_var("COMMODITY_LAB_BACKEND_PORT", addr.port().to_string());
+        }
+    }
 }
 
 fn backend_url(path: &str) -> String {
@@ -213,6 +232,7 @@ fn main() {
             }
         })
         .setup(move |app| {
+            configure_backend_port();
             let child = start_python_backend(app.path_resolver().resource_dir());
             if let Ok(mut lock) = setup_backend_handle.lock() {
                 *lock = child;
