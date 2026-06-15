@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.4";
+const currentVersion = "1.1.5";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -383,15 +383,50 @@ const scenarioLibraryItems = [
 ];
 
 const knowledgeNodes = [
-  { id: "hub", x: 50, y: 48, level: "intermediate", titleZh: "Hub Pricing", titleEn: "Hub Pricing", descZh: "TTF、NBP、THE、ZTP 等枢纽定价和交割逻辑。", descEn: "TTF, NBP, THE, ZTP hub pricing and delivery logic." },
-  { id: "basis", x: 28, y: 38, level: "advanced", titleZh: "基差与价差", titleEn: "Basis & Spreads", descZh: "不同枢纽、时间和交割点之间的价差风险。", descEn: "Spread risk across hubs, tenors, and delivery points." },
-  { id: "physical", x: 34, y: 24, level: "beginner", titleZh: "实货合同", titleEn: "Physical Contracts", descZh: "GSA、EFET、LNG 船货和气化销售的履约义务。", descEn: "GSA, EFET, LNG cargo, and regas sales obligations." },
-  { id: "capacity", x: 24, y: 58, level: "intermediate", titleZh: "运力与路径", titleEn: "Capacity & Routing", descZh: "管输容量、跨境路径、拥堵和日内平衡风险。", descEn: "Pipeline capacity, cross-border routes, congestion, and balancing risk." },
-  { id: "fx", x: 70, y: 44, level: "intermediate", titleZh: "汇率套保", titleEn: "FX Hedge", descZh: "EUR/GBP 和美元计价风险的前锋或掉期处理。", descEn: "Forwards or swaps for EUR/GBP and USD-denominated exposure." },
-  { id: "lng", x: 68, y: 62, level: "beginner", titleZh: "LNG 与气化", titleEn: "LNG & Regas", descZh: "船期、气化窗口、JKM/TTF 转换和期权性。", descEn: "Cargo timing, regas windows, JKM/TTF conversion, and optionality." },
-  { id: "risk", x: 48, y: 72, level: "advanced", titleZh: "风险管理", titleEn: "Risk Management", descZh: "信用、限额、流动性、保证金和执行窗口。", descEn: "Credit, limits, liquidity, margin, and execution windows." },
-  { id: "exchange", x: 76, y: 30, level: "intermediate", titleZh: "EFET / OCM / EEX", titleEn: "EFET / OCM / EEX", descZh: "双边、窗口和交易所工具的适用边界。", descEn: "Where bilateral, window, and exchange instruments fit." },
-  { id: "storage", x: 34, y: 72, level: "beginner", titleZh: "储气与季节性", titleEn: "Storage & Seasonality", descZh: "注采节奏、库存和季节曲线对套保的影响。", descEn: "Injection/withdrawal, inventory, and seasonal curve impacts." }
+  { id: "hub", x: 50, y: 25, level: "intermediate", titleZh: "Hub Pricing", titleEn: "Hub Pricing", descZh: "TTF、NBP、THE、ZTP 等枢纽定价和交割逻辑。", descEn: "TTF, NBP, THE, ZTP hub pricing and delivery logic." },
+  { id: "basis", x: 22, y: 38, level: "advanced", titleZh: "基差与价差", titleEn: "Basis & Spreads", descZh: "不同枢纽、时间和交割点之间的价差风险。", descEn: "Spread risk across hubs, tenors, and delivery points." },
+  { id: "physical", x: 31, y: 18, level: "beginner", titleZh: "实货合同", titleEn: "Physical Contracts", descZh: "GSA、EFET、LNG 船货和气化销售的履约义务。", descEn: "GSA, EFET, LNG cargo, and regas sales obligations." },
+  { id: "capacity", x: 20, y: 62, level: "intermediate", titleZh: "运力与路径", titleEn: "Capacity & Routing", descZh: "管输容量、跨境路径、拥堵和日内平衡风险。", descEn: "Pipeline capacity, cross-border routes, congestion, and balancing risk." },
+  { id: "fx", x: 76, y: 44, level: "intermediate", titleZh: "汇率套保", titleEn: "FX Hedge", descZh: "EUR/GBP 和美元计价风险的前锋或掉期处理。", descEn: "Forwards or swaps for EUR/GBP and USD-denominated exposure." },
+  { id: "lng", x: 76, y: 64, level: "beginner", titleZh: "LNG 与气化", titleEn: "LNG & Regas", descZh: "船期、气化窗口、JKM/TTF 转换和期权性。", descEn: "Cargo timing, regas windows, JKM/TTF conversion, and optionality." },
+  { id: "risk", x: 58, y: 82, level: "advanced", titleZh: "风险管理", titleEn: "Risk Management", descZh: "信用、限额、流动性、保证金和执行窗口。", descEn: "Credit, limits, liquidity, margin, and execution windows." },
+  { id: "exchange", x: 78, y: 22, level: "intermediate", titleZh: "EFET / OCM / EEX", titleEn: "EFET / OCM / EEX", descZh: "双边、窗口和交易所工具的适用边界。", descEn: "Where bilateral, window, and exchange instruments fit." },
+  { id: "storage", x: 36, y: 84, level: "beginner", titleZh: "储气与季节性", titleEn: "Storage & Seasonality", descZh: "注采节奏、库存和季节曲线对套保的影响。", descEn: "Injection/withdrawal, inventory, and seasonal curve impacts." }
+];
+
+const knowledgeFlowLevels = [
+  {
+    id: "foundation",
+    titleZh: "基础认知",
+    titleEn: "Foundation",
+    descZh: "先建立实货、交付和价格基准的语言。",
+    descEn: "Start with physical delivery and benchmark language.",
+    nodes: ["physical", "hub", "lng"]
+  },
+  {
+    id: "exposure",
+    titleZh: "敞口拆分",
+    titleEn: "Exposure Breakdown",
+    descZh: "再拆出地点、期限、运力和季节性错配。",
+    descEn: "Then isolate location, tenor, capacity, and seasonality mismatches.",
+    nodes: ["basis", "capacity", "storage"]
+  },
+  {
+    id: "instruments",
+    titleZh: "工具组合",
+    titleEn: "Instrument Mix",
+    descZh: "把交易所、双边、窗口和汇率工具组合成多腿策略。",
+    descEn: "Combine exchange, bilateral, window, and FX tools into multi-leg hedges.",
+    nodes: ["exchange", "fx"]
+  },
+  {
+    id: "controls",
+    titleZh: "执行复盘",
+    titleEn: "Controls and Review",
+    descZh: "最后用信用、限额、保证金和执行窗口检查策略质量。",
+    descEn: "Finish with credit, limits, margin, and execution-window checks.",
+    nodes: ["risk"]
+  }
 ];
 
 const learningRecordsKey = "commodity-lab-learning-records-v2";
@@ -1583,12 +1618,12 @@ function ProductTopbar({ activePage, aiReady, locale }) {
   );
 }
 
-function ProductSidebar({ activePage, locale, onPageChange }) {
+function ProductSidebar({ activePage, collapsed, locale, onPageChange, onToggleCollapsed }) {
   return (
-    <aside className="cl-sidebar">
+    <aside className={collapsed ? "cl-sidebar collapsed" : "cl-sidebar"}>
       <nav className="cl-main-nav">
         {navItems.map((item) => (
-          <button className={activePage === item.id ? "active" : ""} key={item.id} onClick={() => onPageChange(item.id)} type="button">
+          <button aria-label={labelFor(locale, item)} className={activePage === item.id ? "active" : ""} key={item.id} onClick={() => onPageChange(item.id)} title={labelFor(locale, item)} type="button">
             <Icon name={item.icon} />
             <span>{labelFor(locale, item)}</span>
             {item.badge ? <small>{item.badge}</small> : null}
@@ -1596,9 +1631,12 @@ function ProductSidebar({ activePage, locale, onPageChange }) {
         ))}
       </nav>
       <div className="cl-sidebar-footer">
-        <button className={activePage === pageIds.settings ? "cl-settings-entry active" : "cl-settings-entry"} data-guide="settings-menu" onClick={() => onPageChange(pageIds.settings)} type="button">
+        <button aria-label={t("settings", locale)} className={activePage === pageIds.settings ? "cl-settings-entry active" : "cl-settings-entry"} data-guide="settings-menu" onClick={() => onPageChange(pageIds.settings)} title={t("settings", locale)} type="button">
           <Icon name="settings" />
           <span>{t("settings", locale)}</span>
+        </button>
+        <button aria-label={collapsed ? copy(locale, "展开侧边栏", "Expand sidebar") : copy(locale, "收起侧边栏", "Collapse sidebar")} className="cl-sidebar-collapse" onClick={onToggleCollapsed} title={collapsed ? copy(locale, "展开侧边栏", "Expand sidebar") : copy(locale, "收起侧边栏", "Collapse sidebar")} type="button">
+          <Icon name="arrow" />
         </button>
       </div>
     </aside>
@@ -1855,6 +1893,51 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
   );
 }
 
+function ScenarioThumb({ scenarioId }) {
+  const kind = scenarioId.includes("lng") ? "lng" : scenarioId.includes("eex") || scenarioId.includes("ocm") ? "window" : scenarioId.includes("efet") ? "contract" : scenarioId.includes("beach") || scenarioId.includes("pipeline") ? "pipeline" : "gas";
+  return (
+    <div className={`cl-thumb cl-thumb-${kind}`} aria-hidden="true">
+      <svg viewBox="0 0 144 72" role="img">
+        <rect width="144" height="72" rx="10" fill="rgba(255,255,255,.03)" />
+        <path d="M0 55h144" stroke="rgba(255,255,255,.18)" strokeWidth="1" />
+        {kind === "lng" ? (
+          <>
+            <path d="M21 47h71l-9 11H31Z" fill="rgba(230,244,255,.78)" />
+            <path d="M33 37h34l8 10H27Z" fill="rgba(12,21,34,.72)" />
+            <path d="M98 35h24v23H98zM102 30h16v5h-16z" fill="rgba(104,211,255,.52)" />
+            <path d="M14 60c17-7 32 5 50 0s31-7 65 0" fill="none" stroke="#5fd1ff" strokeWidth="2" />
+          </>
+        ) : kind === "window" ? (
+          <>
+            <rect x="20" y="16" width="64" height="40" rx="6" fill="rgba(3,10,22,.58)" stroke="rgba(255,255,255,.24)" />
+            <path d="M31 45V27M47 45V20M63 45V33M74 45V24" stroke="#52b7ff" strokeWidth="3" />
+            <path d="M92 23h30M92 36h24M92 49h34" stroke="rgba(255,255,255,.52)" strokeWidth="2" />
+          </>
+        ) : kind === "contract" ? (
+          <>
+            <rect x="24" y="13" width="40" height="48" rx="5" fill="rgba(239,246,255,.82)" />
+            <path d="M34 25h20M34 34h18M34 43h13" stroke="#0f3d70" strokeWidth="2" />
+            <path d="M74 43c9-9 16-9 25 0M83 43l8 8 19-19" fill="none" stroke="#3ee6a0" strokeWidth="4" strokeLinecap="round" />
+            <path d="M103 20h21v36h-21z" fill="rgba(54,118,193,.55)" />
+          </>
+        ) : kind === "pipeline" ? (
+          <>
+            <path d="M13 51h118" stroke="#8bd4ff" strokeWidth="8" strokeLinecap="round" />
+            <path d="M33 51V29h20v22M88 51V23h24v28" fill="none" stroke="rgba(255,255,255,.72)" strokeWidth="4" />
+            <path d="M18 36h24M67 36h55" stroke="rgba(255,255,255,.34)" strokeWidth="2" />
+            <path d="M66 22l12 8-12 8" fill="none" stroke="#f8d36f" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        ) : (
+          <>
+            <path d="M30 55V28l18-10 18 10v27M78 55V24l18-8 18 8v31" fill="none" stroke="rgba(255,255,255,.72)" strokeWidth="4" />
+            <path d="M21 55h103" stroke="#5fd1ff" strokeWidth="5" strokeLinecap="round" />
+          </>
+        )}
+      </svg>
+    </div>
+  );
+}
+
 function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadingTemplate, onGenerate, onPageChange }) {
   const [query, setQuery] = useState("");
   const filters = normalizeLocale(locale) === "zh"
@@ -1896,7 +1979,7 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
               return (
               <article className={!item.enabled ? "disabled" : ""} key={item.id}>
                 <div className="cl-scenario-name">
-                  <div className="cl-thumb" />
+                  <ScenarioThumb scenarioId={item.id} />
                   <div>
                     <strong>{copy(locale, item.titleZh, item.titleEn)}</strong>
                     <p>{copy(locale, item.summaryZh, item.summaryEn)}</p>
@@ -1906,7 +1989,7 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
                 <span>{item.commodity === "natural-gas" ? copy(locale, "天然气", "Natural Gas") : copy(locale, "建设中", "Constructing")}</span>
                 <span>{copy(locale, item.difficultyZh, item.difficultyEn)}</span>
                 <span>{item.duration}{item.duration === "--" ? "" : copy(locale, " 分钟", " min")}</span>
-                <span className={progress == null ? "cl-progress-cell is-empty" : "cl-progress-cell"}><i style={{ "--pct": `${progress ?? 0}%` }} /><b>{progress == null ? copy(locale, "未训练", "Not trained") : `${progress}%`}</b></span>
+                <span className={progress == null ? "cl-progress-cell is-empty" : "cl-progress-cell"} style={{ "--pct": `${progress ?? 0}%` }}><b>{progress == null ? copy(locale, "未训练", "Not trained") : `${progress}%`}</b><i><em /></i></span>
                 <span className="cl-row-actions">
                   <button disabled={!item.enabled} onClick={() => onGenerate(item.id || activeTemplateId)} type="button">{progress != null ? copy(locale, "继续", "Continue") : copy(locale, "开始", "Start")}</button>
                   <button disabled={!item.enabled} onClick={() => onPageChange(pageIds.review)} type="button">{copy(locale, "复盘", "Review")}</button>
@@ -2052,6 +2135,7 @@ function ReviewPage({ caseData, evaluation, locale, onGenerateVariant, onPageCha
 
 function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
   const [selected, setSelected] = useState("basis");
+  const nodeById = useMemo(() => Object.fromEntries(knowledgeNodes.map((item) => [item.id, item])), []);
   const node = knowledgeNodes.find((item) => item.id === selected) ?? knowledgeNodes[0];
   const pathItems = [
     ["敞口与目标", "Exposure and Objective"],
@@ -2073,14 +2157,37 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
         action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="sparkles" />{copy(locale, "生成学习路径", "Generate Learning Path")}</button>}
       />
       <div className="cl-knowledge-grid">
-        <section className="cl-panel cl-map-canvas">
-          <div className="cl-map-center"><LogoMark /><strong>{copy(locale, "天然气交易", "Natural Gas Trading")}</strong></div>
-          {knowledgeNodes.map((item) => (
-            <button className={selected === item.id ? `active ${item.level}` : item.level} key={item.id} onClick={() => setSelected(item.id)} style={{ left: `${item.x}%`, top: `${item.y}%` }} type="button">
-              <span>{labelFor(locale, item, "titleZh", "titleEn")}</span>
-              <small>{item.level}</small>
-            </button>
-          ))}
+        <section className="cl-panel cl-learning-map">
+          <div className="cl-learning-map-head">
+            <LogoMark />
+            <div>
+              <strong>{copy(locale, "天然气套保学习顺序", "Gas Hedging Learning Order")}</strong>
+              <span>{copy(locale, "从业务语言到组合交易，再到执行复盘。", "From business language to multi-leg execution and review.")}</span>
+            </div>
+          </div>
+          <div className="cl-learning-flow-map">
+            {knowledgeFlowLevels.map((level, levelIndex) => (
+              <div className={`cl-learning-tier ${level.id}`} key={level.id}>
+                <div className="cl-tier-label">
+                  <b>{levelIndex + 1}</b>
+                  <span>{copy(locale, level.titleZh, level.titleEn)}</span>
+                  <small>{copy(locale, level.descZh, level.descEn)}</small>
+                </div>
+                <div className="cl-tier-nodes">
+                  {level.nodes.map((nodeId) => {
+                    const item = nodeById[nodeId];
+                    if (!item) return null;
+                    return (
+                      <button className={selected === item.id ? `active ${item.level}` : item.level} key={item.id} onClick={() => setSelected(item.id)} type="button">
+                        <span>{labelFor(locale, item, "titleZh", "titleEn")}</span>
+                        <small>{item.level}</small>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
         <aside className="cl-panel cl-topic-panel">
           <div className="cl-panel-heading"><span>{copy(locale, "选中主题", "Selected Topic")}</span><strong>{node.level}</strong></div>
@@ -2391,6 +2498,7 @@ export default function App() {
   const [learningRecords, setLearningRecords] = useState(() => loadLearningRecords());
   const [aiGuidanceAction, setAiGuidanceAction] = useState("");
   const [guideIndex, setGuideIndex] = useState(() => savedValue("commodity-lab-guide-complete", "") ? -1 : 0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => savedValue("commodity-lab-sidebar-collapsed", "") === "1");
   const aiReady = Boolean(providerStatus?.haineng?.ok);
   const learningProgress = useMemo(() => summarizeLearningRecords(learningRecords), [learningRecords]);
 
@@ -2411,6 +2519,13 @@ export default function App() {
     setLearningRecords((current) => {
       const next = [...current, record].slice(-120);
       saveLearningRecords(next);
+      return next;
+    });
+  }
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      localStorage.setItem("commodity-lab-sidebar-collapsed", next ? "1" : "0");
       return next;
     });
   }
@@ -2862,13 +2977,19 @@ export default function App() {
     }
     return <HomePage aiReady={aiReady} learningProgress={learningProgress} loadingTemplate={loadingTemplate} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
   }
+  const shellClassName = [
+    "app-shell",
+    "cl-app-shell",
+    aiReady ? "ai-ready" : "",
+    sidebarCollapsed ? "sidebar-collapsed" : ""
+  ].filter(Boolean).join(" ");
 
   return (
-    <main className={aiReady ? "app-shell cl-app-shell ai-ready" : "app-shell cl-app-shell"}>
+    <main className={shellClassName}>
       <ProductTopbar activePage={activePage} aiReady={aiReady} locale={locale} />
 
       <div className="cl-app-layout">
-        <ProductSidebar activePage={activePage} locale={locale} onPageChange={setActivePage} />
+        <ProductSidebar activePage={activePage} collapsed={sidebarCollapsed} locale={locale} onPageChange={setActivePage} onToggleCollapsed={toggleSidebarCollapsed} />
         <section className="cl-content-shell">
           {generationStages.length && busyAction === "case_generation" ? <GenerationTimeline locale={locale} stages={generationStages} /> : null}
           {aiGuidanceAction ? <p className="cl-ai-guidance"><Icon name="sparkles" />{aiGuidanceAction}</p> : null}
