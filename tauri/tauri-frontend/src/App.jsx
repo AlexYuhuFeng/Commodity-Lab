@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.5";
+const currentVersion = "1.1.6";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -318,6 +318,9 @@ const scenarioLibraryItems = [
   {
     id: "procurement_beach_to_germany",
     commodity: "natural-gas",
+    region: "uk-europe",
+    role: "procurement",
+    riskFocus: "basis-fx-capacity",
     titleZh: "英国上游 Beach Delivery 卖德国",
     titleEn: "UK Beach Delivery sold into Germany",
     summaryZh: "上游 beach 交付资源销售至德国，处理 NBP/TTF 基差、EUR/GBP、运力和 EFET/GSA 匹配。",
@@ -331,6 +334,9 @@ const scenarioLibraryItems = [
   {
     id: "sales_lng_regas",
     commodity: "natural-gas",
+    region: "lng-global",
+    role: "sales",
+    riskFocus: "lng-optionality",
     titleZh: "LNG 船货气化销售下跌行情",
     titleEn: "LNG regas sale during selloff",
     summaryZh: "船货、气化窗口和下游销售之间的价格、基差、期权性和履约风险套保。",
@@ -344,6 +350,9 @@ const scenarioLibraryItems = [
   {
     id: "procurement_eex_ocm_window",
     commodity: "natural-gas",
+    region: "europe-window",
+    role: "procurement",
+    riskFocus: "liquidity-tenor",
     titleZh: "EEX / OCM 窗口采购与纸货匹配",
     titleEn: "EEX / OCM window procurement hedge",
     summaryZh: "围绕窗口成交、期限错配和流动性风险，设计实货采购与掉期/期货组合。",
@@ -357,6 +366,9 @@ const scenarioLibraryItems = [
   {
     id: "sales_efet_bilateral",
     commodity: "natural-gas",
+    region: "europe-bilateral",
+    role: "sales",
+    riskFocus: "credit-basis",
     titleZh: "EFET 双边销售与违约风险",
     titleEn: "Bilateral EFET sale and credit risk",
     summaryZh: "双边合约销售、信用限额、基差、履约和保证金占用的组合套保案例。",
@@ -370,6 +382,9 @@ const scenarioLibraryItems = [
   {
     id: "crude_placeholder",
     commodity: "crude-oil",
+    region: "future",
+    role: "constructing",
+    riskFocus: "constructing",
     titleZh: "原油船货套利冲击",
     titleEn: "Crude cargo arbitrage shock",
     summaryZh: "后续版本开放。",
@@ -381,6 +396,50 @@ const scenarioLibraryItems = [
     enabled: false
   }
 ];
+
+const scenarioFilterDefinitions = [
+  { id: "commodity", labelZh: "商品", labelEn: "Commodity" },
+  { id: "region", labelZh: "地区", labelEn: "Region" },
+  { id: "role", labelZh: "业务角色", labelEn: "Business Role" },
+  { id: "difficulty", labelZh: "难度", labelEn: "Difficulty" },
+  { id: "riskFocus", labelZh: "风险重点", labelEn: "Risk Focus" },
+  { id: "status", labelZh: "状态", labelEn: "Status" }
+];
+
+const scenarioFilterLabels = {
+  commodity: {
+    "natural-gas": ["天然气", "Natural Gas"],
+    "crude-oil": ["原油（建设中）", "Crude Oil (Constructing)"]
+  },
+  region: {
+    "uk-europe": ["英国 / 欧洲", "UK / Europe"],
+    "lng-global": ["LNG 船货", "LNG Cargo"],
+    "europe-window": ["欧洲窗口", "Europe Window"],
+    "europe-bilateral": ["欧洲双边", "Europe Bilateral"],
+    future: ["后续开放", "Future Release"]
+  },
+  role: {
+    procurement: ["采购端", "Procurement"],
+    sales: ["销售端", "Sales"],
+    constructing: ["建设中", "Constructing"]
+  },
+  difficulty: {
+    Intermediate: ["中等", "Intermediate"],
+    Advanced: ["困难", "Advanced"],
+    Constructing: ["建设中", "Constructing"]
+  },
+  riskFocus: {
+    "basis-fx-capacity": ["基差 / 汇率 / 运力", "Basis / FX / Capacity"],
+    "lng-optionality": ["LNG / 可选性", "LNG / Optionality"],
+    "liquidity-tenor": ["流动性 / 期限", "Liquidity / Tenor"],
+    "credit-basis": ["信用 / 基差", "Credit / Basis"],
+    constructing: ["建设中", "Constructing"]
+  },
+  status: {
+    available: ["可训练", "Available"],
+    constructing: ["建设中", "Constructing"]
+  }
+};
 
 const knowledgeNodes = [
   { id: "hub", x: 50, y: 25, level: "intermediate", titleZh: "Hub Pricing", titleEn: "Hub Pricing", descZh: "TTF、NBP、THE、ZTP 等枢纽定价和交割逻辑。", descEn: "TTF, NBP, THE, ZTP hub pricing and delivery logic." },
@@ -1338,7 +1397,7 @@ function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, stra
         <span>{market.unit ?? "--"}</span>
       </div>
       <div className="price-chart-wrap" onMouseLeave={() => setHoverIndex(null)} onMouseMove={onMove}>
-        <svg className="price-chart terminal-chart" role="img" aria-label={t("priceChart", locale)} viewBox={`0 0 ${width} ${height}`}>
+        <svg className="price-chart terminal-chart" role="img" aria-label={t("priceChart", locale)} preserveAspectRatio="none" viewBox={`0 0 ${width} ${height}`}>
           {curves.map((curve, laneIndex) => {
             const stats = curveStats(curve);
             const top = laneTop(laneIndex);
@@ -1590,12 +1649,32 @@ function modelsForTemplate(template) {
   return direct.length ? direct : byGroup;
 }
 
-function LogoMark() {
+function CommodityLogo({ compact = false }) {
   return (
-    <span className="cl-logo-mark" aria-hidden="true">
-      <Icon name="flame" />
+    <span className={compact ? "cl-logo-mark compact" : "cl-logo-mark"} aria-hidden="true">
+      <svg viewBox="0 0 64 64" role="img">
+        <defs>
+          <linearGradient id="commodity-logo-bg" x1="12" x2="52" y1="8" y2="58" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#2f8cff" />
+            <stop offset="0.58" stopColor="#0b6ff1" />
+            <stop offset="1" stopColor="#0aa37f" />
+          </linearGradient>
+          <linearGradient id="commodity-logo-core" x1="22" x2="43" y1="14" y2="48" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#e8f4ff" />
+            <stop offset="1" stopColor="#9ee6ff" />
+          </linearGradient>
+        </defs>
+        <rect x="5" y="5" width="54" height="54" rx="14" fill="url(#commodity-logo-bg)" />
+        <path d="M32 14c6.6 7.2 11.6 13 11.6 22.1C43.6 44 38.6 50 32 50s-11.6-6-11.6-13.9C20.4 27 25.4 21.2 32 14Z" fill="url(#commodity-logo-core)" opacity="0.94" />
+        <path d="M33 23c2.8 3.3 5.1 6.7 5.1 11.2 0 4.9-2.8 8.2-6.8 8.2-3.5 0-6.4-2.6-6.4-6.6 0-2.8 1.7-5.3 4.2-7.5.1 3.3 1.5 5 3.9 5.7.9-3.4.7-6.7 0-11Z" fill="#0b6ff1" opacity="0.9" />
+        <path d="M18 51h28" stroke="#ddf7ff" strokeWidth="3" strokeLinecap="round" opacity="0.84" />
+      </svg>
     </span>
   );
+}
+
+function LogoMark() {
+  return <CommodityLogo />;
 }
 
 function ProductTopbar({ activePage, aiReady, locale }) {
@@ -1606,11 +1685,9 @@ function ProductTopbar({ activePage, aiReady, locale }) {
         <LogoMark />
         <div>
           <strong>Commodity Lab</strong>
-          <span>{copy(locale, "AI 驱动的大宗商品交易训练平台", "AI-powered commodity trading training lab")}</span>
         </div>
       </div>
       <div className="cl-top-actions">
-        <span className="cl-mode-pill"><Icon name="sparkles" />{copy(locale, "训练模式", "Training Mode")}</span>
         <span className="cl-route-pill">{currentPageLabel}</span>
         <AiStatusBadge aiReady={aiReady} locale={locale} />
       </div>
@@ -1938,17 +2015,50 @@ function ScenarioThumb({ scenarioId }) {
   );
 }
 
+function scenarioFilterValue(item, filterId) {
+  if (filterId === "difficulty") return item.difficultyEn;
+  if (filterId === "status") return item.enabled ? "available" : "constructing";
+  return item[filterId] ?? "";
+}
+
+function scenarioFilterLabel(locale, filterId, value) {
+  const label = scenarioFilterLabels[filterId]?.[value];
+  if (label) return copy(locale, label[0], label[1]);
+  return value;
+}
+
+function scenarioFilterOptions(filterId, locale) {
+  const seen = new Set();
+  return scenarioLibraryItems
+    .map((item) => scenarioFilterValue(item, filterId))
+    .filter(Boolean)
+    .filter((value) => {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    })
+    .map((value) => ({ value, label: scenarioFilterLabel(locale, filterId, value) }));
+}
+
 function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadingTemplate, onGenerate, onPageChange }) {
   const [query, setQuery] = useState("");
-  const filters = normalizeLocale(locale) === "zh"
-    ? ["商品", "地区", "业务角色", "难度", "风险重点", "状态"]
-    : ["Commodity", "Region", "Business Role", "Difficulty", "Risk Focus", "Status"];
+  const [filters, setFilters] = useState(() => Object.fromEntries(scenarioFilterDefinitions.map((item) => [item.id, "all"])));
   const visible = scenarioLibraryItems.filter((item) => {
     const text = `${item.titleZh} ${item.titleEn} ${item.summaryZh} ${item.summaryEn} ${item.tags.join(" ")}`.toLowerCase();
-    return text.includes(query.trim().toLowerCase());
+    const matchesSearch = text.includes(query.trim().toLowerCase());
+    const matchesFilters = scenarioFilterDefinitions.every((filter) => filters[filter.id] === "all" || scenarioFilterValue(item, filter.id) === filters[filter.id]);
+    return matchesSearch && matchesFilters;
   });
   const scenarioStat = (item) => learningProgress.scenarioStats[item.id] ?? null;
   const trainedScenarios = Object.values(learningProgress.scenarioStats).filter((stat) => stat.attempts > 0).length;
+  const hasFilters = query.trim() || scenarioFilterDefinitions.some((filter) => filters[filter.id] !== "all");
+  function updateFilter(filterId, value) {
+    setFilters((current) => ({ ...current, [filterId]: value }));
+  }
+  function clearFilters() {
+    setQuery("");
+    setFilters(Object.fromEntries(scenarioFilterDefinitions.map((item) => [item.id, "all"])));
+  }
   return (
     <section className="cl-page cl-library-page">
       <PageTitle
@@ -1967,7 +2077,16 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy(locale, "搜索场景标题、描述、标签或关键词...", "Search scenario titles, descriptions, tags, or keywords...")} />
           </div>
           <div className="cl-filter-row">
-            {filters.map((label) => <select key={label}><option>{copy(locale, `全部${label}`, `All ${label}`)}</option></select>)}
+            {scenarioFilterDefinitions.map((filter) => (
+              <label key={filter.id}>
+                <span>{copy(locale, filter.labelZh, filter.labelEn)}</span>
+                <select value={filters[filter.id]} onChange={(event) => updateFilter(filter.id, event.target.value)}>
+                  <option value="all">{copy(locale, `全部${filter.labelZh}`, `All ${filter.labelEn}`)}</option>
+                  {scenarioFilterOptions(filter.id, locale).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+            ))}
+            {hasFilters ? <button className="cl-clear-filters" onClick={clearFilters} type="button">{copy(locale, "清除筛选", "Clear")}</button> : null}
           </div>
           <div className="cl-scenario-table">
             <div className="cl-scenario-head">
@@ -1997,6 +2116,12 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
               </article>
             );
             })}
+            {!visible.length ? (
+              <div className="cl-empty-table">
+                <strong>{copy(locale, "没有匹配的场景", "No matching scenarios")}</strong>
+                <button onClick={clearFilters} type="button">{copy(locale, "清除筛选", "Clear filters")}</button>
+              </div>
+            ) : null}
           </div>
         </section>
         <aside className="cl-panel cl-library-side">
