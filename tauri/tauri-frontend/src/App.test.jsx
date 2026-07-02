@@ -151,7 +151,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.1.6",
+        current_version: "1.1.7",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -181,7 +181,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.1.6", latest_version: "1.1.6", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.6", assets: [] };
+      return { current_version: "1.1.7", latest_version: "1.1.7", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.7", assets: [] };
     }
     return {};
   };
@@ -406,7 +406,8 @@ describe("Commodity Lab shell", () => {
 
     expect(await screen.findByRole("heading", { name: "Plan" })).toBeInTheDocument();
     expect(screen.queryByText(/###/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Show high/low/close"));
+    expect(screen.getByText("AI is shaping this lesson")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByText("Show high/low/close").at(-1));
     expect(screen.getByText("High")).toHaveClass("active");
     expect(screen.getByText("Low")).toHaveClass("active");
   });

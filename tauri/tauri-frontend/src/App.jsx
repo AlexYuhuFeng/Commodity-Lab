@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.6";
+const currentVersion = "1.1.7";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -380,7 +380,7 @@ const scenarioLibraryItems = [
     enabled: true
   },
   {
-    id: "crude_placeholder",
+    id: "crude_constructing",
     commodity: "crude-oil",
     region: "future",
     role: "constructing",
@@ -683,6 +683,61 @@ function defaultCase(locale) {
 
 function defaultLegs(locale = "zh") {
   return defaultCase(locale).target_actions.map((leg) => ({ ...leg }));
+}
+
+const assistantAutoActionTypes = [
+  "patch_case",
+  "set_market_curves",
+  "set_chart_fields",
+  "set_strategy_legs",
+  "fill_rationale",
+  "set_exam",
+  "set_learning_goal",
+  "navigate_page",
+  "generate_case",
+  "select_template",
+  "run_ai_capability"
+];
+
+const assistantLocalActionTypes = [
+  "patch_case",
+  "set_market_curves",
+  "set_chart_fields",
+  "set_strategy_legs",
+  "fill_rationale",
+  "set_exam",
+  "set_learning_goal",
+  "navigate_page"
+];
+
+function normalizeAssistantLegs(legs) {
+  return (Array.isArray(legs) ? legs : []).map((leg, index) => ({ id: leg.id ?? `assistant-leg-${index}`, ...leg }));
+}
+
+function mergeCasePatch(currentCase, patch) {
+  const next = { ...(currentCase ?? defaultCase("zh")) };
+  if (patch.scenario && typeof patch.scenario === "object") {
+    next.scenario = {
+      ...(next.scenario ?? {}),
+      ...patch.scenario,
+      exposure: {
+        ...(next.scenario?.exposure ?? {}),
+        ...(patch.scenario.exposure ?? {})
+      }
+    };
+  }
+  if (patch.market && typeof patch.market === "object") {
+    next.market = {
+      ...(next.market ?? {}),
+      ...patch.market,
+      curves: Array.isArray(patch.market.curves) ? patch.market.curves : next.market?.curves,
+      events: Array.isArray(patch.market.events) ? patch.market.events : next.market?.events
+    };
+  }
+  if (Array.isArray(patch.target_actions)) next.target_actions = patch.target_actions;
+  if (Array.isArray(patch.rubric)) next.rubric = patch.rubric;
+  if (typeof patch.prompt === "string" && patch.prompt.trim()) next.prompt = patch.prompt;
+  return next;
 }
 
 function providerCatalog(status) {
@@ -1325,6 +1380,16 @@ function GenerationTimeline({ locale, stages }) {
   );
 }
 
+function chartFieldLabel(field, locale) {
+  const labels = {
+    close: { zh: "收盘", en: "Close" },
+    high: { zh: "最高", en: "High" },
+    low: { zh: "最低", en: "Low" }
+  };
+  const label = labels[field];
+  return label ? copy(locale, label.zh, label.en) : field;
+}
+
 function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, strategyLegs }) {
   const market = caseData.market ?? {};
   const curves = market.curves ?? [];
@@ -1391,7 +1456,7 @@ function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, stra
       <div className="chart-toolbar">
         <div className="segmented compact">
           {chartFields.map((field) => (
-            <button className={fieldSelection.includes(field) ? "active" : ""} key={field} onClick={() => toggleField(field)} type="button">{t(field, locale)}</button>
+            <button className={fieldSelection.includes(field) ? "active" : ""} key={field} onClick={() => toggleField(field)} type="button">{chartFieldLabel(field, locale)}</button>
           ))}
         </div>
         <span>{market.unit ?? "--"}</span>
@@ -2487,7 +2552,7 @@ function SettingsPage({ locale, settingsPanel }) {
   );
 }
 
-function FloatingAssistant({ activePage, aiReady, applyAction, locale, messages, onSend, thinking }) {
+function FloatingAssistant({ activePage, aiReady, applyAction, interventions, locale, messages, onOpen, onSend, thinking }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const currentPage = navItems.find((item) => item.id === activePage);
@@ -2513,6 +2578,12 @@ function FloatingAssistant({ activePage, aiReady, applyAction, locale, messages,
             </div>
             <button className="icon-button" aria-label={t("close", locale)} onClick={() => setOpen(false)} type="button"><Icon name="close" /></button>
           </header>
+          {interventions?.length ? (
+            <div className="assistant-interventions">
+              <span>{copy(locale, "AI 刚刚改动", "Recent AI changes")}</span>
+              {interventions.slice(0, 3).map((item) => <button key={item.id} onClick={() => item.page ? applyAction({ type: "navigate_page", payload: { page: item.page } }) : null} type="button"><Icon name="sparkles" />{item.label}</button>)}
+            </div>
+          ) : null}
           <div className="assistant-messages">
             {messages.length ? messages.map((message, index) => (
               <article className={message.role} key={index}>
@@ -2535,7 +2606,11 @@ function FloatingAssistant({ activePage, aiReady, applyAction, locale, messages,
           <form onSubmit={submit}><textarea disabled={!aiReady || thinking} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={t("assistantPlaceholder", locale)} /><button className="primary" disabled={!aiReady || thinking || !draft.trim()} type="submit">{thinking ? t("loading", locale) : t("send", locale)}</button></form>
         </section>
       ) : null}
-      <button className="assistant-orb" aria-expanded={open} aria-label={t("liveAssistant", locale)} onClick={() => setOpen((current) => !current)} type="button">
+      <button className="assistant-orb" aria-expanded={open} aria-label={t("liveAssistant", locale)} onClick={() => setOpen((current) => {
+        const next = !current;
+        if (next) onOpen?.();
+        return next;
+      })} type="button">
         <span className={aiReady ? "assistant-status-dot online" : "assistant-status-dot"} />
         <strong>AI</strong>
         <small>{copy(locale, "助手", "Coach")}</small>
@@ -2622,6 +2697,7 @@ export default function App() {
   const [assistantMessages, setAssistantMessages] = useState([]);
   const [learningRecords, setLearningRecords] = useState(() => loadLearningRecords());
   const [aiGuidanceAction, setAiGuidanceAction] = useState("");
+  const [aiInterventions, setAiInterventions] = useState([]);
   const [guideIndex, setGuideIndex] = useState(() => savedValue("commodity-lab-guide-complete", "") ? -1 : 0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => savedValue("commodity-lab-sidebar-collapsed", "") === "1");
   const aiReady = Boolean(providerStatus?.haineng?.ok);
@@ -2657,8 +2733,17 @@ export default function App() {
   function showAiGuidance(message) {
     setAiGuidanceAction(message);
     window.clearTimeout(showAiGuidance.timer);
-    showAiGuidance.timer = window.setTimeout(() => setAiGuidanceAction(""), 2600);
+    showAiGuidance.timer = window.setTimeout(() => setAiGuidanceAction(""), 3600);
   }
+
+  function recordAiIntervention(label, page = pageIds.workbench) {
+    const item = { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, label, page };
+    setAiInterventions((current) => [item, ...current].slice(0, 5));
+  }
+
+  useEffect(() => {
+    if (aiInterventions.length && guideIndex >= 0) completeGuide();
+  }, [aiInterventions.length, guideIndex]);
 
   useEffect(() => {
     const shortcutPages = [
@@ -2962,7 +3047,12 @@ export default function App() {
       });
       const actions = payload.actions ?? [];
       setAssistantMessages((current) => [...current, { role: "assistant", content: payload.answer, actions }]);
-      actions.filter((action) => ["navigate_page", "set_chart_fields", "set_exam", "generate_case", "select_template", "run_ai_capability"].includes(action.type)).slice(0, 1).forEach(applyAssistantAction);
+      const actionable = actions
+        .filter((action) => assistantAutoActionTypes.includes(action.type))
+        .sort((a, b) => assistantAutoActionTypes.indexOf(a.type) - assistantAutoActionTypes.indexOf(b.type));
+      const localActions = actionable.filter((action) => assistantLocalActionTypes.includes(action.type));
+      const generationActions = actionable.filter((action) => !assistantLocalActionTypes.includes(action.type));
+      (localActions.length ? localActions.slice(0, 8) : generationActions.slice(0, 1)).forEach(applyAssistantAction);
     } catch (error) {
       setAssistantMessages((current) => [...current, { role: "assistant", content: formatErrorMessage(error, locale), actions: [] }]);
     } finally {
@@ -2974,37 +3064,79 @@ export default function App() {
     const payload = action.payload ?? {};
     if (action.type === "select_template" && payload.template_id) {
       generateTrainingCase(payload.template_id, payload.user_request ?? "");
+      recordAiIntervention(action.label ?? copy(locale, "生成课程练习", "Generated a course drill"), pageIds.workbench);
       showAiGuidance(copy(locale, "AI 正在按课程生成练习。", "AI is generating a course drill."));
     }
     if (action.type === "generate_case") {
       const track = learningTracks.find((item) => item.id === payload.track_id) ?? learningTracks[0];
       generateTrainingCase(payload.template_id ?? track.templateId, payload.user_request ?? copy(locale, track.requestZh, track.requestEn));
+      recordAiIntervention(action.label ?? copy(locale, "生成新训练题", "Generated a new drill"), pageIds.workbench);
       showAiGuidance(copy(locale, "AI 正在生成新练习并打开工作台。", "AI is generating a new drill and opening the workbench."));
+    }
+    if (action.type === "patch_case") {
+      setCaseData((current) => mergeCasePatch(current, payload));
+      if (Array.isArray(payload.target_actions)) setStrategyLegs(normalizeAssistantLegs(payload.target_actions));
+      if (typeof payload.rationale === "string" && payload.rationale.trim()) setRationale(payload.rationale);
+      if (Array.isArray(payload.chart_fields)) {
+        const fields = payload.chart_fields.filter((field) => chartFields.includes(field));
+        if (fields.length) setFieldSelection(fields);
+      }
+      setEvaluation(null);
+      setAdvisorFeedback("");
+      setAiOutput(null);
+      setActivePage(pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "改写当前题目和参考动作", "Updated the current case and target actions"), pageIds.workbench);
+      showAiGuidance(copy(locale, "AI 已直接改写当前题目、曲线或评分规则。", "AI directly updated the current case, curve, or rubric."));
+    }
+    if (action.type === "set_market_curves" && Array.isArray(payload.curves)) {
+      setCaseData((current) => ({
+        ...current,
+        market: {
+          ...(current.market ?? {}),
+          unit: payload.unit ?? current.market?.unit,
+          curves: payload.curves,
+          events: Array.isArray(payload.events) ? payload.events : current.market?.events
+        }
+      }));
+      setActivePage(pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "重绘市场曲线", "Redrew market curves"), pageIds.workbench);
+      showAiGuidance(copy(locale, "AI 已根据你的要求重绘训练行情。", "AI redrew the training market for your request."));
+    }
+    if (action.type === "set_learning_goal" && payload.goal) {
+      setAiOutput({ title: copy(locale, "AI 学习目标", "AI Learning Goal"), answer: `### ${payload.goal}\n\n${Array.isArray(payload.focus) ? payload.focus.map((item) => `- ${item}`).join("\n") : ""}` });
+      setActivePage(pageIds.home);
+      recordAiIntervention(action.label ?? copy(locale, "调整学习目标", "Updated learning goal"), pageIds.home);
+      showAiGuidance(copy(locale, "AI 已更新当前学习目标。", "AI updated the current learning goal."));
     }
     if (action.type === "navigate_page" && (pageIds[payload.page] || Object.values(pageIds).includes(payload.page))) {
       const page = pageIds[payload.page] ?? payload.page;
       setActivePage(page);
+      recordAiIntervention(action.label ?? copy(locale, "切换页面", "Navigated page"), page);
       showAiGuidance(copy(locale, "AI 已切换到对应页面。", "AI navigated to the requested page."));
     }
     if (action.type === "set_chart_fields" && Array.isArray(payload.fields)) {
       const fields = payload.fields.filter((field) => chartFields.includes(field));
       setFieldSelection(fields.length ? fields : ["close"]);
       setActivePage(pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "调整图表字段", "Adjusted chart fields"), pageIds.workbench);
       showAiGuidance(copy(locale, "AI 已切到工作台并调整图表字段。", "AI opened the workbench and adjusted chart fields."));
     }
     if (action.type === "set_strategy_legs" && Array.isArray(payload.legs)) {
-      setStrategyLegs(payload.legs.map((leg, index) => ({ id: leg.id ?? `assistant-leg-${index}`, ...leg })));
+      setStrategyLegs(normalizeAssistantLegs(payload.legs));
       setActivePage(pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "填入组合套保动作", "Filled hedge legs"), pageIds.workbench);
       showAiGuidance(copy(locale, "AI 已把建议策略腿填入工作台，请你检查后再提交。", "AI filled suggested legs in the workbench. Review before submitting."));
     }
     if (action.type === "fill_rationale" && payload.text) {
       setRationale(payload.text);
       setActivePage(pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "起草策略说明", "Drafted rationale"), pageIds.workbench);
       showAiGuidance(copy(locale, "AI 已填入策略说明草稿。", "AI filled a rationale draft."));
     }
     if (action.type === "set_exam" && payload.exam) {
       setExam(payload.exam);
       setActivePage(pageIds.review);
+      recordAiIntervention(action.label ?? copy(locale, "生成测验并打开复盘", "Generated quiz"), pageIds.review);
       showAiGuidance(copy(locale, "AI 已创建测验并打开复盘页。", "AI created a quiz and opened Review."));
     }
     if (action.type === "run_ai_capability" && payload.capability) runAiAction(payload.capability);
@@ -3118,12 +3250,18 @@ export default function App() {
         <section className="cl-content-shell">
           {generationStages.length && busyAction === "case_generation" ? <GenerationTimeline locale={locale} stages={generationStages} /> : null}
           {aiGuidanceAction ? <p className="cl-ai-guidance"><Icon name="sparkles" />{aiGuidanceAction}</p> : null}
+          {aiInterventions.length ? (
+            <div className="cl-ai-intervention-strip">
+              <span>{copy(locale, "AI 已介入当前学习", "AI is shaping this lesson")}</span>
+              {aiInterventions.slice(0, 3).map((item) => <button key={item.id} onClick={() => item.page ? setActivePage(item.page) : null} type="button"><Icon name="sparkles" />{item.label}</button>)}
+            </div>
+          ) : null}
           {serviceMessage && activePage !== pageIds.settings ? <p className="cl-service-banner">{serviceMessage}</p> : null}
           {renderActivePage()}
         </section>
       </div>
 
-      <FloatingAssistant activePage={activePage} aiReady={aiReady} applyAction={applyAssistantAction} locale={locale} messages={assistantMessages} onSend={sendAssistant} thinking={busyAction === "assistant"} />
+      <FloatingAssistant activePage={activePage} aiReady={aiReady} applyAction={applyAssistantAction} interventions={aiInterventions} locale={locale} messages={assistantMessages} onOpen={completeGuide} onSend={sendAssistant} thinking={busyAction === "assistant"} />
 
       {guideIndex >= 0 ? (
         <GuidedOverlay

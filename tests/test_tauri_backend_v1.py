@@ -174,7 +174,7 @@ def test_provider_settings_endpoint_accepts_deepseek_contract(monkeypatch) -> No
 def test_context_endpoint_returns_market_and_capacity() -> None:
     response = client.get(
         "/api/v1/scenarios/europe_route_capacity_constraint/context",
-        params={"locale": "en", "source": "sample"},
+        params={"locale": "en", "source": "ai_generated_training"},
     )
     assert response.status_code == 200
     payload = response.json()
@@ -216,17 +216,17 @@ def test_evaluate_endpoint_returns_deterministic_result() -> None:
     assert evaluation["score_inputs"]["actual_side"] == "sell"
 
 
-def test_ai_generate_requires_haineng_when_missing(monkeypatch) -> None:
+def test_ai_generate_requires_provider_when_missing(monkeypatch) -> None:
     _clear_haineng_env(monkeypatch)
     response = client.post(
         "/api/v1/ai/generate",
         json={"capability": "case_generation", "scenario_id": "europe_ttf_nbp_spread", "locale": "en"},
     )
     assert response.status_code == 428
-    assert "Haineng is required" in response.json()["detail"]
+    assert "AI provider is required" in response.json()["detail"]
 
 
-def test_compat_advisor_and_exam_require_haineng_when_missing(monkeypatch) -> None:
+def test_compat_advisor_and_exam_require_provider_when_missing(monkeypatch) -> None:
     _clear_haineng_env(monkeypatch)
     advisor_response = client.post(
         "/api/v1/advisor/review",
@@ -271,7 +271,7 @@ def test_ai_capabilities_cover_realistic_europe_gas_workflows(monkeypatch) -> No
             return "Decision diagnosis: hedge side and basis risk reviewed."
 
     monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
-    base_payload = {"scenario_id": "europe_ttf_nbp_spread", "locale": "en", "source": "sample"}
+    base_payload = {"scenario_id": "europe_ttf_nbp_spread", "locale": "en", "source": "ai_generated_training"}
     requests = [
         {**base_payload, "capability": "case_generation", "user_request": "Build a case for TTF/NBP spread margin training."},
         {**base_payload, "capability": "event_drill", "event_context": "Norwegian offshore maintenance reduces flows into Northwest Europe."},
@@ -434,7 +434,7 @@ def test_haineng_provider_failure_returns_structured_502(monkeypatch) -> None:
     )
     assert response.status_code == 502
     detail = response.json()["detail"]
-    assert detail["code"] == "haineng_request_failed"
+    assert detail["code"] == "ai_provider_request_failed"
     assert "secret-key" not in str(detail)
     assert "96a2" not in str(detail)
     assert "sk-abcdef1234567890" not in str(detail)

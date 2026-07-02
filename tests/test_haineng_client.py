@@ -109,7 +109,7 @@ def test_persisted_settings_survive_runtime_reset(monkeypatch: pytest.MonkeyPatc
 def test_unconfigured_complete_raises() -> None:
     client = HainengClient(HainengSettings())
 
-    with pytest.raises(RuntimeError, match="Haineng is not configured."):
+    with pytest.raises(RuntimeError, match="AI provider is not configured."):
         client.complete([{"role": "user", "content": "hello"}])
 
 
@@ -120,7 +120,7 @@ def test_health_check_reports_configuration_only() -> None:
     ).health_check()
 
     assert missing["ok"] is False
-    assert missing["reason"] == "missing_haineng_settings"
+    assert missing["reason"] == "missing_ai_provider_settings"
     assert configured["ok"] is True
     assert configured["configured"] is True
     assert "resolved_model" in configured

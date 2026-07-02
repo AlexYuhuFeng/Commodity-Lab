@@ -356,8 +356,7 @@ textarea:focus {
 }
 
 .category-tabs,
-.scenario-list,
-.source-strip {
+.scenario-list {
   display: grid;
   gap: 8px;
 }
@@ -429,31 +428,6 @@ textarea:focus {
   line-height: 1.25;
   text-overflow: clip;
   white-space: normal;
-}
-
-.source-pill {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border: 1px solid rgba(51, 65, 85, 0.88);
-  border-radius: 7px;
-  padding: 8px 9px;
-  background: rgba(10, 16, 24, 0.9);
-}
-
-.source-pill strong {
-  color: #e2e8f0;
-  font-size: 12px;
-}
-
-.source-pill small {
-  color: #94a3b8;
-  font-size: 11px;
-}
-
-.source-pill.active {
-  border-color: rgba(125, 211, 252, 0.7);
 }
 
 .workspace-main {
@@ -540,14 +514,6 @@ textarea:focus {
 
 .compact-title {
   margin-bottom: 8px;
-}
-
-.source-meta {
-  overflow: hidden;
-  color: #7b8d91;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .price-chart-wrap {
@@ -1119,6 +1085,19 @@ textarea:focus {
   border-color: rgba(31, 122, 255, 0.2);
   color: #075985;
   background: rgba(31, 122, 255, 0.08);
+}
+
+[data-theme="light"] .cl-ai-intervention-strip button,
+[data-theme="light"] .assistant-interventions button {
+  color: #0f172a;
+  border-color: rgba(37, 99, 235, 0.22);
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .assistant-interventions {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent);
+  border-bottom-color: rgba(15, 23, 42, 0.1);
 }
 
 [data-theme="light"] .assistant-panel header span,
@@ -1749,6 +1728,36 @@ textarea:focus {
   margin-top: 9px;
 }
 
+.assistant-interventions {
+  display: grid;
+  gap: 6px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.62);
+  padding: 9px 10px;
+  background: linear-gradient(90deg, rgba(24, 195, 126, 0.08), transparent);
+}
+
+.assistant-interventions span {
+  color: var(--cl-muted);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.assistant-interventions button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  min-height: 30px;
+  border: 1px solid rgba(45, 212, 191, 0.28);
+  border-radius: 7px;
+  padding: 6px 8px;
+  color: var(--cl-text);
+  background: rgba(15, 23, 42, 0.5);
+  font-size: 12px;
+  font-weight: 720;
+  text-align: left;
+}
+
 .assistant-actions button {
   min-height: 32px;
   border: 1px solid rgba(45, 212, 191, 0.45);
@@ -2172,7 +2181,6 @@ body {
 .rubric-list article,
 .strategy-leg,
 .curve-table span,
-.source-pill,
 .status-line {
   border-color: var(--cl-border);
   border-radius: var(--cl-radius);
@@ -2236,7 +2244,6 @@ body {
 .settings-note,
 .release-link,
 .curve-table small,
-.source-meta,
 .service-error.muted {
   color: var(--cl-muted);
 }
@@ -3082,6 +3089,48 @@ button:focus-visible {
   border-color: rgba(24, 195, 126, 0.28);
   font-size: 13px;
   font-weight: 720;
+}
+
+.cl-ai-intervention-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin: 0 0 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.cl-ai-intervention-strip > span {
+  flex: 0 0 auto;
+  color: var(--cl-muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.cl-ai-intervention-strip button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 30px;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: #dffcf6;
+  background: linear-gradient(90deg, rgba(5, 46, 43, 0.72), rgba(21, 35, 66, 0.72));
+  font-size: 12px;
+  font-weight: 760;
+  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.04), 0 10px 30px rgba(14, 165, 233, 0.08);
+}
+
+.cl-ai-intervention-strip button:first-of-type {
+  animation: aiInterventionPulse 1400ms ease-out 1;
+}
+
+@keyframes aiInterventionPulse {
+  0% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.42); }
+  100% { box-shadow: 0 0 0 14px rgba(45, 212, 191, 0); }
 }
 
 .cl-panel {
@@ -6340,7 +6389,7 @@ button:disabled {
   }
 }
 
-/* v1.1.6 UX consolidation: Codex-like chrome, real filters, and stable desktop workbench layout. */
+/* UX consolidation: Codex-like chrome, real filters, and stable desktop workbench layout. */
 .app-shell.cl-app-shell,
 .app-shell.cl-app-shell.ai-ready {
   grid-template-rows: 42px minmax(0, 1fr) !important;
