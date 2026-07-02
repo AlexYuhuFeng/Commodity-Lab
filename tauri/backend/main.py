@@ -211,7 +211,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.1.6",
+        "current_version": "1.1.7",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -220,7 +220,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.1.6"
+    current_version = "1.1.7"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -361,7 +361,7 @@ def assistant_query(payload: Dict):
 
         client = HainengClient()
         if not client.is_configured():
-            raise HTTPException(status_code=428, detail="Haineng is required for AI mode.")
+            raise HTTPException(status_code=428, detail="AI provider is required for AI mode.")
         history_text = "\n".join(
             f"Q: {entry.get('question', '')}\nA: {entry.get('answer', '')}"
             for entry in (history or [])[-5:]
@@ -422,7 +422,7 @@ def _haineng_failure(exc: Exception) -> HTTPException:
     message = _redact_provider_error(str(exc))
     return HTTPException(
         status_code=502,
-        detail={"code": "haineng_request_failed", "message": "Haineng request failed.", "provider_message": message},
+        detail={"code": "ai_provider_request_failed", "message": "AI provider request failed.", "provider_message": message},
     )
 
 
@@ -442,7 +442,7 @@ def _require_haineng_client():
 
     client = HainengClient()
     if not client.is_configured():
-        raise HTTPException(status_code=428, detail="Haineng is required for AI Full Power Mode.")
+        raise HTTPException(status_code=428, detail="AI provider is required for AI Full Power Mode.")
     return client
 
 
@@ -513,7 +513,7 @@ def v1_list_scenarios(locale: str = "en"):
 
 
 @app.get("/api/v1/scenarios/{scenario_id}/context")
-def v1_scenario_context(scenario_id: str, locale: str = "en", source: str = "sample"):
+def v1_scenario_context(scenario_id: str, locale: str = "en", source: str = "ai_generated_training"):
     from core.gas_scenarios import get_capacity_context, get_market_context, get_scenario
 
     try:
@@ -707,6 +707,21 @@ def v1_ai_live_assistant(payload: LiveAssistantRequest):
         "navigate_page": {"page": "home|caseLab|workbench|library|review|knowledge|progress|settings"},
         "generate_case": {"track_id": "foundation|procurement|sales|integrated", "template_id": "foundation_hedging_basics", "user_request": "short training goal"},
         "select_template": {"template_id": "foundation_hedging_basics", "user_request": "optional training goal"},
+        "patch_case": {
+            "scenario": {"title": "short title", "summary": "updated scenario summary", "exposure": {"direction": "buy|sell|spread", "risk": "key risk"}},
+            "market": {"unit": "training index", "events": [{"date": "2026-01-07", "label": "event"}]},
+            "target_actions": [{"leg_type": "physical|swap|basis|fx|capacity", "market": "TTF", "side": "buy|sell", "quantity": 10000, "tenor": "M+1"}],
+            "rubric": [{"id": "risk", "label": "Risk explanation", "points": 25, "rule": "what earns points"}],
+            "prompt": "Markdown decision task",
+            "rationale": "draft rationale",
+            "chart_fields": ["close", "high", "low"],
+        },
+        "set_market_curves": {
+            "curves": [{"id": "TTF", "label": "TTF", "color": "#38bdf8", "points": [{"date": "2026-01-05", "open": 31, "high": 33, "low": 30, "close": 32}]}],
+            "events": [{"date": "2026-01-07", "label": "shock"}],
+            "unit": "training index",
+        },
+        "set_learning_goal": {"goal": "short goal", "focus": ["basis", "fx", "capacity"]},
         "set_chart_fields": {"fields": ["high", "low", "close"]},
         "set_strategy_legs": {"legs": [{"leg_type": "physical|swap|future|basis|fx|capacity|option", "market": "TTF", "side": "sell", "quantity": 10000}]},
         "fill_rationale": {"text": "string"},

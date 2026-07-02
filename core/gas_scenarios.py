@@ -365,7 +365,7 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
     },
 ]
 
-_SAMPLE_PRICE_POINTS: dict[str, list[dict[str, Any]]] = {
+_AI_TRAINING_PRICE_POINTS: dict[str, list[dict[str, Any]]] = {
     "europe_ttf_nbp_spread": [
         {"date": "2026-01-05", "close": 3.02},
         {"date": "2026-01-06", "close": 3.08},
@@ -512,7 +512,7 @@ def get_scenario(scenario_id: str, locale: str = "en") -> dict[str, Any]:
     return _localize_scenario(scenario, active_locale)
 
 
-def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, Any]:
+def get_market_context(scenario_id: str, source: str = _AI_GENERATED_SOURCE) -> dict[str, Any]:
     """Return deterministic AI-training market context for a scenario.
 
     V1 now treats market context as AI-generated training data. This function is
@@ -521,7 +521,7 @@ def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, An
     """
     _ = source
     scenario = _find_scenario(scenario_id)
-    points = _SAMPLE_PRICE_POINTS.get(scenario_id)
+    points = _AI_TRAINING_PRICE_POINTS.get(scenario_id)
     if points is None:
         raise KeyError(f"No market context is configured for scenario '{scenario_id}'.")
 
@@ -537,7 +537,7 @@ def get_market_context(scenario_id: str, source: str = "sample") -> dict[str, An
 
 
 def get_capacity_context(scenario_id: str) -> dict[str, Any]:
-    """Return sample capacity and flow context for pipeline-aware scenarios."""
+    """Return training capacity and flow context for pipeline-aware scenarios."""
     scenario = _find_scenario(scenario_id)
     context = _CAPACITY_CONTEXTS.get(scenario_id)
     if context is not None:
@@ -579,7 +579,7 @@ def _build_ai_generated_market_context(
     }
     if is_fallback:
         context["metadata"]["fallback_reason"] = (
-            fallback_reason or "Only deterministic sample data is available in V1."
+            fallback_reason or "Only AI-generated training data is available in V1."
         )
     return context
 
@@ -683,7 +683,7 @@ def _build_default_capacity_context(scenario: dict[str, Any]) -> dict[str, Any]:
     else:
         receipt_point = "Henry Hub Receipt"
         delivery_point = "Scenario Delivery"
-        pipeline_name = "Sample Natural Gas Flow"
+        pipeline_name = "Training Natural Gas Flow"
 
     return {
         "scenario_id": scenario["id"],

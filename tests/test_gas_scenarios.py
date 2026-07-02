@@ -153,8 +153,8 @@ def test_capacity_context_is_available_for_every_enabled_scenario():
         assert context["flow_edges"]
 
 
-def test_sample_market_context_for_route_capacity_has_prices():
-    context = get_market_context("europe_route_capacity_constraint", source="sample")
+def test_ai_training_market_context_for_route_capacity_has_prices():
+    context = get_market_context("europe_route_capacity_constraint", source="ai_generated_training")
 
     assert context["source"] == "ai_generated_training"
     assert context["source_label"] == "AI Generated Training Data"

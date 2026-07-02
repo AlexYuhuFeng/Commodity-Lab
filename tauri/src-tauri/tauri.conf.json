@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "package": {
     "productName": "Commodity Lab",
-    "version": "1.1.6"
+    "version": "1.1.7"
   },
   "build": {
     "distDir": "../tauri-frontend/dist",
