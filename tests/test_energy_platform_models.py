@@ -18,7 +18,8 @@ def test_energy_modules_are_europe_gas_first_and_extensible() -> None:
     assert set(modules) == {"natural_gas", "crude_oil", "oil_products", "carbon", "power"}
     assert modules["natural_gas"]["status"] == "enabled"
     assert modules["natural_gas"]["enabled_regions"] == ["europe"]
-    assert modules["crude_oil"]["status"] == "constructing"
+    assert modules["crude_oil"]["status"] == "enabled"
+    assert modules["crude_oil"]["enabled_regions"] == ["global"]
     assert modules["oil_products"]["status"] == "constructing"
     assert modules["carbon"]["status"] == "constructing"
     assert modules["power"]["status"] == "constructing"

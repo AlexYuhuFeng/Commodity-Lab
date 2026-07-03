@@ -1,4 +1,4 @@
-"""Business and knowledge-point templates for AI-generated gas training cases."""
+"""Business and knowledge-point templates for AI-generated commodity training cases."""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -36,6 +36,22 @@ _KNOWLEDGE_POINTS: list[dict[str, Any]] = [
         "description": {
             "en": "Separate outright commodity price risk from location, hub, tenor, unit, and FX basis.",
             "zh": "区分绝对价格风险与地点、枢纽、期限、单位和汇率基差风险。",
+        },
+    },
+    {
+        "id": "crude_benchmark_basis",
+        "label": {"en": "Crude benchmark, grade, and location basis", "zh": "原油基准、品级与地点基差"},
+        "description": {
+            "en": "Separate Brent, WTI, Dubai, grade differential, delivery location, and loading-window effects.",
+            "zh": "拆分 Brent、WTI、Dubai、品级贴水、交割地点和装船窗口影响。",
+        },
+    },
+    {
+        "id": "inventory_freight_roll",
+        "label": {"en": "Inventory, freight, and roll risk", "zh": "库存、运费与展期风险"},
+        "description": {
+            "en": "Check holding period, chartering or pipeline cost, margin, credit, and futures roll risk.",
+            "zh": "检查持有期、租船或管输成本、保证金、信用和期货展期风险。",
         },
     },
     {
@@ -83,6 +99,7 @@ _KNOWLEDGE_POINTS: list[dict[str, Any]] = [
 
 _BUSINESS_GROUPS: list[dict[str, Any]] = [
     {"id": "foundation", "label": {"en": "Foundations", "zh": "套保基础"}},
+    {"id": "crude", "label": {"en": "Crude oil hedging", "zh": "原油套保"}},
     {"id": "procurement", "label": {"en": "Procurement", "zh": "采购端"}},
     {"id": "sales", "label": {"en": "Sales", "zh": "销售端"}},
     {"id": "integrated", "label": {"en": "Integrated strategy", "zh": "组合策略"}},
@@ -105,6 +122,42 @@ _TEMPLATES: list[dict[str, Any]] = [
         "required_curves": ["TTF", "TRAINING_HEDGE_INDEX"],
         "suggested_leg_types": ["physical", "swap"],
         "lesson_sequence": ["identify exposure", "choose hedge side", "match quantity and tenor", "explain residual risk"],
+    },
+    {
+        "id": "crude_oil_hedging_basics",
+        "group": "crude",
+        "business_type": {"en": "Crude procurement / sales hedging", "zh": "原油采购/销售套保"},
+        "title": {"en": "How should Brent / WTI exposure be hedged?", "zh": "Brent / WTI 敞口如何套保？"},
+        "summary": {
+            "en": "A crude oil case covering physical cargo exposure, futures or swaps, calendar and grade basis, inventory, freight, and risk controls.",
+            "zh": "原油套保案例：覆盖实货船货敞口、期货或掉期、月差与品级基差、库存、运费和风控检查。",
+        },
+        "coverage": [
+            "exposure_objective",
+            "physical_paper_matching",
+            "outright_price",
+            "basis_spread",
+            "crude_benchmark_basis",
+            "inventory_freight_roll",
+            "risk_controls",
+        ],
+        "gas_models": ["crude_cargo_hedge", "crude_calendar_basis", "crude_inventory_hedge"],
+        "knowledge_points": [
+            "exposure_objective",
+            "physical_paper_matching",
+            "outright_price",
+            "crude_benchmark_basis",
+            "inventory_freight_roll",
+            "risk_controls",
+        ],
+        "required_curves": ["BRENT", "WTI", "DUBAI", "BRENT_WTI_SPREAD"],
+        "suggested_leg_types": ["physical", "future", "swap", "basis"],
+        "lesson_sequence": [
+            "map crude benchmark and physical exposure",
+            "separate flat price from grade/location/calendar basis",
+            "match physical cargo or inventory with futures/swaps",
+            "check freight, margin, roll, credit, and execution risk",
+        ],
     },
     {
         "id": "procurement_beach_to_germany",

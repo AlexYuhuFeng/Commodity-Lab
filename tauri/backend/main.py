@@ -211,7 +211,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.1.7",
+        "current_version": "1.1.8",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -220,7 +220,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.1.7"
+    current_version = "1.1.8"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -250,8 +250,8 @@ def v1_catalog(locale: str = "en"):
     return {
         "modules": list_energy_modules(locale=locale),
         "ai_capabilities": list_ai_capabilities(locale=locale),
-        "current_focus": {"commodity": "natural_gas", "region": "europe", "status": "enabled"},
-        "future_modules": ["crude_oil", "oil_products", "carbon", "power"],
+        "current_focus": {"commodities": ["natural_gas", "crude_oil"], "region": "europe_global", "status": "enabled"},
+        "future_modules": ["oil_products", "carbon", "power"],
     }
 
 
@@ -705,12 +705,12 @@ def v1_ai_live_assistant(payload: LiveAssistantRequest):
     client = _require_haineng_client()
     available_actions = {
         "navigate_page": {"page": "home|caseLab|workbench|library|review|knowledge|progress|settings"},
-        "generate_case": {"track_id": "foundation|procurement|sales|integrated", "template_id": "foundation_hedging_basics", "user_request": "short training goal"},
+        "generate_case": {"track_id": "foundation|crude|procurement|sales|integrated", "template_id": "foundation_hedging_basics", "user_request": "short training goal"},
         "select_template": {"template_id": "foundation_hedging_basics", "user_request": "optional training goal"},
         "patch_case": {
             "scenario": {"title": "short title", "summary": "updated scenario summary", "exposure": {"direction": "buy|sell|spread", "risk": "key risk"}},
             "market": {"unit": "training index", "events": [{"date": "2026-01-07", "label": "event"}]},
-            "target_actions": [{"leg_type": "physical|swap|basis|fx|capacity", "market": "TTF", "side": "buy|sell", "quantity": 10000, "tenor": "M+1"}],
+            "target_actions": [{"leg_type": "physical|swap|future|basis|fx|capacity", "market": "TTF", "side": "buy|sell", "quantity": 10000, "tenor": "M+1"}],
             "rubric": [{"id": "risk", "label": "Risk explanation", "points": 25, "rule": "what earns points"}],
             "prompt": "Markdown decision task",
             "rationale": "draft rationale",
@@ -720,6 +720,14 @@ def v1_ai_live_assistant(payload: LiveAssistantRequest):
             "curves": [{"id": "TTF", "label": "TTF", "color": "#38bdf8", "points": [{"date": "2026-01-05", "open": 31, "high": 33, "low": 30, "close": 32}]}],
             "events": [{"date": "2026-01-07", "label": "shock"}],
             "unit": "training index",
+        },
+        "set_learning_plan": {
+            "track_id": "foundation|crude|procurement|sales|integrated",
+            "lesson_id": "optional lesson id",
+            "title": "short visible title",
+            "objective": "one sentence learning objective",
+            "steps": ["step 1", "step 2", "step 3"],
+            "practice_prompt": "prompt to generate the next drill",
         },
         "set_learning_goal": {"goal": "short goal", "focus": ["basis", "fx", "capacity"]},
         "set_chart_fields": {"fields": ["high", "low", "close"]},

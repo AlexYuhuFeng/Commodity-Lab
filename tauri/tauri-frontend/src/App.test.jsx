@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { dictionaries, t } from "./i18n";
@@ -15,12 +15,15 @@ vi.mock("@tauri-apps/api/window", () => ({
 const businessTemplates = {
   groups: [
     { id: "foundation", label: "Foundations" },
+    { id: "crude", label: "Crude Oil Hedging" },
     { id: "procurement", label: "Procurement" },
     { id: "sales", label: "Sales" }
   ],
   knowledge_points: [
     { id: "exposure_objective", label: "Exposure and hedge objective", description: "Identify long, short, or spread exposure." },
     { id: "basis_spread", label: "Basis and hub spread", description: "Separate TTF/NBP, FX, and hub basis." },
+    { id: "crude_benchmark_basis", label: "Crude benchmark basis", description: "Separate Brent, WTI, Dubai, grade, location, and loading-window basis." },
+    { id: "inventory_freight_roll", label: "Inventory, freight, and roll risk", description: "Check inventory, freight, margin, credit, and futures roll risk." },
     { id: "physical_paper_matching", label: "Physical-paper matching", description: "Match GSA, EFET, LNG, swaps, FX, and capacity." },
     { id: "options_optionality", label: "Options and optionality", description: "Use caps, floors, collars, and LNG optionality." },
     { id: "hedge_ratio_cross_hedge", label: "Hedge ratio and cross-hedge quality", description: "Size imperfect hedges by sensitivity and correlation." }
@@ -49,6 +52,18 @@ const businessTemplates = {
       knowledge_points: ["basis_spread", "fx", "physical_paper_matching"],
       required_curves: ["TTF", "NBP", "EURGBP"],
       suggested_leg_types: ["physical", "basis", "fx", "capacity"]
+    },
+    {
+      id: "crude_oil_hedging_basics",
+      group: "crude",
+      business_type: "Crude procurement / sales hedging",
+      title: "How should Brent / WTI exposure be hedged?",
+      summary: "Generate a crude cargo, futures/swaps, calendar/basis, inventory, and freight hedge case.",
+      coverage: ["exposure_objective", "physical_paper_matching", "outright_price", "crude_benchmark_basis", "inventory_freight_roll", "risk_controls"],
+      gas_models: ["crude_cargo_hedge", "crude_calendar_basis", "crude_inventory_hedge"],
+      knowledge_points: ["exposure_objective", "crude_benchmark_basis", "inventory_freight_roll"],
+      required_curves: ["BRENT", "WTI", "DUBAI"],
+      suggested_leg_types: ["physical", "future", "swap", "basis"]
     },
     {
       id: "sales_lng_regas",
@@ -112,6 +127,53 @@ const generatedCase = {
   prompt: "### **Decision task**\n\nBuild a multi-leg hedge for UK beach gas sold into Germany.\n\n- Include physical supply.\n- Include paper basis protection."
 };
 
+const crudeGeneratedCase = {
+  scenario: {
+    id: "ai-crude-cargo",
+    title: "Brent Cargo Hedge for Refinery Procurement",
+    summary: "A refinery buys Brent-linked crude and needs to hedge flat price, calendar spread, grade basis, inventory, and freight risk.",
+    business_type: "Crude procurement / sales hedging",
+    knowledge_points: ["crude_benchmark_basis", "inventory_freight_roll", "physical_paper_matching"],
+    exposure: { direction: "long", volume_mmbtu: 100000, volume_unit: "bbl", risk: "Brent flat price, prompt-month roll, grade/location basis, inventory, and freight." }
+  },
+  market: {
+    unit: "USD/bbl training index",
+    curves: [
+      {
+        id: "BRENT",
+        label: "Brent",
+        color: "#38bdf8",
+        points: [
+          { date: "2026-01-05", open: 72, high: 74, low: 71, close: 73 },
+          { date: "2026-01-06", open: 73, high: 75, low: 72, close: 74 }
+        ]
+      },
+      {
+        id: "WTI",
+        label: "WTI",
+        color: "#f59e0b",
+        points: [
+          { date: "2026-01-05", open: 68, high: 69, low: 67, close: 68.4 },
+          { date: "2026-01-06", open: 68.4, high: 70, low: 67.8, close: 69.2 }
+        ]
+      }
+    ],
+    events: [{ date: "2026-01-06", label: "Freight tightness" }]
+  },
+  target_actions: [
+    { id: "physical-crude", leg_type: "physical", market: "Brent cargo", side: "buy", quantity: 100000, price: 0, tenor: "M+1", rationale: "Source physical crude." },
+    { id: "future-crude", leg_type: "future", market: "ICE Brent future", side: "sell", quantity: 100000, price: 0, tenor: "M+1", rationale: "Lock flat price." },
+    { id: "basis-crude", leg_type: "basis", market: "Brent/WTI basis", side: "sell", quantity: 100000, price: 0, tenor: "M+1", rationale: "Manage basis mismatch." }
+  ],
+  rubric: [
+    { id: "physical", label: "Physical leg", points: 25, rule: "Include a crude cargo or inventory leg." },
+    { id: "paper", label: "Paper hedge", points: 35, rule: "Include futures, swap, or basis hedge." },
+    { id: "risk", label: "Risk explanation", points: 25, rule: "Explain flat price, calendar, basis, inventory, and freight." },
+    { id: "controls", label: "Risk controls", points: 15, rule: "Mention liquidity, margin, credit, roll, and execution window." }
+  ],
+  prompt: "### **Decision task**\n\nBuild a crude cargo hedge for Brent-linked procurement.\n\n- Include physical cargo.\n- Include paper flat-price and basis protection."
+};
+
 function mockBackend({ aiReady = true, onCall } = {}) {
   window.__COMMODITY_LAB_BACKEND__ = async (method, path, body) => {
     onCall?.({ method, path, body });
@@ -151,7 +213,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.1.7",
+        current_version: "1.1.8",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -169,8 +231,29 @@ function mockBackend({ aiReady = true, onCall } = {}) {
         }
       };
     }
-    if (path === "/api/v1/ai/training-case") return { template: businessTemplates.templates[0], case: generatedCase };
+    if (path === "/api/v1/ai/training-case") {
+      const template = businessTemplates.templates.find((item) => item.id === body?.template_id) ?? businessTemplates.templates[0];
+      return { template, case: body?.template_id === "crude_oil_hedging_basics" ? crudeGeneratedCase : generatedCase };
+    }
     if (path === "/api/v1/ai/live-assistant") {
+      if (/plan|next|course|学习|路线/i.test(body?.message ?? "")) {
+        return {
+          answer: "I set a short learning plan and opened the path.",
+          actions: [
+            {
+              type: "set_learning_plan",
+              label: "Set learning plan",
+              payload: {
+                track_id: "integrated",
+                title: "Basis bridge plan",
+                objective: "Connect physical delivery, basis, FX, and capacity into one hedge package.",
+                steps: ["Review exposure", "Map hedge legs", "Generate an integrated drill"],
+                practice_prompt: "Generate an integrated basis, FX, and capacity drill."
+              }
+            }
+          ]
+        };
+      }
       return {
         answer: "### **Plan**\n\n- Use high/low/close to inspect volatility.\n- Add basis and FX legs.",
         actions: [
@@ -181,7 +264,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.1.7", latest_version: "1.1.7", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.7", assets: [] };
+      return { current_version: "1.1.8", latest_version: "1.1.8", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.8", assets: [] };
     }
     return {};
   };
@@ -216,7 +299,7 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("AI 全功能")).toBeInTheDocument();
     expect(screen.getByText("Commodity Lab")).toBeInTheDocument();
     expect(screen.getAllByText("设置")[0]).toBeInTheDocument();
-    expect(screen.getByText("天然气套保学习路径")).toBeInTheDocument();
+    expect(screen.getByText("商品套保学习路径")).toBeInTheDocument();
     expect(screen.getAllByText("生成练习").length).toBeGreaterThan(0);
     expect(screen.queryByText(/external market data source/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/涓|鈥|娴疯兘/)).not.toBeInTheDocument();
@@ -346,6 +429,21 @@ describe("Commodity Lab shell", () => {
     expect(request.gas_trading_models.map((item) => item.id)).toEqual(expect.arrayContaining(["gsa_procurement", "lng_regas_sale", "efet_bilateral_sale"]));
   });
 
+  it("includes crude oil hedging as a real AI-generated course track", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
+
+    const crudeCard = (await screen.findByText("Crude Oil Hedging")).closest("article");
+    expect(crudeCard).not.toBeNull();
+    fireEvent.click(within(crudeCard).getByRole("button", { name: /Generate chapter drill/i }));
+
+    expect(await screen.findByText("Brent Cargo Hedge for Refinery Procurement")).toBeInTheDocument();
+    expect(screen.getAllByText("Crude procurement / sales hedging").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Brent").length).toBeGreaterThan(0);
+    expect(calls.some((call) => call.path === "/api/v1/ai/training-case" && call.body?.template_id === "crude_oil_hedging_basics")).toBe(true);
+  });
+
   it("does not show old pre-release learning scores on the home path", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     localStorage.setItem(
@@ -376,8 +474,9 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("Textbook-Style Hedging Coverage")).toBeInTheDocument();
     expect(screen.getAllByText("Options and Optionality").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Hedge Ratio and Cross-Hedge").length).toBeGreaterThan(0);
-    expect(screen.getByText("Gas Trading Models")).toBeInTheDocument();
+    expect(screen.getByText("Commodity Trading Models")).toBeInTheDocument();
     expect(screen.getByText("Upstream Beach / GSA Supply")).toBeInTheDocument();
+    expect(screen.getByText("Crude Cargo Procurement / Sale Hedge")).toBeInTheDocument();
     expect(screen.getByText("LNG Regas Sale")).toBeInTheDocument();
     expect(screen.getByText("Bilateral EFET Sale")).toBeInTheDocument();
   });
@@ -410,5 +509,20 @@ describe("Commodity Lab shell", () => {
     fireEvent.click(screen.getAllByText("Show high/low/close").at(-1));
     expect(screen.getByText("High")).toHaveClass("active");
     expect(screen.getByText("Low")).toHaveClass("active");
+  });
+
+  it("lets the floating assistant visibly update the home learning plan", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+    fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Build my next course plan." } });
+    fireEvent.click(screen.getByText("Send"));
+
+    expect(await screen.findByText("AI Teaching Plan")).toBeInTheDocument();
+    expect(screen.getByText("AI customized")).toBeInTheDocument();
+    expect(screen.getByText("Basis bridge plan")).toBeInTheDocument();
+    expect(screen.getByText("Generate this lesson")).toBeInTheDocument();
+    expect(screen.getByText("AI is shaping this lesson")).toBeInTheDocument();
   });
 });

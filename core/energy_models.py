@@ -1,7 +1,7 @@
 """Shared energy domain models for Commodity Lab.
 
-The product is Europe-gas-first, but the domain model is deliberately generic so
-future crude oil, refined products, carbon, and power modules can reuse the same
+The product is gas-first with an added crude-oil hedging course, but the domain model is deliberately generic so
+future refined products, carbon, and power modules can reuse the same
 asset, scenario, market-context, and AI-capability contracts.
 """
 from __future__ import annotations
@@ -163,10 +163,11 @@ ENERGY_MODULES: tuple[EnergyModule, ...] = (
     ),
     EnergyModule(
         id="crude_oil",
-        status="constructing",
+        status="enabled",
         label=LocalizedText("Crude Oil", "原油"),
-        description=LocalizedText("Future module for Brent, WTI, Dubai, spreads, and physical optionality.", "后续模块，预留 Brent、WTI、Dubai、价差和实货可选性训练。"),
-        rollout_phase="v3",
+        description=LocalizedText("Enabled course track for Brent, WTI, Dubai, calendar/basis spreads, physical cargoes, inventory, and freight risk.", "已启用课程轨道，覆盖 Brent、WTI、Dubai、月差/基差、实货船货、库存和运费风险。"),
+        rollout_phase="v1.2",
+        enabled_regions=("global",),
     ),
     EnergyModule(
         id="oil_products",

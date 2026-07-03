@@ -519,7 +519,7 @@ def build_concept_tutor_messages(
         f"Optional scenario context:\n{_to_json_text(scenario or {})}\n\n"
         "Required output sections:\n"
         "1. Plain-language definition in 2 sentences or fewer.\n"
-        "2. Why it matters in the current gas business case.\n"
+        "2. Why it matters in the current commodity business case.\n"
         "3. One practical example using futures, forwards, swaps, basis, options, storage, capacity, or route economics.\n"
         "4. One common mistake and one mini exercise with answer.\n"
         "Keep the whole answer concise unless the learner explicitly asks for detail."
@@ -572,7 +572,7 @@ def build_live_assistant_messages(
         "Return concise Markdown for the learner and a small list of optional actions when useful. "
         "The answer must be actionable and short: one direct answer plus at most 3 bullets. "
         "If the user asks a broad question, offer a short answer and one suggested next action instead of writing a full lecture. "
-        "Allowed action types only: navigate_page, generate_case, select_template, patch_case, set_market_curves, set_learning_goal, set_chart_fields, set_strategy_legs, fill_rationale, set_exam, run_ai_capability. "
+        "Allowed action types only: navigate_page, generate_case, select_template, patch_case, set_market_curves, set_learning_plan, set_learning_goal, set_chart_fields, set_strategy_legs, fill_rationale, set_exam, run_ai_capability. "
         "Each action must be directly useful for the user's current learning goal."
     )
     user = (
@@ -590,11 +590,13 @@ def build_live_assistant_messages(
         "If no UI action is needed, return an empty actions array. Keep actions safe and reversible. "
         "For a quiz request, prefer set_exam or run_ai_capability=exam and a navigate/review outcome instead of a long chat answer. "
         "For a new learning request, prefer generate_case with a track_id and a beginner-friendly learning goal instead of explaining the whole syllabus. "
+        "When the learner asks what to learn next, wants a course plan, or seems lost, return set_learning_plan with track_id, title, objective, steps, and practice_prompt so the home screen visibly changes. "
         "When the learner asks to change the current question, scenario, market shock, curve, target answer, rubric, or learning focus, prefer patch_case or set_market_curves so the UI visibly changes. "
         "When returning patch_case, include only fields that should change; do not repeat the entire workspace unless needed. "
         "When returning set_market_curves, also return set_chart_fields with close/high/low if price inspection is part of the request. "
         "When suggesting a strategy, include set_strategy_legs and fill_rationale so the workbench changes directly. "
         "For 'learn natural gas hedging from zero' or similar requests, prefer track_id=foundation. "
+        "For crude oil, Brent, WTI, Dubai, cargo, inventory, or calendar spread hedging requests, prefer track_id=crude or template_id=crude_oil_hedging_basics. "
         "Keep answer under 140 words unless the learner explicitly requests a detailed explanation."
     )
     return [
@@ -621,6 +623,7 @@ def build_training_case_messages(
     )
     reference = {
         "textbook_style_coverage": knowledge_coverage or [],
+        "commodity_trading_models": gas_trading_models or [],
         "gas_trading_models": gas_trading_models or [],
     }
     user = (
@@ -630,7 +633,7 @@ def build_training_case_messages(
         f"Additional learner request:\n{_scrub_text(user_request)}\n\n"
         "Required JSON shape:\n"
         "{\n"
-        '  "scenario": {"id": "string", "title": "string", "summary": "string", "business_type": "string", "knowledge_points": ["string"], "exposure": {"direction": "long|short|spread", "volume_mmbtu": 0, "risk": "string"}},\n'
+        '  "scenario": {"id": "string", "title": "string", "summary": "string", "business_type": "string", "knowledge_points": ["string"], "exposure": {"direction": "long|short|spread", "volume_mmbtu": 0, "volume_unit": "MMBtu|bbl|MWh", "risk": "string"}},\n'
         '  "market": {"unit": "string", "curves": [{"id": "TTF", "label": "TTF", "color": "#2563eb", "points": [{"date": "YYYY-MM-DD", "open": 0, "high": 0, "low": 0, "close": 0}]}], "events": [{"date": "YYYY-MM-DD", "label": "string"}]},\n'
         '  "target_actions": [{"leg_type": "physical|swap|future|basis|fx|capacity|option", "market": "string", "side": "buy|sell|pay|receive", "quantity": 0, "price": 0, "tenor": "string", "rationale": "string"}],\n'
         '  "rubric": [{"id": "string", "label": "string", "points": 0, "rule": "string"}],\n'
