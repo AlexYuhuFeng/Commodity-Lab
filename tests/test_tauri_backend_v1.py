@@ -86,10 +86,11 @@ def test_business_templates_endpoint_returns_procurement_and_sales_workflows() -
     response = client.get("/api/v1/business-templates", params={"locale": "en"})
     assert response.status_code == 200
     payload = response.json()
-    assert {group["id"] for group in payload["groups"]} >= {"procurement", "sales"}
-    assert {template["group"] for template in payload["templates"]} >= {"procurement", "sales"}
+    assert {group["id"] for group in payload["groups"]} >= {"crude", "procurement", "sales"}
+    assert {template["group"] for template in payload["templates"]} >= {"crude", "procurement", "sales"}
     assert any("beach" in template["business_type"].lower() for template in payload["templates"])
     assert any("LNG" in template["business_type"] for template in payload["templates"])
+    assert any(template["id"] == "crude_oil_hedging_basics" for template in payload["templates"])
 
 
 def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monkeypatch) -> None:

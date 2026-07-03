@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.7";
+const currentVersion = "1.1.8";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -101,6 +101,20 @@ const learningTracks = [
     lessonsEn: ["Exposure", "Hedge tools", "Physical-paper matching"]
   },
   {
+    id: "crude",
+    templateId: "crude_oil_hedging_basics",
+    zh: "原油套保入门",
+    en: "Crude Oil Hedging",
+    levelZh: "新增",
+    levelEn: "New",
+    detailZh: "学习 Brent/WTI/Dubai、实货船货、期货/掉期、月差/基差、库存和运费风险。",
+    detailEn: "Learn Brent/WTI/Dubai, physical cargoes, futures/swaps, calendar and quality basis, inventory, and freight risk.",
+    requestZh: "生成一个原油套保入门训练案例：围绕 Brent、WTI 或 Dubai 采购/销售敞口，训练实货合同、期货或掉期、月差/基差、库存和运费风险匹配。",
+    requestEn: "Generate a beginner crude oil hedging drill around Brent, WTI, or Dubai procurement/sales exposure, training physical contracts, futures or swaps, calendar/basis spread, inventory, and freight risk matching.",
+    lessons: ["三大基准", "实货/纸货", "月差/基差", "库存/运费"],
+    lessonsEn: ["Benchmarks", "Physical/paper", "Calendar/basis", "Inventory/freight"]
+  },
+  {
     id: "procurement",
     templateId: "procurement_beach_to_germany",
     zh: "采购端业务",
@@ -144,6 +158,168 @@ const learningTracks = [
   }
 ];
 
+const courseSyllabus = [
+  {
+    trackId: "foundation",
+    lessons: [
+      {
+        id: "foundation-exposure",
+        titleZh: "敞口识别",
+        titleEn: "Exposure Recognition",
+        outcomeZh: "判断采购、销售或价差敞口的方向、数量和期限。",
+        outcomeEn: "Identify exposure direction, volume, and tenor for procurement, sales, or spread risk."
+      },
+      {
+        id: "foundation-instruments",
+        titleZh: "套保工具选择",
+        titleEn: "Hedge Instrument Choice",
+        outcomeZh: "区分实货、期货、掉期、基差和期权分别覆盖什么风险。",
+        outcomeEn: "Separate what physical, futures, swaps, basis, and options actually hedge."
+      },
+      {
+        id: "foundation-match",
+        titleZh: "实货 / 纸货匹配",
+        titleEn: "Physical / Paper Matching",
+        outcomeZh: "把实货义务和纸货工具匹配成一组可解释的套保动作。",
+        outcomeEn: "Match physical obligations and paper instruments into one explainable hedge package."
+      }
+    ]
+  },
+  {
+    trackId: "crude",
+    lessons: [
+      {
+        id: "crude-benchmarks",
+        titleZh: "Brent / WTI / Dubai 基准",
+        titleEn: "Brent / WTI / Dubai Benchmarks",
+        outcomeZh: "识别采购或销售敞口引用哪个基准，以及 API、硫含量、地点和交割月造成的差异。",
+        outcomeEn: "Identify which benchmark drives the exposure and how API, sulfur, location, and delivery month create basis."
+      },
+      {
+        id: "crude-physical-paper",
+        titleZh: "船货实货与纸货匹配",
+        titleEn: "Cargo Physical / Paper Matching",
+        outcomeZh: "把实货船货、管输、库存或销售合同与 futures、swap、basis leg 匹配。",
+        outcomeEn: "Match cargo, pipeline, inventory, or sales contracts with futures, swaps, and basis legs."
+      },
+      {
+        id: "crude-calendar-basis",
+        titleZh: "月差、品级和地点基差",
+        titleEn: "Calendar, Grade, and Location Basis",
+        outcomeZh: "拆分 flat price、月差、Brent/WTI 或 Dubai 价差、品级贴水和运费影响。",
+        outcomeEn: "Separate flat price, calendar spread, Brent/WTI or Dubai spread, grade differential, and freight effects."
+      },
+      {
+        id: "crude-controls",
+        titleZh: "库存、运费与风控",
+        titleEn: "Inventory, Freight, and Controls",
+        outcomeZh: "检查库存周期、租船窗口、保证金、信用、限额和展期风险。",
+        outcomeEn: "Check inventory cycle, chartering window, margin, credit, limits, and roll risk."
+      }
+    ]
+  },
+  {
+    trackId: "procurement",
+    lessons: [
+      {
+        id: "procurement-gsa",
+        titleZh: "上游 Beach / GSA 资源",
+        titleEn: "Upstream Beach / GSA Supply",
+        outcomeZh: "处理资源锁定、NBP/TTF 基差、EUR/GBP 和跨境运力。",
+        outcomeEn: "Handle supply lock-in, NBP/TTF basis, EUR/GBP, and cross-border capacity."
+      },
+      {
+        id: "procurement-window",
+        titleZh: "EEX / OCM 窗口采购",
+        titleEn: "EEX / OCM Window Procurement",
+        outcomeZh: "围绕日内、日前或月度窗口设计采购和纸货执行方案。",
+        outcomeEn: "Design procurement and paper execution around intraday, day-ahead, or monthly windows."
+      },
+      {
+        id: "procurement-lng",
+        titleZh: "LNG 船货采购",
+        titleEn: "LNG Cargo Procurement",
+        outcomeZh: "连接船期、JKM/TTF 指数、转港可选性、气化窗口和汇率。",
+        outcomeEn: "Connect cargo timing, JKM/TTF indexes, diversion optionality, regas windows, and FX."
+      },
+      {
+        id: "procurement-efet",
+        titleZh: "EFET 双边采购",
+        titleEn: "Bilateral EFET Procurement",
+        outcomeZh: "检查交割点、信用、履约、基准错配和结算风险。",
+        outcomeEn: "Check delivery point, credit, performance, benchmark mismatch, and settlement risk."
+      }
+    ]
+  },
+  {
+    trackId: "sales",
+    lessons: [
+      {
+        id: "sales-efet",
+        titleZh: "EFET 双边销售",
+        titleEn: "Bilateral EFET Sale",
+        outcomeZh: "把客户价格公式、交割义务和纸货套保连接起来。",
+        outcomeEn: "Connect customer price formula, delivery obligation, and paper hedges."
+      },
+      {
+        id: "sales-window",
+        titleZh: "窗口销售",
+        titleEn: "Window Sale",
+        outcomeZh: "管理销售窗口、限价执行、流动性和期限错配。",
+        outcomeEn: "Manage sales window, limit execution, liquidity, and tenor mismatch."
+      },
+      {
+        id: "sales-regas",
+        titleZh: "LNG 气化销售",
+        titleEn: "LNG Regas Sale",
+        outcomeZh: "处理气化窗口、下游销售价格下跌和可选性风险。",
+        outcomeEn: "Handle regas windows, downstream selloff risk, and optionality."
+      },
+      {
+        id: "sales-customer",
+        titleZh: "客户定价风险",
+        titleEn: "Customer Pricing Risk",
+        outcomeZh: "拆解固定价、浮动价、封顶价或公式价带来的利润风险。",
+        outcomeEn: "Decompose fixed, floating, capped, or formula pricing margin risk."
+      }
+    ]
+  },
+  {
+    trackId: "integrated",
+    lessons: [
+      {
+        id: "integrated-basis",
+        titleZh: "基差与跨市场价差",
+        titleEn: "Basis and Cross-Market Spread",
+        outcomeZh: "把地点、枢纽、期限、单位和汇率的价差拆开。",
+        outcomeEn: "Separate location, hub, tenor, unit, and FX spread effects."
+      },
+      {
+        id: "integrated-capacity",
+        titleZh: "运力、储气与平衡",
+        titleEn: "Capacity, Storage, and Balancing",
+        outcomeZh: "检查提名、管输、库存和偏差是否破坏纸货保护。",
+        outcomeEn: "Check whether nomination, transport, inventory, or imbalance breaks paper protection."
+      },
+      {
+        id: "integrated-controls",
+        titleZh: "执行与风控复盘",
+        titleEn: "Execution and Risk Review",
+        outcomeZh: "把流动性、信用、限额、保证金和执行窗口放进交易前检查。",
+        outcomeEn: "Bring liquidity, credit, limits, margin, and execution windows into pre-trade checks."
+      }
+    ]
+  }
+];
+
+const trackSkillFocus = {
+  foundation: ["exposure", "instrument", "rationale"],
+  crude: ["instrument", "basis", "timing", "control"],
+  procurement: ["basis", "capacity", "timing"],
+  sales: ["basis", "fx", "control"],
+  integrated: ["basis", "fx", "capacity", "control", "rationale"]
+};
+
 const hedgingKnowledgeCoverage = [
   {
     id: "exposure_objective",
@@ -184,6 +360,26 @@ const hedgingKnowledgeCoverage = [
     conceptsZh: ["TTF/NBP", "地点基差", "跨期价差", "单位归一"],
     conceptsEn: ["TTF/NBP", "Location basis", "Calendar spread", "Unit normalization"],
     modelIds: ["cross_border_sale", "pipeline_capacity", "lng_regas_sale"]
+  },
+  {
+    id: "crude_benchmark_basis",
+    titleZh: "原油基准、品级与地点基差",
+    titleEn: "Crude Benchmarks, Grade, and Location Basis",
+    summaryZh: "把 Brent、WTI、Dubai、品级贴水、交割地点和装船窗口拆开，避免把原油敞口误当成单一 flat price。",
+    summaryEn: "Separate Brent, WTI, Dubai, grade differential, delivery location, and loading window instead of treating crude exposure as one flat price.",
+    conceptsZh: ["Brent/WTI/Dubai", "品级贴水", "地点基差", "装船窗口"],
+    conceptsEn: ["Brent/WTI/Dubai", "Grade differential", "Location basis", "Loading window"],
+    modelIds: ["crude_cargo_hedge", "crude_calendar_basis"]
+  },
+  {
+    id: "inventory_freight_roll",
+    titleZh: "库存、运费与展期风险",
+    titleEn: "Inventory, Freight, and Roll Risk",
+    summaryZh: "原油套保需要同时检查库存持有期、租船或管输成本、保证金和期货展期风险。",
+    summaryEn: "Crude hedging needs checks on inventory holding period, freight or pipeline cost, margin, and futures roll risk.",
+    conceptsZh: ["库存周期", "租船/管输", "保证金", "展期"],
+    conceptsEn: ["Inventory cycle", "Freight/pipeline", "Margin", "Roll"],
+    modelIds: ["crude_cargo_hedge", "crude_inventory_hedge"]
   },
   {
     id: "options_optionality",
@@ -311,6 +507,42 @@ const gasTradingModels = [
     risksEn: ["Customer pricing", "Fixed/floating", "Optionality", "Margin"],
     instrumentsZh: ["销售合约", "swap", "cap/floor", "collar"],
     instrumentsEn: ["Sales contract", "Swap", "Cap/floor", "Collar"]
+  },
+  {
+    id: "crude_cargo_hedge",
+    group: "crude",
+    titleZh: "原油船货采购/销售套保",
+    titleEn: "Crude Cargo Procurement / Sale Hedge",
+    summaryZh: "处理 Brent、WTI 或 Dubai 计价船货的 flat price、装船窗口、品级差和销售锁价。",
+    summaryEn: "Handle flat price, loading window, grade differential, and sales lock-in for Brent, WTI, or Dubai indexed cargoes.",
+    risksZh: ["Flat price", "装船窗口", "品级差", "销售锁价"],
+    risksEn: ["Flat price", "Loading window", "Grade differential", "Sale lock-in"],
+    instrumentsZh: ["原油实货", "期货", "固定/浮动掉期", "品级基差"],
+    instrumentsEn: ["Physical crude", "Futures", "Fixed-floating swap", "Grade basis"]
+  },
+  {
+    id: "crude_calendar_basis",
+    group: "crude",
+    titleZh: "原油月差与跨基准基差",
+    titleEn: "Crude Calendar and Cross-Benchmark Basis",
+    summaryZh: "拆分 prompt month、月差、Brent/WTI、Brent/Dubai、地点和运费带来的价差风险。",
+    summaryEn: "Separate prompt month, calendar spreads, Brent/WTI, Brent/Dubai, location, and freight basis risk.",
+    risksZh: ["月差", "跨基准", "地点", "运费"],
+    risksEn: ["Calendar spread", "Cross-benchmark", "Location", "Freight"],
+    instrumentsZh: ["Calendar spread", "Brent/WTI spread", "Brent/Dubai spread", "运费调整"],
+    instrumentsEn: ["Calendar spread", "Brent/WTI spread", "Brent/Dubai spread", "Freight adjustment"]
+  },
+  {
+    id: "crude_inventory_hedge",
+    group: "crude",
+    titleZh: "原油库存与展期套保",
+    titleEn: "Crude Inventory and Roll Hedge",
+    summaryZh: "围绕库存持有期、展期、保证金和信用限额设计 hedge ratio 与执行计划。",
+    summaryEn: "Design hedge ratio and execution plan around inventory holding period, roll, margin, and credit limits.",
+    risksZh: ["库存周期", "展期", "保证金", "信用限额"],
+    risksEn: ["Inventory cycle", "Roll", "Margin", "Credit limits"],
+    instrumentsZh: ["库存实货", "期货展期", "掉期", "风控检查"],
+    instrumentsEn: ["Physical inventory", "Futures roll", "Swap", "Risk controls"]
   }
 ];
 
@@ -380,20 +612,20 @@ const scenarioLibraryItems = [
     enabled: true
   },
   {
-    id: "crude_constructing",
+    id: "crude_oil_hedging_basics",
     commodity: "crude-oil",
-    region: "future",
-    role: "constructing",
-    riskFocus: "constructing",
-    titleZh: "原油船货套利冲击",
-    titleEn: "Crude cargo arbitrage shock",
-    summaryZh: "后续版本开放。",
-    summaryEn: "Coming in a later version.",
-    tags: ["Constructing"],
-    difficultyZh: "建设中",
-    difficultyEn: "Constructing",
-    duration: "--",
-    enabled: false
+    region: "global-crude",
+    role: "crude",
+    riskFocus: "crude-basis-inventory",
+    titleZh: "Brent / WTI 原油船货套保",
+    titleEn: "Brent / WTI crude cargo hedge",
+    summaryZh: "围绕原油采购或销售敞口，处理 flat price、月差、品级/地点基差、库存和运费风险。",
+    summaryEn: "Hedge crude procurement or sales exposure across flat price, calendar spread, grade/location basis, inventory, and freight risk.",
+    tags: ["Brent", "WTI", "Calendar", "Inventory"],
+    difficultyZh: "入门",
+    difficultyEn: "Beginner",
+    duration: "70",
+    enabled: true
   }
 ];
 
@@ -409,21 +641,24 @@ const scenarioFilterDefinitions = [
 const scenarioFilterLabels = {
   commodity: {
     "natural-gas": ["天然气", "Natural Gas"],
-    "crude-oil": ["原油（建设中）", "Crude Oil (Constructing)"]
+    "crude-oil": ["原油", "Crude Oil"]
   },
   region: {
     "uk-europe": ["英国 / 欧洲", "UK / Europe"],
     "lng-global": ["LNG 船货", "LNG Cargo"],
     "europe-window": ["欧洲窗口", "Europe Window"],
     "europe-bilateral": ["欧洲双边", "Europe Bilateral"],
+    "global-crude": ["全球原油", "Global Crude"],
     future: ["后续开放", "Future Release"]
   },
   role: {
     procurement: ["采购端", "Procurement"],
     sales: ["销售端", "Sales"],
+    crude: ["原油采购/销售", "Crude procurement/sales"],
     constructing: ["建设中", "Constructing"]
   },
   difficulty: {
+    Beginner: ["入门", "Beginner"],
     Intermediate: ["中等", "Intermediate"],
     Advanced: ["困难", "Advanced"],
     Constructing: ["建设中", "Constructing"]
@@ -433,6 +668,7 @@ const scenarioFilterLabels = {
     "lng-optionality": ["LNG / 可选性", "LNG / Optionality"],
     "liquidity-tenor": ["流动性 / 期限", "Liquidity / Tenor"],
     "credit-basis": ["信用 / 基差", "Credit / Basis"],
+    "crude-basis-inventory": ["原油基差 / 库存", "Crude Basis / Inventory"],
     constructing: ["建设中", "Constructing"]
   },
   status: {
@@ -448,6 +684,7 @@ const knowledgeNodes = [
   { id: "capacity", x: 20, y: 62, level: "intermediate", titleZh: "运力与路径", titleEn: "Capacity & Routing", descZh: "管输容量、跨境路径、拥堵和日内平衡风险。", descEn: "Pipeline capacity, cross-border routes, congestion, and balancing risk." },
   { id: "fx", x: 76, y: 44, level: "intermediate", titleZh: "汇率套保", titleEn: "FX Hedge", descZh: "EUR/GBP 和美元计价风险的前锋或掉期处理。", descEn: "Forwards or swaps for EUR/GBP and USD-denominated exposure." },
   { id: "lng", x: 76, y: 64, level: "beginner", titleZh: "LNG 与气化", titleEn: "LNG & Regas", descZh: "船期、气化窗口、JKM/TTF 转换和期权性。", descEn: "Cargo timing, regas windows, JKM/TTF conversion, and optionality." },
+  { id: "crudeBench", x: 48, y: 54, level: "beginner", titleZh: "原油基准", titleEn: "Crude Benchmarks", descZh: "Brent、WTI、Dubai、品级、地点和装船窗口如何影响套保。", descEn: "How Brent, WTI, Dubai, grade, location, and loading windows shape hedges." },
   { id: "risk", x: 58, y: 82, level: "advanced", titleZh: "风险管理", titleEn: "Risk Management", descZh: "信用、限额、流动性、保证金和执行窗口。", descEn: "Credit, limits, liquidity, margin, and execution windows." },
   { id: "exchange", x: 78, y: 22, level: "intermediate", titleZh: "EFET / OCM / EEX", titleEn: "EFET / OCM / EEX", descZh: "双边、窗口和交易所工具的适用边界。", descEn: "Where bilateral, window, and exchange instruments fit." },
   { id: "storage", x: 36, y: 84, level: "beginner", titleZh: "储气与季节性", titleEn: "Storage & Seasonality", descZh: "注采节奏、库存和季节曲线对套保的影响。", descEn: "Injection/withdrawal, inventory, and seasonal curve impacts." }
@@ -460,7 +697,7 @@ const knowledgeFlowLevels = [
     titleEn: "Foundation",
     descZh: "先建立实货、交付和价格基准的语言。",
     descEn: "Start with physical delivery and benchmark language.",
-    nodes: ["physical", "hub", "lng"]
+    nodes: ["physical", "hub", "lng", "crudeBench"]
   },
   {
     id: "exposure",
@@ -489,6 +726,7 @@ const knowledgeFlowLevels = [
 ];
 
 const learningRecordsKey = "commodity-lab-learning-records-v2";
+const aiLessonPlanKey = "commodity-lab-ai-lesson-plan-v1";
 
 const skillDimensions = [
   { id: "exposure", zh: "风险识别", en: "Exposure Identification" },
@@ -508,6 +746,7 @@ function copy(locale, zh, en) {
 const fallbackTemplates = {
   groups: [
     { id: "foundation", label: "套保基础" },
+    { id: "crude", label: "原油套保" },
     { id: "procurement", label: "采购端" },
     { id: "sales", label: "销售端" },
     { id: "integrated", label: "组合策略" }
@@ -517,6 +756,8 @@ const fallbackTemplates = {
     { id: "physical_paper_matching", label: "实货与纸货匹配", description: "GSA、EFET、LNG、swap、future、basis、FX、option、capacity 的组合动作。" },
     { id: "outright_price", label: "单边价格套保", description: "使用期货、远期或掉期管理绝对价格风险。" },
     { id: "basis_spread", label: "基差、枢纽与跨期价差", description: "TTF/NBP、地点差、跨期、单位与汇率归一化。" },
+    { id: "crude_benchmark_basis", label: "原油基准、品级与地点基差", description: "Brent、WTI、Dubai、品级、地点和装船窗口的差异。" },
+    { id: "inventory_freight_roll", label: "库存、运费与展期风险", description: "库存周期、租船或管输成本、保证金和期货展期。" },
     { id: "options_optionality", label: "期权与运营可选性", description: "cap、floor、collar、LNG 转港和气化窗口等非线性风险。" },
     { id: "capacity_storage_balancing", label: "运力、储气与平衡", description: "管输 capacity、提名、库存、偏差和路径约束。" },
     { id: "risk_controls", label: "执行与风控", description: "流动性、信用、限额、保证金、结算和移仓风险。" }
@@ -557,6 +798,18 @@ const fallbackTemplates = {
       knowledge_points: ["basis_spread", "fx", "options_optionality", "risk_controls"],
       required_curves: ["TTF", "JKM", "EURUSD", "TTF_JKM_SPREAD"],
       suggested_leg_types: ["physical", "swap", "basis", "fx", "option"]
+    },
+    {
+      id: "crude_oil_hedging_basics",
+      group: "crude",
+      business_type: "原油采购/销售套保",
+      title: "Brent / WTI 敞口如何套保",
+      summary: "AI 生成原油船货、期货/掉期、月差/基差、库存和运费风险匹配案例。",
+      coverage: ["exposure_objective", "physical_paper_matching", "outright_price", "crude_benchmark_basis", "inventory_freight_roll", "risk_controls"],
+      gas_models: ["crude_cargo_hedge", "crude_calendar_basis", "crude_inventory_hedge"],
+      knowledge_points: ["exposure_objective", "crude_benchmark_basis", "physical_paper_matching", "inventory_freight_roll", "risk_controls"],
+      required_curves: ["BRENT", "WTI", "DUBAI", "BRENT_WTI_SPREAD"],
+      suggested_leg_types: ["physical", "future", "swap", "basis"]
     },
     {
       id: "sales_efet_bilateral",
@@ -692,6 +945,7 @@ const assistantAutoActionTypes = [
   "set_strategy_legs",
   "fill_rationale",
   "set_exam",
+  "set_learning_plan",
   "set_learning_goal",
   "navigate_page",
   "generate_case",
@@ -706,6 +960,7 @@ const assistantLocalActionTypes = [
   "set_strategy_legs",
   "fill_rationale",
   "set_exam",
+  "set_learning_plan",
   "set_learning_goal",
   "navigate_page"
 ];
@@ -962,6 +1217,22 @@ function saveLearningRecords(records) {
   localStorage.setItem(learningRecordsKey, JSON.stringify(records.slice(-120)));
 }
 
+function loadAiLessonPlan() {
+  if (typeof localStorage === "undefined") return null;
+  const parsed = parseSafeJson(localStorage.getItem(aiLessonPlanKey));
+  if (!parsed || typeof parsed !== "object") return null;
+  return parsed;
+}
+
+function saveAiLessonPlan(plan) {
+  if (typeof localStorage === "undefined") return;
+  if (!plan) {
+    localStorage.removeItem(aiLessonPlanKey);
+    return;
+  }
+  localStorage.setItem(aiLessonPlanKey, JSON.stringify(plan));
+}
+
 function recordLearningAttempt({ activeTemplateId, caseData, evaluation, rationale, strategyLegs }) {
   return {
     id: `attempt-${Date.now()}`,
@@ -972,6 +1243,42 @@ function recordLearningAttempt({ activeTemplateId, caseData, evaluation, rationa
     evaluation,
     rationale,
     strategy_legs: strategyLegs
+  };
+}
+
+function trackForId(trackId) {
+  return learningTracks.find((track) => track.id === trackId) ?? learningTracks[0];
+}
+
+function syllabusForTrack(trackId) {
+  return courseSyllabus.find((item) => item.trackId === trackId) ?? courseSyllabus[0];
+}
+
+function attemptsForTrack(learningProgress, track) {
+  return learningProgress?.scenarioStats?.[track.templateId] ?? { attempts: 0, score: null };
+}
+
+function recommendedTrackId(learningProgress) {
+  if (!learningProgress?.hasRecords) return "foundation";
+  const unattempted = learningTracks.find((track) => !attemptsForTrack(learningProgress, track).attempts);
+  if (unattempted) return unattempted.id;
+  const weakestId = learningProgress.weakest?.[0]?.id;
+  return learningTracks.find((track) => (trackSkillFocus[track.id] ?? []).includes(weakestId))?.id ?? "integrated";
+}
+
+function normalizeLearningPlan(payload, learningProgress) {
+  const track = trackForId(payload.track_id ?? payload.trackId ?? recommendedTrackId(learningProgress));
+  const syllabus = syllabusForTrack(track.id);
+  const fallbackSteps = syllabus.lessons.slice(0, 3).map((lesson) => lesson.titleZh);
+  return {
+    id: `plan-${Date.now()}`,
+    track_id: track.id,
+    lesson_id: payload.lesson_id ?? payload.lessonId ?? syllabus.lessons[0]?.id,
+    title: String(payload.title ?? payload.goal ?? track.zh ?? track.en),
+    objective: String(payload.objective ?? payload.summary ?? track.detailZh ?? track.detailEn),
+    steps: Array.isArray(payload.steps) && payload.steps.length ? payload.steps.map(String).slice(0, 5) : fallbackSteps,
+    practice_prompt: String(payload.practice_prompt ?? payload.practicePrompt ?? track.requestZh ?? track.requestEn),
+    created_at: new Date().toISOString()
   };
 }
 
@@ -1675,6 +1982,14 @@ function pageLabelFor(locale, activePage) {
 }
 
 function curriculumReference(locale) {
+  const commodityModels = gasTradingModels.map((item) => ({
+    id: item.id,
+    group: item.group,
+    title: labelFor(locale, item, "titleZh", "titleEn"),
+    summary: copy(locale, item.summaryZh, item.summaryEn),
+    risks: copy(locale, item.risksZh, item.risksEn),
+    instruments: copy(locale, item.instrumentsZh, item.instrumentsEn)
+  }));
   return {
     knowledge_coverage: hedgingKnowledgeCoverage.map((item) => ({
       id: item.id,
@@ -1682,14 +1997,8 @@ function curriculumReference(locale) {
       summary: copy(locale, item.summaryZh, item.summaryEn),
       concepts: copy(locale, item.conceptsZh, item.conceptsEn)
     })),
-    gas_trading_models: gasTradingModels.map((item) => ({
-      id: item.id,
-      group: item.group,
-      title: labelFor(locale, item, "titleZh", "titleEn"),
-      summary: copy(locale, item.summaryZh, item.summaryEn),
-      risks: copy(locale, item.risksZh, item.risksEn),
-      instruments: copy(locale, item.instrumentsZh, item.instrumentsEn)
-    }))
+    commodity_trading_models: commodityModels,
+    gas_trading_models: commodityModels
   };
 }
 
@@ -1812,9 +2121,71 @@ function PageTitle({ action, icon = "sparkles", locale, subtitleEn, subtitleZh, 
   );
 }
 
-function HomePage({ aiReady, learningProgress, loadingTemplate, locale, onGenerate, onPageChange }) {
+function CourseLessonList({ currentTrackId, learningProgress, locale, track }) {
+  const syllabus = syllabusForTrack(track.id);
+  const stats = attemptsForTrack(learningProgress, track);
+  const isRecommended = currentTrackId === track.id;
+  return (
+    <div className="cl-lesson-stack">
+      <div className="cl-lesson-stack-meta">
+        <span>{stats.attempts ? copy(locale, `${stats.attempts} 次正式提交`, `${stats.attempts} scored attempts`) : copy(locale, "尚未正式练习", "Not practiced yet")}</span>
+        {stats.score != null ? <strong>{stats.score}/100</strong> : null}
+      </div>
+      <ol>
+        {syllabus.lessons.map((lesson, index) => (
+          <li className={isRecommended && index === 0 ? "active" : ""} key={lesson.id}>
+            <span>{index + 1}</span>
+            <div>
+              <b>{copy(locale, lesson.titleZh, lesson.titleEn)}</b>
+              <small>{copy(locale, lesson.outcomeZh, lesson.outcomeEn)}</small>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function AiTeachingPlanPanel({ aiLessonPlan, aiReady, learningProgress, locale, onGenerate }) {
+  const track = trackForId(aiLessonPlan?.track_id ?? recommendedTrackId(learningProgress));
+  const syllabus = syllabusForTrack(track.id);
+  const stats = attemptsForTrack(learningProgress, track);
+  const steps = aiLessonPlan?.steps?.length ? aiLessonPlan.steps : syllabus.lessons.slice(0, 3).map((lesson) => copy(locale, lesson.titleZh, lesson.titleEn));
+  const title = aiLessonPlan?.title ?? copy(locale, `下一节：${track.zh}`, `Next: ${track.en}`);
+  const objective = aiLessonPlan?.objective ?? copy(locale, track.detailZh, track.detailEn);
+  const prompt = aiLessonPlan?.practice_prompt ?? copy(locale, track.requestZh, track.requestEn);
+  return (
+    <section className={aiLessonPlan ? "cl-panel cl-ai-plan-panel active" : "cl-panel cl-ai-plan-panel"}>
+      <div className="cl-panel-heading">
+        <span>{copy(locale, "AI 教学计划", "AI Teaching Plan")}</span>
+        <strong>{aiLessonPlan ? copy(locale, "AI 已定制", "AI customized") : copy(locale, "按真实记录推荐", "Recommended from records")}</strong>
+      </div>
+      <div className="cl-ai-plan-body">
+        <div className="cl-ai-plan-orbit" aria-hidden="true"><Icon name="sparkles" /></div>
+        <div>
+          <h3>{title}</h3>
+          <p>{objective}</p>
+          <div className="cl-plan-evidence">
+            <span>{copy(locale, "推荐模块", "Recommended module")}<b>{labelFor(locale, track)}</b></span>
+            <span>{copy(locale, "正式提交", "Scored attempts")}<b>{stats.attempts}</b></span>
+            <span>{copy(locale, "模块均分", "Module average")}<b>{stats.score ?? "--"}</b></span>
+          </div>
+        </div>
+      </div>
+      <ol className="cl-ai-plan-steps">
+        {steps.map((step, index) => <li key={`${step}-${index}`}><span>{index + 1}</span>{step}</li>)}
+      </ol>
+      <div className="cl-action-row">
+        <button className="cl-primary" disabled={!aiReady} onClick={() => onGenerate(track.templateId, prompt)} type="button"><Icon name="play" />{copy(locale, "按计划生成本节练习", "Generate this lesson")}</button>
+      </div>
+    </section>
+  );
+}
+
+function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, locale, onGenerate, onPageChange }) {
   const score = learningProgress.latestScore;
   const hasProgress = learningProgress.hasRecords && score != null;
+  const recommendedTrack = recommendedTrackId(learningProgress);
   const weakSummary = learningProgress.weakest.length
     ? learningProgress.weakest.map((item) => labelFor(locale, item, "zh", "en")).join(" / ")
     : copy(locale, "提交一次策略后自动生成能力画像。", "Submit a strategy once to build your capability profile.");
@@ -1837,10 +2208,10 @@ function HomePage({ aiReady, learningProgress, loadingTemplate, locale, onGenera
       <PageTitle
         icon="home"
         locale={locale}
-        titleZh="天然气套保学习路径"
-        titleEn="Natural Gas Hedging Learning Path"
-        subtitleZh="先按业务和知识点建立框架，再进入 AI 生成案例、组合操作和复盘。"
-        subtitleEn="Build the business and concept framework first, then move into AI-generated cases, multi-leg decisions, and review."
+        titleZh="商品套保学习路径"
+        titleEn="Commodity Hedging Learning Path"
+        subtitleZh="以天然气为主线，新增原油套保轨道；先建立框架，再进入 AI 生成案例、组合操作和复盘。"
+        subtitleEn="Natural gas remains the core path, with a new crude oil hedging track; build the framework first, then move into AI-generated cases, multi-leg decisions, and review."
         action={<button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={Boolean(loadingTemplate)} type="button"><Icon name="play" />{aiReady ? copy(locale, "开始第一课", "Start Lesson 1") : copy(locale, "配置 AI", "Connect AI")}</button>}
       />
       <div className="cl-home-grid">
@@ -1855,6 +2226,7 @@ function HomePage({ aiReady, learningProgress, loadingTemplate, locale, onGenera
             <button className="cl-secondary" onClick={() => onPageChange(pageIds.knowledge)} type="button"><Icon name="map" />{copy(locale, "看课程地图", "Open course map")}</button>
           </div>
         </section>
+        <AiTeachingPlanPanel aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={onGenerate} />
         <section className="cl-panel cl-learning-route-panel cl-course-panel">
           <div className="cl-panel-heading"><span>{copy(locale, "业务课程路径", "Business Course Path")}</span><strong>{copy(locale, "Coursera + Roadmap 模式", "Course + Roadmap mode")}</strong></div>
           <div className="cl-course-grid">
@@ -1866,9 +2238,7 @@ function HomePage({ aiReady, learningProgress, loadingTemplate, locale, onGenera
                 </div>
                 <h3>{labelFor(locale, track)}</h3>
                 <p>{copy(locale, track.detailZh, track.detailEn)}</p>
-                <div className="cl-chip-row">
-                  {(locale === "zh" ? track.lessons : track.lessonsEn).map((lesson) => <span key={lesson}>{lesson}</span>)}
-                </div>
+                <CourseLessonList currentTrackId={recommendedTrack} learningProgress={learningProgress} locale={locale} track={track} />
                 <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={Boolean(loadingTemplate)} onClick={() => startTrackDrill(track)} type="button">
                   <Icon name={index === 0 ? "play" : "sparkles"} />
                   {trackActionLabel(track, index)}
@@ -1928,6 +2298,7 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
   const gasTemplates = templates.filter((template) => template.group === active?.group || template.id === active?.id);
   const activeCoverage = coverageForTemplate(active);
   const activeModels = modelsForTemplate(active);
+  const activeCommodity = active?.group === "crude" ? "crude-oil" : "natural-gas";
 
   function randomize() {
     const next = templates[Math.floor(Math.random() * templates.length)];
@@ -1941,8 +2312,8 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
         locale={locale}
         titleZh="构建 AI 训练案例"
         titleEn="Build an AI Training Case"
-        subtitleZh="选择业务参数，或者直接用自然语言描述你想训练的天然气套保问题。"
-        subtitleEn="Configure parameters or describe the natural gas hedging case you want to practice."
+        subtitleZh="选择课程章节，或者直接用自然语言描述你想训练的商品套保问题。"
+        subtitleEn="Choose a chapter or describe the commodity hedging case you want to practice."
         action={<button className="cl-secondary" type="button">{copy(locale, "操作说明", "How it works")}</button>}
       />
       <section className="cl-panel cl-course-picker">
@@ -1977,8 +2348,11 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
         <section className="cl-panel cl-config-panel">
           <div className="cl-panel-heading"><span>1 {copy(locale, "配置场景", "Configure Scenario")}</span><button className="cl-secondary" onClick={randomize} type="button">{copy(locale, "随机", "Randomize")}</button></div>
           <div className="cl-form-grid">
-            <label>{copy(locale, "商品", "Commodity")}<select value="natural-gas" disabled><option value="natural-gas">{copy(locale, "天然气", "Natural Gas")}</option></select></label>
-            <label>{copy(locale, "业务角色", "Business Role")}<select defaultValue={active?.group ?? "procurement"}><option value="procurement">{copy(locale, "采购端", "Procurement")}</option><option value="sales">{copy(locale, "销售端", "Sales")}</option></select></label>
+            <label>{copy(locale, "商品", "Commodity")}<select value={activeCommodity} disabled><option value="natural-gas">{copy(locale, "天然气", "Natural Gas")}</option><option value="crude-oil">{copy(locale, "原油", "Crude Oil")}</option></select></label>
+            <label>{copy(locale, "业务角色", "Business Role")}<select value={active?.group ?? "procurement"} onChange={(event) => {
+              const next = templates.find((template) => template.group === event.target.value);
+              if (next) setActiveTemplateId(next.id);
+            }}><option value="foundation">{copy(locale, "基础", "Foundation")}</option><option value="crude">{copy(locale, "原油采购/销售", "Crude procurement/sales")}</option><option value="procurement">{copy(locale, "采购端", "Procurement")}</option><option value="sales">{copy(locale, "销售端", "Sales")}</option><option value="integrated">{copy(locale, "组合策略", "Integrated")}</option></select></label>
             <label>{copy(locale, "业务模板", "Scenario Family")}<select value={active?.id ?? ""} onChange={(event) => setActiveTemplateId(event.target.value)}>{templates.map((template) => <option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
             <label>{copy(locale, "地区", "Region")}<select defaultValue="europe"><option value="europe">{copy(locale, "欧洲", "Europe")}</option><option value="uk">{copy(locale, "英国", "United Kingdom")}</option></select></label>
             <label>{copy(locale, "难度", "Difficulty")}<select defaultValue="intermediate"><option>{copy(locale, "中等", "Intermediate")}</option><option>{copy(locale, "困难", "Advanced")}</option></select></label>
@@ -2012,7 +2386,7 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
             </div>
           </div>
           <div className="cl-preview-coverage">
-            <h4>{copy(locale, "业务模型", "Gas Trading Models")}</h4>
+            <h4>{copy(locale, "业务模型", "Commodity Trading Models")}</h4>
             <div>
               {activeModels.slice(0, 4).map((item) => (
                 <span key={item.id}>{labelFor(locale, item, "titleZh", "titleEn")}</span>
@@ -2170,7 +2544,7 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
                     <div className="cl-chip-row">{item.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
                   </div>
                 </div>
-                <span>{item.commodity === "natural-gas" ? copy(locale, "天然气", "Natural Gas") : copy(locale, "建设中", "Constructing")}</span>
+                <span>{scenarioFilterLabel(locale, "commodity", item.commodity)}</span>
                 <span>{copy(locale, item.difficultyZh, item.difficultyEn)}</span>
                 <span>{item.duration}{item.duration === "--" ? "" : copy(locale, " 分钟", " min")}</span>
                 <span className={progress == null ? "cl-progress-cell is-empty" : "cl-progress-cell"} style={{ "--pct": `${progress ?? 0}%` }}><b>{progress == null ? copy(locale, "未训练", "Not trained") : `${progress}%`}</b><i><em /></i></span>
@@ -2207,13 +2581,14 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
 }
 
 function DecisionTaskPanel({ caseData, locale }) {
+  const volumeUnit = caseData.scenario?.exposure?.volume_unit ?? (/bbl|barrel/i.test(caseData.market?.unit ?? "") ? "bbl" : "MMBtu");
   return (
     <section className="cl-panel cl-decision-panel">
       <div className="cl-panel-heading"><span>1 {copy(locale, "决策任务", "Decision Task")}</span><strong>{caseData.scenario?.business_type}</strong></div>
       <MarkdownText text={caseData.prompt} />
       <div className="cl-exposure-strip">
         <span>{copy(locale, "方向", "Exposure")}<strong>{caseData.scenario?.exposure?.direction ?? "--"}</strong></span>
-        <span>{copy(locale, "数量", "Volume")}<strong>{formatNumber(caseData.scenario?.exposure?.volume_mmbtu)} MMBtu</strong></span>
+        <span>{copy(locale, "数量", "Volume")}<strong>{formatNumber(caseData.scenario?.exposure?.volume_mmbtu)} {volumeUnit}</strong></span>
         <span>{copy(locale, "风险", "Risk")}<strong>{caseData.scenario?.exposure?.risk ?? "--"}</strong></span>
       </div>
     </section>
@@ -2234,9 +2609,9 @@ function CaseHero({ activeTemplate, caseData, locale }) {
         </div>
       </div>
       <dl>
-        <div><dt>{copy(locale, "敞口方向", "Exposure Direction")}</dt><dd>{copy(locale, "卖出 / Short", "Short / Sell")}</dd></div>
+        <div><dt>{copy(locale, "敞口方向", "Exposure Direction")}</dt><dd>{caseData.scenario?.exposure?.direction ?? "--"}</dd></div>
         <div><dt>{copy(locale, "期限", "Tenor")}</dt><dd>1-3M</dd></div>
-        <div><dt>{copy(locale, "来源 / 交付", "Origin / Delivery")}</dt><dd>UK Beach &gt; Germany</dd></div>
+        <div><dt>{copy(locale, "业务类型", "Business Type")}</dt><dd>{caseData.scenario?.business_type ?? "--"}</dd></div>
       </dl>
     </section>
   );
@@ -2332,6 +2707,7 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
     ["实货/纸货匹配", "Physical-Paper Matching"],
     ["单边价格套保", "Outright Price Hedge"],
     ["基差与价差", "Basis and Spreads"],
+    ["原油基准与月差", "Crude Benchmarks and Calendar"],
     ["期权与可选性", "Options and Optionality"],
     ["执行与风控", "Execution and Controls"]
   ];
@@ -2342,8 +2718,8 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
         locale={locale}
         titleZh="知识图谱"
         titleEn="Knowledge Map"
-        subtitleZh="围绕天然气交易，把概念、业务场景和训练题连接起来。"
-        subtitleEn="Connect natural gas concepts, business scenarios, and practice cases."
+        subtitleZh="围绕天然气与原油套保，把概念、业务场景和训练题连接起来。"
+        subtitleEn="Connect gas and crude hedging concepts, business scenarios, and practice cases."
         action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="sparkles" />{copy(locale, "生成学习路径", "Generate Learning Path")}</button>}
       />
       <div className="cl-knowledge-grid">
@@ -2351,7 +2727,7 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
           <div className="cl-learning-map-head">
             <LogoMark />
             <div>
-              <strong>{copy(locale, "天然气套保学习顺序", "Gas Hedging Learning Order")}</strong>
+              <strong>{copy(locale, "商品套保学习顺序", "Commodity Hedging Learning Order")}</strong>
               <span>{copy(locale, "从业务语言到组合交易，再到执行复盘。", "From business language to multi-leg execution and review.")}</span>
             </div>
           </div>
@@ -2393,11 +2769,11 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
         </aside>
       </div>
       <section className="cl-panel cl-path-panel">
-        <div className="cl-panel-heading"><span>{copy(locale, "推荐路径", "Recommended Path")}</span><strong>Natural Gas</strong></div>
+        <div className="cl-panel-heading"><span>{copy(locale, "推荐路径", "Recommended Path")}</span><strong>{copy(locale, "天然气 + 原油", "Gas + Crude")}</strong></div>
         <div className="cl-path-row">{pathItems.map(([zh, en], index) => <span key={en}><b>{index + 1}</b>{copy(locale, zh, en)}</span>)}</div>
       </section>
       <section className="cl-panel cl-coverage-panel">
-        <div className="cl-panel-heading"><span>{copy(locale, "教材式套保知识覆盖", "Textbook-Style Hedging Coverage")}</span><strong>{copy(locale, "天然气化", "Gas-specific")}</strong></div>
+        <div className="cl-panel-heading"><span>{copy(locale, "教材式套保知识覆盖", "Textbook-Style Hedging Coverage")}</span><strong>{copy(locale, "业务化", "Business-specific")}</strong></div>
         <div className="cl-coverage-grid">
           {hedgingKnowledgeCoverage.map((item) => (
             <article key={item.id}>
@@ -2414,7 +2790,7 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
         </div>
       </section>
       <section className="cl-panel cl-model-panel">
-        <div className="cl-panel-heading"><span>{copy(locale, "天然气交易模型", "Gas Trading Models")}</span><strong>{copy(locale, "用于 AI 出题", "Used by AI")}</strong></div>
+        <div className="cl-panel-heading"><span>{copy(locale, "商品交易模型", "Commodity Trading Models")}</span><strong>{copy(locale, "用于 AI 出题", "Used by AI")}</strong></div>
         <div className="cl-gas-model-grid">
           {gasTradingModels.map((item) => (
             <article key={item.id}>
@@ -2570,7 +2946,7 @@ function FloatingAssistant({ activePage, aiReady, applyAction, interventions, lo
   return (
     <div className={open ? "floating-assistant open" : "floating-assistant"} data-guide="floating-assistant">
       {open ? (
-        <section className="assistant-panel">
+        <section className={interventions?.length ? "assistant-panel has-interventions" : "assistant-panel"}>
           <header>
             <div>
               <span>{t("liveAssistant", locale)}</span>
@@ -2698,6 +3074,7 @@ export default function App() {
   const [learningRecords, setLearningRecords] = useState(() => loadLearningRecords());
   const [aiGuidanceAction, setAiGuidanceAction] = useState("");
   const [aiInterventions, setAiInterventions] = useState([]);
+  const [aiLessonPlan, setAiLessonPlan] = useState(() => loadAiLessonPlan());
   const [guideIndex, setGuideIndex] = useState(() => savedValue("commodity-lab-guide-complete", "") ? -1 : 0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => savedValue("commodity-lab-sidebar-collapsed", "") === "1");
   const aiReady = Boolean(providerStatus?.haineng?.ok);
@@ -3039,6 +3416,7 @@ export default function App() {
           active_template_id: activeTemplateId,
           curriculum_context: curriculum,
           case: caseData,
+          ai_lesson_plan: aiLessonPlan,
           evaluation,
           learning_progress: learningProgress,
           recent_attempts: learningRecords.slice(-8),
@@ -3139,6 +3517,14 @@ export default function App() {
       recordAiIntervention(action.label ?? copy(locale, "生成测验并打开复盘", "Generated quiz"), pageIds.review);
       showAiGuidance(copy(locale, "AI 已创建测验并打开复盘页。", "AI created a quiz and opened Review."));
     }
+    if (action.type === "set_learning_plan") {
+      const nextPlan = normalizeLearningPlan(payload, learningProgress);
+      setAiLessonPlan(nextPlan);
+      saveAiLessonPlan(nextPlan);
+      setActivePage(pageIds.home);
+      recordAiIntervention(action.label ?? copy(locale, "更新 AI 教学计划", "Updated AI teaching plan"), pageIds.home);
+      showAiGuidance(copy(locale, "AI 已重新安排当前学习路线。", "AI updated the current learning route."));
+    }
     if (action.type === "run_ai_capability" && payload.capability) runAiAction(payload.capability);
   }
 
@@ -3232,7 +3618,7 @@ export default function App() {
     if (activePage === pageIds.settings) {
       return <SettingsPage locale={locale} settingsPanel={settingsPanel} />;
     }
-    return <HomePage aiReady={aiReady} learningProgress={learningProgress} loadingTemplate={loadingTemplate} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
+    return <HomePage aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} loadingTemplate={loadingTemplate} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
   }
   const shellClassName = [
     "app-shell",
