@@ -11,6 +11,7 @@ from core.haineng_client import (
     build_advisor_messages,
     build_exam_messages,
     build_haineng_tools,
+    build_training_case_messages,
     effective_settings,
     load_persisted_settings,
     save_persisted_settings,
@@ -192,7 +193,7 @@ def test_complete_raises_when_model_requests_tool_call(monkeypatch: pytest.Monke
 
     assert captured_payload["model"] == "DeepSeek-V4-Flash"
     assert captured_payload["stream"] is False
-    assert captured_payload["max_tokens"] == 1800
+    assert captured_payload["max_tokens"] == 4096
     assert captured_payload["extra_body"] == {"enable_thinking": False}
     assert captured_payload["tool_choice"] == "auto"
 
@@ -271,3 +272,17 @@ def test_deepseek_provider_uses_public_v4_flash_contract(monkeypatch: pytest.Mon
     assert client.complete([{"role": "user", "content": "review"}]) == "ok"
     assert captured_payload["model"] == "deepseek-v4-flash"
     assert captured_payload["extra_body"] == {"thinking": {"type": "disabled"}}
+
+
+def test_training_case_prompt_requests_compact_complete_json() -> None:
+    messages = build_training_case_messages(
+        locale="zh",
+        template={"id": "foundation_hedging_basics", "title": "套保入门", "coverage": ["outright_price"]},
+        user_request="生成第一课练习",
+    )
+    text = "\n".join(message["content"] for message in messages)
+
+    assert "compact strict JSON" in text
+    assert "exactly 4 rows" in text
+    assert "Use exactly 8 price points per curve" in text
+    assert "under 120 words" in text

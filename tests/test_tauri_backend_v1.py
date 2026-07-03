@@ -337,6 +337,70 @@ def test_ai_training_case_endpoint_parses_generated_json(monkeypatch) -> None:
     assert [curve["id"] for curve in payload["case"]["market"]["curves"]] == ["TTF", "NBP"]
 
 
+def test_ai_training_case_endpoint_repairs_common_llm_json_errors(monkeypatch) -> None:
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def complete(self, messages, tools=None):
+            return """
+            ```json
+            {
+              "scenario": {
+                "id": "repair-case",
+                "title": "Repaired gas case",
+                "summary": "Generated case summary",
+                "business_type": "Natural Gas Hedging Foundations",
+                "knowledge_points": ["physical_paper_matching"],
+                "exposure": {"direction": "long", "volume_mmbtu": 60000, "risk": "flat price"}
+              }
+              "market": {
+                "unit": "training index",
+                "curves": [
+                  {"id": "TTF", "label": "TTF", "points": [{"date": "2026-01-01", "open": 1, "high": 2, "low": 1, "close": 1.5}],}
+                ],
+                "events": [],
+              },
+              "target_actions": [{"leg_type": "swap", "market": "TTF", "side": "sell", "quantity": 60000, "tenor": "M+1"}],
+              "rubric": [{"id": "paper", "label": "Paper", "points": 40, "rule": "Use swap"}],
+              "prompt": "### Decision task",
+            }
+            ```
+            """
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post(
+        "/api/v1/ai/training-case",
+        json={"template_id": "foundation_hedging_basics", "locale": "en", "user_request": "starter"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["case"]["scenario"]["title"] == "Repaired gas case"
+    assert payload["case"]["market"]["curves"][0]["id"] == "TTF"
+
+
+def test_ai_training_case_endpoint_hides_raw_json_parse_errors(monkeypatch) -> None:
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def complete(self, messages, tools=None):
+            return '{"scenario": {"title": "Broken case"} "market": {}'
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post(
+        "/api/v1/ai/training-case",
+        json={"template_id": "foundation_hedging_basics", "locale": "en", "user_request": "starter"},
+    )
+
+    assert response.status_code == 502
+    payload = response.json()
+    assert payload["detail"]["code"] == "ai_response_parse_failed"
+    assert "Expecting" not in str(payload)
+    assert "delimiter" not in str(payload)
+
+
 def test_live_assistant_endpoint_returns_safe_action_cards(monkeypatch) -> None:
     class FakeClient:
         def is_configured(self) -> bool:

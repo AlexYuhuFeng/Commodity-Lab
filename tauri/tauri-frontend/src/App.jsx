@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.9";
+const currentVersion = "1.2.0";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -1262,6 +1262,66 @@ function evaluateStrategy(caseData, legs, rationale) {
   };
 }
 
+const riskCoverageDefinitions = [
+  {
+    id: "physical",
+    labelZh: "实货敞口",
+    labelEn: "Physical exposure",
+    legTypes: ["physical", "gsa", "lng", "efet"]
+  },
+  {
+    id: "paper",
+    labelZh: "纸货套保",
+    labelEn: "Paper hedge",
+    legTypes: ["swap", "future", "paper", "option"]
+  },
+  {
+    id: "basis",
+    labelZh: "基差/地点风险",
+    labelEn: "Basis / location risk",
+    legTypes: ["basis"]
+  },
+  {
+    id: "fx",
+    labelZh: "汇率风险",
+    labelEn: "FX risk",
+    legTypes: ["fx"]
+  },
+  {
+    id: "capacity",
+    labelZh: "运力/物流风险",
+    labelEn: "Capacity / logistics risk",
+    legTypes: ["capacity"]
+  }
+];
+
+function legRiskId(leg) {
+  const type = String(leg?.leg_type ?? "").toLowerCase();
+  return riskCoverageDefinitions.find((definition) => definition.legTypes.includes(type))?.id ?? "paper";
+}
+
+function describeLegForCoverage(leg, locale) {
+  const market = leg?.market || copy(locale, "未命名工具", "unnamed instrument");
+  return copy(locale, `由 ${market} 覆盖`, `Covered by ${market}`);
+}
+
+function buildRiskCoverageRows(caseData, strategyLegs, locale) {
+  const rows = riskCoverageDefinitions.map((definition) => {
+    const legs = strategyLegs.filter((leg) => legRiskId(leg) === definition.id);
+    const targetCount = (caseData.target_actions ?? []).filter((leg) => legRiskId(leg) === definition.id).length;
+    return {
+      ...definition,
+      label: copy(locale, definition.labelZh, definition.labelEn),
+      legs,
+      targetCount,
+      covered: legs.length > 0
+    };
+  });
+  const currentKeys = new Set(strategyLegs.map((leg) => `${String(leg.leg_type).toLowerCase()}::${String(leg.market).toLowerCase()}`));
+  const missingTargets = (caseData.target_actions ?? []).filter((leg) => !currentKeys.has(`${String(leg.leg_type).toLowerCase()}::${String(leg.market).toLowerCase()}`));
+  return { rows, missingTargets };
+}
+
 function clampScore(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
@@ -1966,6 +2026,66 @@ function ScorePanel({ evaluation, locale }) {
         </div>
       </div>
       {evaluation?.mistake_tags?.length ? <p className="service-error">{evaluation.mistake_tags.join(", ")}</p> : null}
+    </section>
+  );
+}
+
+function RiskCoverageMap({ caseData, locale, strategyLegs }) {
+  const { rows, missingTargets } = buildRiskCoverageRows(caseData, strategyLegs, locale);
+  return (
+    <section className="panel risk-coverage-panel" data-guide="risk-coverage">
+      <div className="panel-title">
+        <span>{copy(locale, "风险覆盖图", "Risk Coverage Map")}</span>
+        <strong>{copy(locale, "实货 + 纸货匹配", "Physical + paper match")}</strong>
+      </div>
+      <div className="risk-coverage-grid">
+        {rows.map((row) => (
+          <article className={row.covered ? "covered" : ""} key={row.id}>
+            <div>
+              <strong>{row.label}</strong>
+              <small>{row.targetCount ? copy(locale, `目标 ${row.targetCount} 条`, `${row.targetCount} target action${row.targetCount > 1 ? "s" : ""}`) : copy(locale, "本题可选", "optional for this case")}</small>
+            </div>
+            {row.legs.length ? (
+              row.legs.slice(0, 2).map((leg) => <span key={leg.id ?? `${leg.leg_type}-${leg.market}`}>{describeLegForCoverage(leg, locale)}</span>)
+            ) : (
+              <span>{copy(locale, "尚未覆盖", "Not covered yet")}</span>
+            )}
+          </article>
+        ))}
+      </div>
+      <div className="risk-gap-strip">
+        <strong>{copy(locale, "缺失目标动作", "Missing target actions")}</strong>
+        {missingTargets.length ? (
+          <span>{missingTargets.map((leg) => `${leg.leg_type} / ${leg.market}`).join(" · ")}</span>
+        ) : (
+          <span>{copy(locale, "当前策略已包含本题目标动作，请检查数量、方向和期限。", "Current strategy includes the target actions; verify quantity, side, and tenor.")}</span>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function AiControlLog({ interventions, locale }) {
+  const recent = (interventions ?? []).slice(0, 4);
+  return (
+    <section className="panel ai-control-log" aria-live="polite">
+      <div className="panel-title">
+        <span>{copy(locale, "AI 控制日志", "AI Control Log")}</span>
+        <strong>{recent.length ? copy(locale, "AI 动作已应用", "AI action applied") : copy(locale, "等待指令", "Waiting for command")}</strong>
+      </div>
+      {recent.length ? (
+        <ol>
+          {recent.map((item) => (
+            <li key={item.id}>
+              <Icon name="sparkles" />
+              <span>{item.label}</span>
+              <small>{copy(locale, "已同步到界面", "Synced to workspace")}</small>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p>{copy(locale, "通过右下角 AI 助手要求生成题目、改曲线或填策略，动作会在这里留下记录。", "Ask the floating AI assistant to generate a drill, change curves, or fill strategy legs; applied actions appear here.")}</p>
+      )}
     </section>
   );
 }
@@ -2686,7 +2806,7 @@ function CaseHero({ activeTemplate, caseData, locale }) {
   );
 }
 
-function WorkbenchPage({ activeTemplate, advisorProps, caseData, fieldSelection, locale, onCheckStrategy, onGenerateVariant, onSuggestTarget, strategyProps }) {
+function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData, fieldSelection, locale, onCheckStrategy, onGenerateVariant, onSuggestTarget, strategyProps }) {
   return (
     <section className="cl-page cl-workbench-page">
       <LearningStepper active={2} locale={locale} />
@@ -2706,7 +2826,9 @@ function WorkbenchPage({ activeTemplate, advisorProps, caseData, fieldSelection,
               <button className="cl-submit-inline" disabled={strategyProps.busy} onClick={strategyProps.onSubmit} type="button"><Icon name="chart" />{strategyProps.busy ? t("loading", locale) : t("submitOrder", locale)}</button>
             </div>
           </section>
+          <AiControlLog interventions={aiInterventions} locale={locale} />
           <StrategyBuilder {...strategyProps} />
+          <RiskCoverageMap caseData={caseData} locale={locale} strategyLegs={strategyProps.strategyLegs} />
           <div className="cl-bottom-grid">
             <ScorePanel evaluation={strategyProps.evaluation} locale={locale} />
             <RubricPanel caseData={caseData} locale={locale} />
@@ -3568,7 +3690,7 @@ export default function App() {
       const fields = payload.fields.filter((field) => chartFields.includes(field));
       setFieldSelection(fields.length ? fields : ["close"]);
       setActivePage(pageIds.workbench);
-      recordAiIntervention(action.label ?? copy(locale, "调整图表字段", "Adjusted chart fields"), pageIds.workbench);
+      recordAiIntervention(copy(locale, "调整图表字段", "Adjusted chart fields"), pageIds.workbench);
       showAiGuidance(copy(locale, "AI 已切到工作台并调整图表字段。", "AI opened the workbench and adjusted chart fields."));
     }
     if (action.type === "set_strategy_legs" && Array.isArray(payload.legs)) {
@@ -3662,6 +3784,7 @@ export default function App() {
         <WorkbenchPage
           activeTemplate={activeTemplate}
           advisorProps={advisorProps}
+          aiInterventions={aiInterventions}
           caseData={caseData}
           fieldSelection={{ value: fieldSelection, set: setFieldSelection }}
           locale={locale}
@@ -3738,6 +3861,14 @@ function formatErrorMessage(error, locale) {
   if (!raw) return t("serviceIssue", locale);
   const jsonStart = raw.indexOf("{");
   const parsed = jsonStart >= 0 ? parseSafeJson(raw.slice(jsonStart)) : null;
+  const code = parsed?.detail?.code ?? parsed?.code;
+  if (code === "ai_response_parse_failed") {
+    return copy(
+      locale,
+      "AI 返回的结构化内容不完整，已保留当前训练题。请再试一次。",
+      "AI returned incomplete structured content. The current drill was kept; please try again."
+    );
+  }
   if (parsed?.detail?.provider_message) return parsed.detail.provider_message;
   if (parsed?.provider_message) return parsed.provider_message;
   return raw.replace(/^backend status \d+:\s*/i, "");
