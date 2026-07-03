@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.1.8";
+const currentVersion = "1.1.9";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -932,6 +932,75 @@ function defaultCase(locale) {
       ? "### 决策任务\n构建一个实货 + 纸货的组合套保。说明每条腿覆盖什么风险，以及需要检查哪些风控条件。"
       : "### Decision task\nBuild a physical + paper hedge strategy. Explain what each leg covers and which risk controls must be checked."
   };
+}
+
+function crudeDefaultCase(locale) {
+  const zh = normalizeLocale(locale) === "zh";
+  return {
+    scenario: {
+      id: "crude_starter_case",
+      title: zh ? "第一课：原油船货与基准风险" : "Lesson 1: Crude Cargo and Benchmark Risk",
+      summary: zh
+        ? "本课聚焦 Brent/WTI/Dubai 基准、实货船货敞口、纸货工具、月差/基差、库存和运费风险。"
+        : "This lesson focuses on Brent/WTI/Dubai benchmarks, physical cargo exposure, paper hedges, calendar/basis spread, inventory, and freight risk.",
+      business_type: zh ? "原油采购/销售套保" : "Crude procurement / sales hedging",
+      knowledge_points: ["crude_benchmark_basis", "physical_paper_matching", "inventory_freight_roll", "risk_controls"],
+      exposure: {
+        direction: "long",
+        volume_mmbtu: 100000,
+        volume_unit: "bbl",
+        risk: zh ? "Brent flat price、Brent/WTI 基差、装船窗口、库存和运费风险。" : "Brent flat price, Brent/WTI basis, loading window, inventory, and freight risk."
+      }
+    },
+    market: {
+      unit: "USD/bbl",
+      curves: [
+        {
+          id: "BRENT",
+          label: "Brent",
+          color: "#2563eb",
+          points: [
+            { date: "2026-01-05", open: 72.4, high: 73.6, low: 71.8, close: 72.9 },
+            { date: "2026-01-06", open: 72.9, high: 74.2, low: 72.1, close: 73.8 },
+            { date: "2026-01-07", open: 73.9, high: 75.3, low: 73.0, close: 74.7 },
+            { date: "2026-01-08", open: 74.6, high: 75.0, low: 72.5, close: 73.1 },
+            { date: "2026-01-09", open: 73.2, high: 74.0, low: 72.4, close: 73.6 }
+          ]
+        },
+        {
+          id: "WTI",
+          label: "WTI",
+          color: "#f59e0b",
+          points: [
+            { date: "2026-01-05", open: 68.0, high: 68.9, low: 67.2, close: 68.3 },
+            { date: "2026-01-06", open: 68.3, high: 69.5, low: 67.8, close: 69.0 },
+            { date: "2026-01-07", open: 69.1, high: 70.3, low: 68.4, close: 69.7 },
+            { date: "2026-01-08", open: 69.6, high: 70.0, low: 67.9, close: 68.5 },
+            { date: "2026-01-09", open: 68.5, high: 69.4, low: 67.8, close: 69.0 }
+          ]
+        }
+      ],
+      events: [{ date: "2026-01-07", label: zh ? "运费走强" : "Freight tightness" }]
+    },
+    target_actions: [
+      { id: "crude-physical-1", leg_type: "physical", market: "Brent-linked cargo", side: "buy", quantity: 100000, tenor: "M+1", hedge_type: "physical_exposure", rationale: "Source physical crude cargo." },
+      { id: "crude-future-1", leg_type: "future", market: "ICE Brent future", side: "sell", quantity: 100000, tenor: "M+1", hedge_type: "short_hedge", rationale: "Lock flat-price exposure." },
+      { id: "crude-basis-1", leg_type: "basis", market: "Brent/WTI basis", side: "sell", quantity: 100000, tenor: "M+1", hedge_type: "basis_hedge", rationale: "Manage benchmark/location basis." }
+    ],
+    rubric: [
+      { id: "physical", label: zh ? "原油实货腿" : "Crude physical leg", points: 25, rule: "Include a crude cargo or inventory leg." },
+      { id: "paper", label: zh ? "纸货套保腿" : "Paper hedge leg", points: 35, rule: "Include Brent/WTI future, swap, or basis hedge." },
+      { id: "risk", label: zh ? "基准与库存解释" : "Benchmark and inventory explanation", points: 25, rule: "Explain flat price, calendar, benchmark basis, inventory, and freight." },
+      { id: "controls", label: zh ? "风控检查" : "Risk controls", points: 15, rule: "Mention liquidity, margin, credit, roll, and execution window." }
+    ],
+    prompt: zh
+      ? "### 决策任务\n构建一个原油实货船货 + 纸货的组合套保。说明 Brent/WTI 基准、月差/基差、库存、运费和风控检查。"
+      : "### Decision task\nBuild a physical crude cargo + paper hedge strategy. Explain Brent/WTI benchmark risk, calendar/basis spread, inventory, freight, and risk controls."
+  };
+}
+
+function defaultCaseForTemplate(templateId, locale) {
+  return templateId === "crude_oil_hedging_basics" ? crudeDefaultCase(locale) : defaultCase(locale);
 }
 
 function defaultLegs(locale = "zh") {
@@ -3276,9 +3345,12 @@ export default function App() {
       setActivePage(pageIds.settings);
       return;
     }
+    const localTemplateCase = defaultCaseForTemplate(templateId, locale);
     setLoadingTemplate(templateId);
     setBusyAction("case_generation");
     setActivePage(pageIds.workbench);
+    setCaseData(localTemplateCase);
+    setStrategyLegs((localTemplateCase.target_actions ?? defaultLegs(locale)).map((leg, index) => ({ id: leg.id ?? `local-leg-${index}`, ...leg })));
     setGenerationStages([{ id: "read_template", label: t("stageReadTemplate", locale) }]);
     try {
       setGenerationStages((current) => [...current, { id: "generate_market", label: t("stageGenerateMarket", locale) }]);
@@ -3289,7 +3361,7 @@ export default function App() {
         user_request: userRequest,
         ...curriculum
       });
-      const nextCase = payload.case ?? defaultCase(locale);
+      const nextCase = payload.case ?? localTemplateCase;
       setGenerationStages((current) => [...current, { id: "build_case", label: t("stageBuildCase", locale) }]);
       setCaseData(nextCase);
       setStrategyLegs((nextCase.target_actions ?? defaultLegs()).map((leg, index) => ({ id: leg.id ?? `ai-leg-${index}`, ...leg })));
