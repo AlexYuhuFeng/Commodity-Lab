@@ -1128,6 +1128,22 @@ textarea:focus {
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
 }
 
+[data-theme="light"] .assistant-command-bar {
+  border-bottom-color: rgba(15, 23, 42, 0.1);
+  background: rgba(248, 250, 252, 0.78);
+}
+
+[data-theme="light"] .assistant-command-bar button {
+  color: #172554;
+  border-color: rgba(37, 99, 235, 0.22);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+[data-theme="light"] .assistant-command-bar button:not(:disabled):hover {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.14);
+}
+
 [data-theme="light"] .assistant-interventions {
   background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent);
   border-bottom-color: rgba(15, 23, 42, 0.1);
@@ -1657,7 +1673,7 @@ textarea:focus {
   top: 86px;
   bottom: 14px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   width: min(420px, calc(100vw - 28px));
   height: auto;
   max-height: none;
@@ -1670,7 +1686,7 @@ textarea:focus {
 }
 
 .assistant-panel.has-interventions {
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
 }
 
 .assistant-panel header {
@@ -1800,6 +1816,47 @@ textarea:focus {
   font-weight: 720;
   text-align: left;
   white-space: nowrap;
+}
+
+.assistant-command-bar {
+  display: grid;
+  gap: 7px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.62);
+  padding: 8px 10px;
+  background: rgba(2, 6, 23, 0.2);
+}
+
+.assistant-command-bar > span {
+  color: var(--cl-muted);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.assistant-command-bar > div {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+}
+
+.assistant-command-bar button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  border: 1px solid rgba(31, 122, 255, 0.28);
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #eaf3ff;
+  background: rgba(37, 99, 235, 0.18);
+  font-size: 12px;
+  font-weight: 760;
+  white-space: nowrap;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.assistant-command-bar button:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(77, 166, 255, 0.56);
+  background: rgba(37, 99, 235, 0.28);
 }
 
 .assistant-actions button {

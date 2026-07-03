@@ -1,6 +1,6 @@
 [project]
 name = "commodity-lab"
-version = "1.2.0"
+version = "1.2.1"
 description = "Private Commodity Lab workspace for virtual commodity hedging and AI-assisted analysis."
 requires-python = ">=3.12"
 

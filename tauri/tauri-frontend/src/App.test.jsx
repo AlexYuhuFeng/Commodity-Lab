@@ -213,7 +213,7 @@ function mockBackend({ aiReady = true, failTrainingCase = false, onCall } = {}) 
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.2.0",
+        current_version: "1.2.1",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -265,7 +265,7 @@ function mockBackend({ aiReady = true, failTrainingCase = false, onCall } = {}) 
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.2.0", latest_version: "1.2.0", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.2.0", assets: [] };
+      return { current_version: "1.2.1", latest_version: "1.2.1", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.2.1", assets: [] };
     }
     return {};
   };
@@ -541,6 +541,23 @@ describe("Commodity Lab shell", () => {
     expect(screen.getByText("AI Control Log")).toBeInTheDocument();
     expect(screen.getAllByText("Adjusted chart fields").length).toBeGreaterThan(0);
     expect(screen.getByText("AI action applied")).toBeInTheDocument();
+  });
+
+  it("keeps an AI control palette available before the user writes a prompt", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    fireEvent.click(await screen.findByText("Training Workbench"));
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+
+    expect(screen.getByText("AI controls")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show high/low/close" }));
+
+    expect(await screen.findByRole("heading", { name: "Plan" })).toBeInTheDocument();
+    expect(screen.getByText("High")).toHaveClass("active");
+    expect(screen.getByText("Low")).toHaveClass("active");
+    expect(screen.getByText("AI Control Log")).toBeInTheDocument();
+    expect(screen.getAllByText("Adjusted chart fields").length).toBeGreaterThan(0);
   });
 
   it("lets the floating assistant visibly update the home learning plan", async () => {
