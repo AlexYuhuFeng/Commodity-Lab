@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.2.0";
+const currentVersion = "1.2.1";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -3128,6 +3128,24 @@ function FloatingAssistant({ activePage, aiReady, applyAction, interventions, lo
     copy(locale, "用三句话解释当前页面的核心知识点。", "Explain the current page concept in three sentences."),
     copy(locale, "检查当前策略还缺少哪些风险动作。", "Check which risk actions are missing from the current strategy.")
   ];
+  const controlPrompts = [
+    {
+      label: copy(locale, "显示高低收", "Show high/low/close"),
+      message: copy(locale, "把行情曲线切换为显示 High、Low、Close，并说明波动风险。", "Show high/low/close on the chart and explain volatility risk.")
+    },
+    {
+      label: copy(locale, "填充策略腿", "Fill strategy legs"),
+      message: copy(locale, "根据当前题目补全一个实货腿、纸货腿和必要的基差/汇率/运力腿。", "Fill the strategy with a physical leg, paper hedge, and any basis, FX, or capacity leg needed.")
+    },
+    {
+      label: copy(locale, "下一道练习", "Next drill"),
+      message: copy(locale, "基于当前课程生成下一道训练题，并切换到适合答题的界面。", "Generate the next drill from the current course and switch to the right workspace.")
+    },
+    {
+      label: copy(locale, "检查缺口", "Check gaps"),
+      message: copy(locale, "检查我当前策略还缺少哪些风险覆盖动作，回答要简短并给出可执行调整。", "Check the risk coverage gaps in my current strategy. Keep it concise and give actionable changes.")
+    }
+  ];
   async function submit(event) {
     event.preventDefault();
     if (!draft.trim()) return;
@@ -3151,6 +3169,14 @@ function FloatingAssistant({ activePage, aiReady, applyAction, interventions, lo
               {interventions.slice(0, 3).map((item) => <button key={item.id} onClick={() => item.page ? applyAction({ type: "navigate_page", payload: { page: item.page } }) : null} type="button"><Icon name="sparkles" />{item.label}</button>)}
             </div>
           ) : null}
+          <div className="assistant-command-bar" aria-label={copy(locale, "AI 控制面板", "AI controls")}>
+            <span>{copy(locale, "AI 控制面板", "AI controls")}</span>
+            <div>
+              {controlPrompts.map((prompt) => (
+                <button disabled={!aiReady || thinking} key={prompt.label} onClick={() => onSend(prompt.message)} type="button">{prompt.label}</button>
+              ))}
+            </div>
+          </div>
           <div className="assistant-messages">
             {messages.length ? messages.map((message, index) => (
               <article className={message.role} key={index}>
