@@ -29,3 +29,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\package_taur
 ```
 
 The generated bundle is under `tauri\src-tauri\target\release\bundle\`.
+
+For a formal public release, use the guarded release script from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.2.0
+```
+
+It runs tests, npm audit, backend rebuild freshness checks, Windows packaging, local install, and GitHub release publishing.

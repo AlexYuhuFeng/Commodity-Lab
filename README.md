@@ -139,6 +139,22 @@ npm install
 npm run tauri:build
 ```
 
+Formal Windows release:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.2.0
+```
+
+The release script runs frontend tests, backend tests, production build, npm audit, backend executable rebuild, Tauri Windows packaging, local installer execution, and GitHub release publishing with bilingual release notes.
+
+正式 Windows 发布：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.2.0
+```
+
+该脚本会依次执行前端测试、后端测试、生产构建、npm audit、后端可执行文件重建、Tauri Windows 打包、本机安装和带中英文说明的 GitHub release 发布。
+
 ## Runtime Configuration / 运行配置
 
 Environment variables are optional because the desktop settings screen can configure providers at runtime.

@@ -211,7 +211,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.1.9",
+        "current_version": "1.2.0",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -220,7 +220,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.1.9"
+    current_version = "1.2.0"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -399,14 +399,63 @@ def _parse_json_response(text: str) -> dict[str, Any]:
     if stripped.startswith("```"):
         stripped = re.sub(r"^```(?:json)?\s*", "", stripped, flags=re.IGNORECASE)
         stripped = re.sub(r"\s*```$", "", stripped)
-    try:
-        return json.loads(stripped)
-    except json.JSONDecodeError:
-        start = stripped.find("{")
-        end = stripped.rfind("}")
-        if start >= 0 and end > start:
-            return json.loads(stripped[start : end + 1])
-        raise
+    candidates = [stripped]
+    extracted = _extract_first_json_object(stripped)
+    if extracted and extracted not in candidates:
+        candidates.append(extracted)
+    for candidate in list(candidates):
+        repaired = _repair_common_llm_json(candidate)
+        if repaired not in candidates:
+            candidates.append(repaired)
+
+    last_error: json.JSONDecodeError | None = None
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return parsed
+            raise ValueError("AI response JSON must be an object.")
+        except json.JSONDecodeError as exc:
+            last_error = exc
+    if last_error:
+        raise last_error
+    raise ValueError("AI response did not include a JSON object.")
+
+
+def _extract_first_json_object(text: str) -> str:
+    start = text.find("{")
+    if start < 0:
+        return ""
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+    return text[start:]
+
+
+def _repair_common_llm_json(text: str) -> str:
+    repaired = text.strip()
+    repaired = re.sub(r",\s*([}\]])", r"\1", repaired)
+    repaired = re.sub(r'(?<=[}\]"0-9])\s*(\r?\n)\s*(?="[^"\r\n]+"\s*:)', r",\1", repaired)
+    repaired = re.sub(r'\b(true|false|null)\s*(\r?\n)\s*(?="[^"\r\n]+"\s*:)', r"\1,\2", repaired)
+    return repaired
 
 
 def _sse_event(event: str, data: dict[str, Any]) -> str:
@@ -419,11 +468,29 @@ def _unknown_scenario(exc: KeyError) -> HTTPException:
 
 
 def _haineng_failure(exc: Exception) -> HTTPException:
+    if _is_ai_response_parse_error(exc):
+        return HTTPException(
+            status_code=502,
+            detail={
+                "code": "ai_response_parse_failed",
+                "message": "AI response could not be converted into a training case. Please retry.",
+                "provider_message": "AI returned incomplete structured content.",
+            },
+        )
     message = _redact_provider_error(str(exc))
     return HTTPException(
         status_code=502,
         detail={"code": "ai_provider_request_failed", "message": "AI provider request failed.", "provider_message": message},
     )
+
+
+def _is_ai_response_parse_error(exc: Exception) -> bool:
+    if isinstance(exc, json.JSONDecodeError):
+        return True
+    if isinstance(exc, ValueError):
+        message = str(exc)
+        return "JSON object" in message or "AI response JSON" in message
+    return False
 
 
 def _redact_provider_error(message: str) -> str:

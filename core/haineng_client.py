@@ -274,7 +274,7 @@ def _provider_model_name(settings: HainengSettings) -> str:
 def _provider_request_options(settings: HainengSettings) -> dict[str, Any]:
     provider = _provider_name(settings)
     model = _provider_model_name(settings).lower()
-    options: dict[str, Any] = {"max_tokens": 1800}
+    options: dict[str, Any] = {"max_tokens": 4096}
     if "flash" in model:
         if provider == "haineng":
             options["extra_body"] = {"enable_thinking": False}
@@ -627,7 +627,8 @@ def build_training_case_messages(
         "gas_trading_models": gas_trading_models or [],
     }
     user = (
-        "Generate one training case as strict JSON only.\n\n"
+        "Generate one training case as compact strict JSON only. Do not use Markdown fences. "
+        "Keep values concise enough that the full JSON response is complete.\n\n"
         f"Business template:\n{_to_json_text(template)}\n\n"
         f"Commodity Lab curriculum reference:\n{_to_json_text(reference)}\n\n"
         f"Additional learner request:\n{_scrub_text(user_request)}\n\n"
@@ -640,12 +641,14 @@ def build_training_case_messages(
         '  "prompt": "Decision task shown to the learner in Markdown"\n'
         "}\n"
         "Use scenario.knowledge_points from the template coverage where possible. "
-        "The rubric must total 100 points and should include exposure identification, instrument choice, physical-paper matching, and risk-control explanation. "
+        "The rubric must contain exactly 4 rows totaling 100 points: exposure identification, instrument choice, physical-paper matching, and risk-control explanation. "
+        "Keep every rubric rule under 24 words. "
         "Include two or more curves when the business type involves a spread such as TTF/NBP. "
         "If the case involves two hubs, show each hub as a separate curve and only add a spread curve if it helps the exercise. "
-        "Use 8 to 16 price points per curve. Include high, low, and close on every point. "
+        "Use exactly 8 price points per curve. Include high, low, and close on every point. "
         "Use target_actions for the expected multi-leg physical/paper/FX/capacity/option strategy. "
-        "Do not over-explain inside prompt; keep the learner task clear and action-oriented."
+        "Keep target_actions to 2 to 4 legs. "
+        "Do not over-explain inside prompt; keep the learner task clear and action-oriented, under 120 words."
     )
     return [
         {"role": "system", "content": system},

@@ -213,7 +213,7 @@ function mockBackend({ aiReady = true, failTrainingCase = false, onCall } = {}) 
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.1.9",
+        current_version: "1.2.0",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -265,7 +265,7 @@ function mockBackend({ aiReady = true, failTrainingCase = false, onCall } = {}) 
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.1.9", latest_version: "1.1.9", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.9", assets: [] };
+      return { current_version: "1.2.0", latest_version: "1.2.0", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.2.0", assets: [] };
     }
     return {};
   };
@@ -509,6 +509,20 @@ describe("Commodity Lab shell", () => {
     expect(calls.some((call) => call.path === "/api/v1/attempts/evaluate")).toBe(false);
   });
 
+  it("maps strategy legs to visible risk coverage before submission", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    fireEvent.click(await screen.findByText("Training Workbench"));
+
+    expect(await screen.findByText("Risk Coverage Map")).toBeInTheDocument();
+    expect(screen.getByText("Physical exposure")).toBeInTheDocument();
+    expect(screen.getByText("Basis / location risk")).toBeInTheDocument();
+    expect(screen.getByText("Covered by UK Beach GSA")).toBeInTheDocument();
+    expect(screen.getByText("Covered by TTF/NBP basis swap")).toBeInTheDocument();
+    expect(screen.getByText("Missing target actions")).toBeInTheDocument();
+  });
+
   it("uses the floating assistant for Markdown answers and safe workspace actions", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
@@ -524,6 +538,9 @@ describe("Commodity Lab shell", () => {
     fireEvent.click(screen.getAllByText("Show high/low/close").at(-1));
     expect(screen.getByText("High")).toHaveClass("active");
     expect(screen.getByText("Low")).toHaveClass("active");
+    expect(screen.getByText("AI Control Log")).toBeInTheDocument();
+    expect(screen.getAllByText("Adjusted chart fields").length).toBeGreaterThan(0);
+    expect(screen.getByText("AI action applied")).toBeInTheDocument();
   });
 
   it("lets the floating assistant visibly update the home learning plan", async () => {
