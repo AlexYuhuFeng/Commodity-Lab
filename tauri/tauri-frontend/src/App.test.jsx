@@ -174,7 +174,7 @@ const crudeGeneratedCase = {
   prompt: "### **Decision task**\n\nBuild a crude cargo hedge for Brent-linked procurement.\n\n- Include physical cargo.\n- Include paper flat-price and basis protection."
 };
 
-function mockBackend({ aiReady = true, onCall } = {}) {
+function mockBackend({ aiReady = true, failTrainingCase = false, onCall } = {}) {
   window.__COMMODITY_LAB_BACKEND__ = async (method, path, body) => {
     onCall?.({ method, path, body });
     if (path === "/api/health") {
@@ -213,7 +213,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.1.8",
+        current_version: "1.1.9",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -232,6 +232,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
       };
     }
     if (path === "/api/v1/ai/training-case") {
+      if (failTrainingCase) throw new Error("AI temporarily unavailable");
       const template = businessTemplates.templates.find((item) => item.id === body?.template_id) ?? businessTemplates.templates[0];
       return { template, case: body?.template_id === "crude_oil_hedging_basics" ? crudeGeneratedCase : generatedCase };
     }
@@ -264,7 +265,7 @@ function mockBackend({ aiReady = true, onCall } = {}) {
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.1.8", latest_version: "1.1.8", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.8", assets: [] };
+      return { current_version: "1.1.9", latest_version: "1.1.9", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.1.9", assets: [] };
     }
     return {};
   };
@@ -442,6 +443,20 @@ describe("Commodity Lab shell", () => {
     expect(screen.getAllByText("Crude procurement / sales hedging").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Brent").length).toBeGreaterThan(0);
     expect(calls.some((call) => call.path === "/api/v1/ai/training-case" && call.body?.template_id === "crude_oil_hedging_basics")).toBe(true);
+  });
+
+  it("keeps a crude-specific local case visible when AI generation fails", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true, failTrainingCase: true });
+
+    const crudeCard = (await screen.findByText("Crude Oil Hedging")).closest("article");
+    fireEvent.click(within(crudeCard).getByRole("button", { name: /Generate chapter drill/i }));
+
+    expect(await screen.findByText("Lesson 1: Crude Cargo and Benchmark Risk")).toBeInTheDocument();
+    expect(screen.getByText("100,000 bbl")).toBeInTheDocument();
+    expect(screen.getAllByText("Brent").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("WTI").length).toBeGreaterThan(0);
+    expect(screen.queryByText("60,000 MMBtu")).not.toBeInTheDocument();
   });
 
   it("does not show old pre-release learning scores on the home path", async () => {
