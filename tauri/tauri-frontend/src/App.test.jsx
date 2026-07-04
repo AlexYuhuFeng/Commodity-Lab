@@ -237,6 +237,20 @@ function mockBackend({ aiReady = true, failTrainingCase = false, onCall } = {}) 
       return { template, case: body?.template_id === "crude_oil_hedging_basics" ? crudeGeneratedCase : generatedCase };
     }
     if (path === "/api/v1/ai/live-assistant") {
+      if (/quiz|exam|test/i.test(body?.message ?? "")) {
+        return {
+          answer: "I created a short quiz and opened Review.",
+          actions: [
+            {
+              type: "set_exam",
+              label: "Generated quiz",
+              payload: {
+                exam: "1. What basis risk remains?\n2. Which leg covers FX exposure?"
+              }
+            }
+          ]
+        };
+      }
       if (/plan|next|course|学习|路线/i.test(body?.message ?? "")) {
         return {
           answer: "I set a short learning plan and opened the path.",
@@ -634,5 +648,26 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("AI Quiz Mode")).toBeInTheDocument();
     expect(screen.getByText("Question 1")).toBeInTheDocument();
     expect(screen.getByText("What basis risk remains?")).toBeInTheDocument();
+    expect(screen.queryByText("No strategy submitted")).not.toBeInTheDocument();
+  });
+
+  it("lets the floating assistant generate a quiz and open the review workflow", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
+
+    expect(await screen.findByText("AI Full Power")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate quiz" }));
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/live-assistant")).toBe(true));
+    expect(await screen.findByText("AI Quiz Mode")).toBeInTheDocument();
+    expect(screen.getByText("Question 1")).toBeInTheDocument();
+    expect(screen.getByText("What basis risk remains?")).toBeInTheDocument();
+    expect(screen.getByText("Question 2")).toBeInTheDocument();
+    expect(screen.getByText("Which leg covers FX exposure?")).toBeInTheDocument();
+    expect(screen.getByText("Conversation became app changes")).toBeInTheDocument();
+    expect(screen.getAllByText("Generated quiz").length).toBeGreaterThan(0);
+    expect(screen.getByText("AI is shaping this lesson")).toBeInTheDocument();
   });
 });

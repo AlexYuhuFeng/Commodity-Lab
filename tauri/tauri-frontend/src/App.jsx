@@ -2951,6 +2951,24 @@ function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData
 function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onPageChange, runAiAction, strategyLegs }) {
   const target = caseData.target_actions ?? [];
   const quizQuestions = quizQuestionsFromText(exam);
+  const quizOnly = quizQuestions.length > 0 && !evaluation;
+  const quizPanel = quizQuestions.length ? (
+    <section className="cl-panel cl-quiz-panel">
+      <div className="cl-panel-heading"><span>{copy(locale, "AI 测验模式", "AI Quiz Mode")}</span><strong>{copy(locale, "已生成", "Generated")}</strong></div>
+      <div className="cl-quiz-list">
+        {quizQuestions.map((question, index) => (
+          <article key={`${question}-${index}`}>
+            <small>{copy(locale, `问题 ${index + 1}`, `Question ${index + 1}`)}</small>
+            <p>{question}</p>
+            <div>
+              <button className="cl-secondary" onClick={() => runAiAction("concept_tutor")} type="button">{copy(locale, "讲解相关概念", "Explain related concept")}</button>
+              <button className="cl-secondary" onClick={onGenerateVariant} type="button">{copy(locale, "生成类似练习", "Generate similar drill")}</button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  ) : null;
   return (
     <section className="cl-page cl-review-page">
       <LearningStepper active={3} locale={locale} />
@@ -2961,9 +2979,12 @@ function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onP
         titleEn="Review & Feedback"
         subtitleZh="把你的组合动作和 AI 生成的目标动作逐项对照，再进入强化训练。"
         subtitleEn="Compare your multi-leg strategy with the AI-generated target before reinforcement drills."
-        action={<button className="cl-primary" onClick={() => runAiAction("advisor_review")} disabled={!evaluation} type="button"><Icon name="coach" />{copy(locale, "AI 解释评分", "AI Explain Score")}</button>}
+        action={quizOnly ? <button className="cl-primary" onClick={onGenerateVariant} type="button"><Icon name="sparkles" />{copy(locale, "生成类似练习", "Generate similar drill")}</button> : <button className="cl-primary" onClick={() => runAiAction("advisor_review")} disabled={!evaluation} type="button"><Icon name="coach" />{copy(locale, "AI 解释评分", "AI Explain Score")}</button>}
       />
       <div className="cl-review-grid">
+        {quizOnly ? quizPanel : null}
+        {!quizOnly ? (
+          <>
         <section className="cl-panel cl-score-summary">
           <div className="cl-progress-ring large" style={{ "--score": `${(evaluation?.baseline_score ?? 0) * 3.6}deg` }}><strong>{evaluation?.baseline_score ?? "--"}</strong><span>/100</span></div>
           <h3>{evaluation ? copy(locale, "本地评分已完成", "Local scoring complete") : copy(locale, "尚未提交策略", "No strategy submitted")}</h3>
@@ -2993,22 +3014,8 @@ function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onP
             </ul>
           ) : <p className="empty-state">{copy(locale, "提交策略后显示真实错误标签。", "Submit a strategy to show real mistake tags.")}</p>}
         </section>
-        {quizQuestions.length ? (
-          <section className="cl-panel cl-quiz-panel">
-            <div className="cl-panel-heading"><span>{copy(locale, "AI 测验模式", "AI Quiz Mode")}</span><strong>{copy(locale, "已生成", "Generated")}</strong></div>
-            <div className="cl-quiz-list">
-              {quizQuestions.map((question, index) => (
-                <article key={`${question}-${index}`}>
-                  <small>{copy(locale, `问题 ${index + 1}`, `Question ${index + 1}`)}</small>
-                  <p>{question}</p>
-                  <div>
-                    <button className="cl-secondary" onClick={() => runAiAction("concept_tutor")} type="button">{copy(locale, "讲解相关概念", "Explain related concept")}</button>
-                    <button className="cl-secondary" onClick={onGenerateVariant} type="button">{copy(locale, "生成类似练习", "Generate similar drill")}</button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
+        {quizPanel}
+          </>
         ) : null}
       </div>
     </section>
@@ -3266,6 +3273,10 @@ function FloatingAssistant({ activePage, aiReady, applyAction, interventions, lo
     {
       label: copy(locale, "下一道练习", "Next drill"),
       message: copy(locale, "基于当前课程生成下一道训练题，并切换到适合答题的界面。", "Generate the next drill from the current course and switch to the right workspace.")
+    },
+    {
+      label: copy(locale, "生成测验", "Generate quiz"),
+      message: copy(locale, "根据当前课程和最近练习生成一套简短测验，并直接打开复盘测验页。", "Generate a short quiz from the current course and recent practice, then open the review quiz page.")
     },
     {
       label: copy(locale, "检查缺口", "Check gaps"),
