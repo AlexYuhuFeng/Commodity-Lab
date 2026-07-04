@@ -172,7 +172,7 @@ const courseSyllabus = [
       {
         id: "foundation-instruments",
         titleZh: "套保工具选择",
-        titleEn: "Hedge Instrument Choice",
+        titleEn: "Hedge Instrument Selection",
         outcomeZh: "区分实货、期货、掉期、基差和期权分别覆盖什么风险。",
         outcomeEn: "Separate what physical, futures, swaps, basis, and options actually hedge."
       },
@@ -1932,8 +1932,11 @@ function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, stra
           {hoverIndex != null ? <line className="hover-line" x1={xFor(hoverIndex)} x2={xFor(hoverIndex)} y1={pad.top} y2={height - pad.bottom} /> : null}
           {strategyLegs.map((leg, index) => {
             const x = pad.left + plotW * Math.min(0.92, 0.12 + index * 0.1);
-            const y = pad.top + 18 + (index % Math.max(1, curves.length)) * laneHeight;
-            return <g className="trade-marker" key={leg.id ?? index}><circle cx={x} cy={y} r="5" /><text x={x + 8} y={y + 4}>{leg.leg_type}:{leg.side}</text></g>;
+            const laneIndex = index % Math.max(1, curves.length);
+            const laneRound = Math.floor(index / Math.max(1, curves.length));
+            const y = pad.top + 18 + laneIndex * laneHeight;
+            const labelY = Math.min(y + 4 + laneRound * 15, pad.top + (laneIndex + 1) * laneHeight - 16);
+            return <g className="trade-marker" key={leg.id ?? index}><circle cx={x} cy={y} r="5" /><text x={x + 8} y={labelY}>{leg.leg_type}:{leg.side}</text></g>;
           })}
           {curves[0]?.points?.[0]?.date ? <text className="date-label" x={pad.left} y={height - 12}>{compactDate(curves[0].points[0].date)}</text> : null}
           {curves[0]?.points?.at(-1)?.date ? <text className="date-label end" x={pad.left + plotW} y={height - 12}>{compactDate(curves[0].points.at(-1).date)}</text> : null}
@@ -2390,14 +2393,22 @@ function PageTitle({ action, icon = "sparkles", locale, subtitleEn, subtitleZh, 
   );
 }
 
-function CourseLessonList({ currentTrackId, learningProgress, locale, track }) {
+function lessonPracticePrompt(locale, track, lesson) {
+  return copy(
+    locale,
+    `${copy(locale, track.requestZh, track.requestEn)}\n\n本节课重点：${copy(locale, lesson.titleZh, lesson.titleEn)}。学习产出：${copy(locale, lesson.outcomeZh, lesson.outcomeEn)}。请生成一个只围绕本节课目标的训练案例。`,
+    `${copy(locale, track.requestZh, track.requestEn)}\n\nLesson focus: ${copy(locale, lesson.titleZh, lesson.titleEn)}. Learning outcome: ${copy(locale, lesson.outcomeZh, lesson.outcomeEn)}. Generate a training case focused only on this lesson objective.`
+  );
+}
+
+function CourseLessonList({ aiReady = true, currentTrackId, learningProgress, locale, onGenerateLesson, track }) {
   const syllabus = syllabusForTrack(track.id);
   const stats = attemptsForTrack(learningProgress, track);
   const isRecommended = currentTrackId === track.id;
   return (
     <div className="cl-lesson-stack">
       <div className="cl-lesson-stack-meta">
-        <span>{stats.attempts ? copy(locale, `${stats.attempts} 次正式提交`, `${stats.attempts} scored attempts`) : copy(locale, "尚未正式练习", "Not practiced yet")}</span>
+        <span>{copy(locale, "课程顺序", "Lesson Sequence")}</span>
         {stats.score != null ? <strong>{stats.score}/100</strong> : null}
       </div>
       <ol>
@@ -2405,12 +2416,21 @@ function CourseLessonList({ currentTrackId, learningProgress, locale, track }) {
           <li className={isRecommended && index === 0 ? "active" : ""} key={lesson.id}>
             <span>{index + 1}</span>
             <div>
+              <em>{index === 0 ? copy(locale, "先修：无", "Prerequisite: none") : copy(locale, "先修", "Prerequisite")}</em>
               <b>{copy(locale, lesson.titleZh, lesson.titleEn)}</b>
-              <small>{copy(locale, lesson.outcomeZh, lesson.outcomeEn)}</small>
+              <small><strong>{copy(locale, "学习产出", "Learning outcome")}</strong>{copy(locale, lesson.outcomeZh, lesson.outcomeEn)}</small>
+              {onGenerateLesson ? (
+                <button className="cl-lesson-generate" disabled={!aiReady} onClick={() => onGenerateLesson(track.templateId, lessonPracticePrompt(locale, track, lesson))} type="button">
+                  <Icon name="sparkles" />{copy(locale, "AI 生成本课练习", "Generate lesson with AI")}
+                </button>
+              ) : null}
             </div>
           </li>
         ))}
       </ol>
+      <span className="cl-lesson-stack-foot">
+        {stats.attempts ? copy(locale, `${stats.attempts} 次正式提交`, `${stats.attempts} scored attempts`) : copy(locale, "尚未正式练习", "Not practiced yet")}
+      </span>
     </div>
   );
 }
@@ -2508,7 +2528,7 @@ function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, lo
                 </div>
                 <h3>{labelFor(locale, track)}</h3>
                 <p>{copy(locale, track.detailZh, track.detailEn)}</p>
-                <CourseLessonList currentTrackId={recommendedTrack} learningProgress={learningProgress} locale={locale} track={track} />
+                <CourseLessonList aiReady={aiReady} currentTrackId={recommendedTrack} learningProgress={learningProgress} locale={locale} onGenerateLesson={onGenerate} track={track} />
                 <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={Boolean(loadingTemplate)} onClick={() => startTrackDrill(track)} type="button">
                   <Icon name={index === 0 ? "play" : "sparkles"} />
                   {trackActionLabel(track, index)}
@@ -2594,9 +2614,7 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
               <div><b>{index + 1}</b><span>{copy(locale, track.levelZh, track.levelEn)}</span></div>
               <h3>{labelFor(locale, track)}</h3>
               <p>{copy(locale, track.detailZh, track.detailEn)}</p>
-              <div className="cl-mini-chip-row">
-                {copy(locale, track.lessons, track.lessonsEn).slice(0, 3).map((lesson) => <span key={lesson}>{lesson}</span>)}
-              </div>
+              <CourseLessonList aiReady={aiReady} currentTrackId={active?.group === track.id ? track.id : ""} learningProgress={{ scenarioStats: {} }} locale={locale} onGenerateLesson={onGenerate} track={track} />
               <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={Boolean(loadingTemplate)} onClick={() => onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn))} type="button">
                 <Icon name="sparkles" />
                 {loadingTemplate === track.templateId

@@ -1042,6 +1042,12 @@ textarea:focus {
   background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), rgba(20, 184, 166, 0.04));
 }
 
+[data-theme="light"] .cl-lesson-generate {
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.22);
+  background: rgba(37, 99, 235, 0.08);
+}
+
 [data-theme="light"] .cl-course-grid article,
 [data-theme="light"] .cl-route-stack button,
 [data-theme="light"] .cl-empty-progress,
@@ -3749,7 +3755,7 @@ button:focus-visible {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
   gap: 8px;
-  min-height: 46px;
+  min-height: 58px;
   border: 1px solid rgba(148, 163, 184, 0.12);
   border-radius: 8px;
   padding: 7px;
@@ -3781,12 +3787,58 @@ button:focus-visible {
   line-height: 1.25;
 }
 
+.cl-lesson-stack em {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--cl-green);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
 .cl-lesson-stack small {
   display: block;
   margin-top: 3px;
   color: var(--cl-muted);
   font-size: 11px;
   line-height: 1.35;
+}
+
+.cl-lesson-stack small strong {
+  margin-right: 5px;
+  color: var(--cl-text);
+  font-size: 10px;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.cl-lesson-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: auto;
+  min-height: 28px;
+  margin-top: 7px;
+  border: 1px solid rgba(37, 99, 235, 0.26);
+  border-radius: 7px;
+  padding: 4px 8px;
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.12);
+  font-size: 11px;
+  font-weight: 780;
+}
+
+.cl-lesson-generate:not(:disabled):hover {
+  border-color: rgba(37, 99, 235, 0.5);
+  background: rgba(37, 99, 235, 0.18);
+  transform: translateY(-1px);
+}
+
+.cl-lesson-stack-foot {
+  color: var(--cl-muted);
+  font-size: 11px;
+  font-weight: 720;
 }
 
 .cl-quick-actions {
