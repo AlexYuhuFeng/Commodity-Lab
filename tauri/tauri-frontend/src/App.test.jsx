@@ -573,6 +573,8 @@ describe("Commodity Lab shell", () => {
     expect(screen.getByText("Basis bridge plan")).toBeInTheDocument();
     expect(screen.getAllByText("Generate this lesson").length).toBeGreaterThan(0);
     expect(screen.getByText("AI is shaping this lesson")).toBeInTheDocument();
+    expect(screen.getByText("Conversation became app changes")).toBeInTheDocument();
+    expect(screen.getByText("Updated path")).toBeInTheDocument();
   });
 
   it("turns the home page into a staged AI-guided course loop", async () => {

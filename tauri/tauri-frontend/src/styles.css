@@ -1140,12 +1140,28 @@ textarea:focus {
   background: rgba(31, 122, 255, 0.08);
 }
 
-[data-theme="light"] .cl-ai-intervention-strip button,
+[data-theme="light"] .cl-ai-guidance {
+  color: #0f766e;
+  border-color: rgba(15, 118, 110, 0.2);
+  background: linear-gradient(90deg, rgba(20, 184, 166, 0.12), rgba(37, 99, 235, 0.08));
+}
+
+[data-theme="light"] .cl-ai-action-pipeline button,
 [data-theme="light"] .assistant-interventions button {
   color: #0f172a;
   border-color: rgba(37, 99, 235, 0.22);
   background: #ffffff;
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .cl-ai-intervention-strip {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), rgba(20, 184, 166, 0.06));
+}
+
+[data-theme="light"] .cl-ai-intervention-summary strong,
+[data-theme="light"] .cl-ai-action-pipeline button span {
+  color: #17202a;
 }
 
 [data-theme="light"] .assistant-command-bar {
@@ -3213,40 +3229,96 @@ button:focus-visible {
 }
 
 .cl-ai-intervention-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(190px, 0.36fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
   flex: 0 0 auto;
   margin: 0 0 10px;
+  border: 1px solid rgba(45, 212, 191, 0.24);
+  border-radius: 14px;
+  padding: 8px;
+  background: linear-gradient(90deg, rgba(5, 46, 43, 0.46), rgba(21, 35, 66, 0.38));
+  animation: aiInterventionEnter 180ms ease-out;
+}
+
+.cl-ai-intervention-summary {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 2px 6px;
+}
+
+.cl-ai-intervention-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cl-green);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cl-ai-intervention-summary strong {
+  color: var(--cl-text);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.cl-ai-action-pipeline {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: thin;
 }
 
-.cl-ai-intervention-strip > span {
+.cl-ai-action-pipeline button {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  text-align: left;
   flex: 0 0 auto;
-  color: var(--cl-muted);
-  font-size: 12px;
-  font-weight: 760;
-}
-
-.cl-ai-intervention-strip button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 0 auto;
-  min-height: 30px;
+  min-width: 150px;
+  max-width: 230px;
+  min-height: 46px;
   border: 1px solid rgba(45, 212, 191, 0.3);
-  border-radius: 999px;
-  padding: 0 10px;
+  border-radius: 10px;
+  padding: 7px 10px;
   color: #dffcf6;
   background: linear-gradient(90deg, rgba(5, 46, 43, 0.72), rgba(21, 35, 66, 0.72));
-  font-size: 12px;
-  font-weight: 760;
   box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.04), 0 10px 30px rgba(14, 165, 233, 0.08);
 }
 
-.cl-ai-intervention-strip button:first-of-type {
+.cl-ai-action-pipeline button:first-of-type {
   animation: aiInterventionPulse 1400ms ease-out 1;
+}
+
+.cl-ai-action-pipeline button small {
+  color: var(--cl-green);
+  font-size: 10px;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.cl-ai-action-pipeline button span {
+  overflow: hidden;
+  color: var(--cl-text);
+  font-size: 12px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes aiInterventionEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes aiInterventionPulse {
@@ -7238,6 +7310,10 @@ button:disabled {
 }
 
 @media (max-width: 1080px) {
+  .cl-ai-intervention-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .cl-learning-loop-track {
     display: flex;
     overflow-x: auto;
