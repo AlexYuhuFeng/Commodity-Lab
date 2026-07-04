@@ -4539,6 +4539,55 @@ button:focus-visible {
   background: rgba(246, 199, 104, 0.08);
 }
 
+.cl-quiz-panel {
+  grid-column: 1 / -1;
+}
+
+.cl-quiz-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.cl-quiz-list article {
+  display: grid;
+  gap: 9px;
+  min-height: 132px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 10px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(20, 184, 166, 0.05));
+  animation: cl-surface-in 180ms ease both;
+}
+
+.cl-quiz-list small {
+  color: var(--cl-green);
+  font-size: 11px;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.cl-quiz-list p {
+  margin: 0;
+  color: var(--cl-text);
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.45;
+}
+
+.cl-quiz-list article > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-self: end;
+}
+
+.cl-quiz-list button {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
 .cl-knowledge-grid {
   display: grid;
   grid-template-columns: minmax(520px, 1fr) 360px;
@@ -5903,6 +5952,29 @@ textarea:focus-visible {
 
 [data-theme="light"] .cl-score-summary h3 {
   color: var(--cl-text);
+}
+
+[data-theme="light"] .cl-review-page .cl-panel {
+  color: #17202a;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+[data-theme="light"] .cl-review-page .empty-state,
+[data-theme="light"] .cl-review-page .cl-score-summary p {
+  color: #475569;
+}
+
+[data-theme="light"] .cl-quiz-list article {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(20, 184, 166, 0.06)), #ffffff;
+}
+
+[data-theme="light"] .cl-quiz-list small {
+  color: #0f766e;
+}
+
+[data-theme="light"] .cl-quiz-list p {
+  color: #111827;
 }
 
 @media (max-width: 1480px) and (min-width: 1081px) {
