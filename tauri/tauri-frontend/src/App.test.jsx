@@ -523,6 +523,19 @@ describe("Commodity Lab shell", () => {
     expect(screen.getByText("Missing target actions")).toBeInTheDocument();
   });
 
+  it("staggers chart trade-marker labels so strategy legs do not overlap", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const { container } = renderShell({ aiReady: true });
+
+    fireEvent.click((await screen.findAllByText("Generate beginner drill"))[0]);
+    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+
+    const markerLabels = Array.from(container.querySelectorAll(".trade-marker text"));
+    expect(markerLabels.length).toBeGreaterThan(2);
+    const yValues = markerLabels.map((label) => label.getAttribute("y"));
+    expect(new Set(yValues).size).toBe(markerLabels.length);
+  });
+
   it("uses the floating assistant for Markdown answers and safe workspace actions", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
@@ -596,5 +609,17 @@ describe("Commodity Lab shell", () => {
     expect(screen.getByText("Current module")).toBeInTheDocument();
     expect(screen.getByText("Next classroom move")).toBeInTheDocument();
     expect(screen.getAllByText("Generate this lesson").length).toBeGreaterThan(0);
+  });
+
+  it("presents the home curriculum as ordered lessons with AI generation controls", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    expect((await screen.findAllByText("Lesson Sequence")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Prerequisite/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Learning outcome").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Exposure Recognition").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Hedge Instrument Selection").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Generate lesson with AI").length).toBeGreaterThan(0);
   });
 });
