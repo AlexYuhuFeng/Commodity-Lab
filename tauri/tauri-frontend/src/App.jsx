@@ -2157,6 +2157,15 @@ function AdvisorRail({ aiOutput, aiReady, advisorFeedback, busyAction, error, ev
   );
 }
 
+function quizQuestionsFromText(exam) {
+  return String(exam ?? "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)、])\s*/, "").trim())
+    .filter(Boolean);
+}
+
 function labelFor(locale, item, zhKey = "zh", enKey = "en") {
   return copy(locale, item[zhKey], item[enKey]);
 }
@@ -2939,8 +2948,9 @@ function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData
   );
 }
 
-function ReviewPage({ caseData, evaluation, locale, onGenerateVariant, onPageChange, runAiAction, strategyLegs }) {
+function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onPageChange, runAiAction, strategyLegs }) {
   const target = caseData.target_actions ?? [];
+  const quizQuestions = quizQuestionsFromText(exam);
   return (
     <section className="cl-page cl-review-page">
       <LearningStepper active={3} locale={locale} />
@@ -2983,6 +2993,23 @@ function ReviewPage({ caseData, evaluation, locale, onGenerateVariant, onPageCha
             </ul>
           ) : <p className="empty-state">{copy(locale, "提交策略后显示真实错误标签。", "Submit a strategy to show real mistake tags.")}</p>}
         </section>
+        {quizQuestions.length ? (
+          <section className="cl-panel cl-quiz-panel">
+            <div className="cl-panel-heading"><span>{copy(locale, "AI 测验模式", "AI Quiz Mode")}</span><strong>{copy(locale, "已生成", "Generated")}</strong></div>
+            <div className="cl-quiz-list">
+              {quizQuestions.map((question, index) => (
+                <article key={`${question}-${index}`}>
+                  <small>{copy(locale, `问题 ${index + 1}`, `Question ${index + 1}`)}</small>
+                  <p>{question}</p>
+                  <div>
+                    <button className="cl-secondary" onClick={() => runAiAction("concept_tutor")} type="button">{copy(locale, "讲解相关概念", "Explain related concept")}</button>
+                    <button className="cl-secondary" onClick={onGenerateVariant} type="button">{copy(locale, "生成类似练习", "Generate similar drill")}</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </section>
   );
@@ -3921,7 +3948,7 @@ export default function App() {
       );
     }
     if (activePage === pageIds.review) {
-      return <ReviewPage caseData={caseData} evaluation={evaluation} locale={locale} onGenerateVariant={generateVariant} onPageChange={setActivePage} runAiAction={runAiAction} strategyLegs={strategyLegs} />;
+      return <ReviewPage caseData={caseData} evaluation={evaluation} exam={exam} locale={locale} onGenerateVariant={generateVariant} onPageChange={setActivePage} runAiAction={runAiAction} strategyLegs={strategyLegs} />;
     }
     if (activePage === pageIds.library) {
       return <ScenarioLibraryPage activeTemplateId={activeTemplateId} learningProgress={learningProgress} locale={locale} loadingTemplate={loadingTemplate} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;

@@ -622,4 +622,17 @@ describe("Commodity Lab shell", () => {
     expect(screen.getAllByText("Hedge Instrument Selection").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Generate lesson with AI").length).toBeGreaterThan(0);
   });
+
+  it("renders AI-generated quiz content on the review page after quiz generation", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    expect(await screen.findByText("AI Full Power")).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("Course Map"));
+    fireEvent.click(screen.getByText("Quiz Me"));
+
+    expect(await screen.findByText("AI Quiz Mode")).toBeInTheDocument();
+    expect(screen.getByText("Question 1")).toBeInTheDocument();
+    expect(screen.getByText("What basis risk remains?")).toBeInTheDocument();
+  });
 });
