@@ -2338,6 +2338,45 @@ function LearningLoopPanel({ aiLessonPlan, aiReady, learningProgress, locale, on
   );
 }
 
+function aiActionKindLabel(locale, kind) {
+  const labels = {
+    generate_case: ["生成案例", "Generated case"],
+    select_template: ["选择模板", "Selected template"],
+    patch_case: ["改写题目", "Updated case"],
+    set_market_curves: ["重绘曲线", "Redrew curves"],
+    set_chart_fields: ["调整图表", "Adjusted chart"],
+    set_strategy_legs: ["填入策略腿", "Filled strategy legs"],
+    fill_rationale: ["起草说明", "Drafted rationale"],
+    set_exam: ["生成测验", "Generated quiz"],
+    set_learning_plan: ["更新路径", "Updated path"],
+    set_learning_goal: ["调整目标", "Updated goal"],
+    navigate_page: ["切换页面", "Navigated"],
+    run_ai_capability: ["运行能力", "Ran capability"]
+  };
+  const [zh, en] = labels[kind] ?? ["软件动作", "Software action"];
+  return copy(locale, zh, en);
+}
+
+function AiInterventionStrip({ interventions, locale, onNavigate }) {
+  if (!interventions.length) return null;
+  return (
+    <div className="cl-ai-intervention-strip" role="status">
+      <div className="cl-ai-intervention-summary">
+        <span><Icon name="sparkles" />{copy(locale, "AI 已介入当前学习", "AI is shaping this lesson")}</span>
+        <strong>{copy(locale, "已把对话转成软件动作", "Conversation became app changes")}</strong>
+      </div>
+      <div className="cl-ai-action-pipeline" aria-label={copy(locale, "最近 AI 动作", "Recent AI actions")}>
+        {interventions.slice(0, 3).map((item) => (
+          <button key={item.id} onClick={() => item.page ? onNavigate(item.page) : null} type="button">
+            <small>{aiActionKindLabel(locale, item.kind)}</small>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PageTitle({ action, icon = "sparkles", locale, subtitleEn, subtitleZh, titleEn, titleZh }) {
   return (
     <div className="cl-page-title">
@@ -3372,8 +3411,8 @@ export default function App() {
     showAiGuidance.timer = window.setTimeout(() => setAiGuidanceAction(""), 3600);
   }
 
-  function recordAiIntervention(label, page = pageIds.workbench) {
-    const item = { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, label, page };
+  function recordAiIntervention(label, page = pageIds.workbench, kind = "software_action") {
+    const item = { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, kind, label, page };
     setAiInterventions((current) => [item, ...current].slice(0, 5));
   }
 
@@ -3704,13 +3743,13 @@ export default function App() {
     const payload = action.payload ?? {};
     if (action.type === "select_template" && payload.template_id) {
       generateTrainingCase(payload.template_id, payload.user_request ?? "");
-      recordAiIntervention(action.label ?? copy(locale, "生成课程练习", "Generated a course drill"), pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "生成课程练习", "Generated a course drill"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 正在按课程生成练习。", "AI is generating a course drill."));
     }
     if (action.type === "generate_case") {
       const track = learningTracks.find((item) => item.id === payload.track_id) ?? learningTracks[0];
       generateTrainingCase(payload.template_id ?? track.templateId, payload.user_request ?? copy(locale, track.requestZh, track.requestEn));
-      recordAiIntervention(action.label ?? copy(locale, "生成新训练题", "Generated a new drill"), pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "生成新训练题", "Generated a new drill"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 正在生成新练习并打开工作台。", "AI is generating a new drill and opening the workbench."));
     }
     if (action.type === "patch_case") {
@@ -3725,7 +3764,7 @@ export default function App() {
       setAdvisorFeedback("");
       setAiOutput(null);
       setActivePage(pageIds.workbench);
-      recordAiIntervention(action.label ?? copy(locale, "改写当前题目和参考动作", "Updated the current case and target actions"), pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "改写当前题目和参考动作", "Updated the current case and target actions"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 已直接改写当前题目、曲线或评分规则。", "AI directly updated the current case, curve, or rubric."));
     }
     if (action.type === "set_market_curves" && Array.isArray(payload.curves)) {
@@ -3739,44 +3778,44 @@ export default function App() {
         }
       }));
       setActivePage(pageIds.workbench);
-      recordAiIntervention(action.label ?? copy(locale, "重绘市场曲线", "Redrew market curves"), pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "重绘市场曲线", "Redrew market curves"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 已根据你的要求重绘训练行情。", "AI redrew the training market for your request."));
     }
     if (action.type === "set_learning_goal" && payload.goal) {
       setAiOutput({ title: copy(locale, "AI 学习目标", "AI Learning Goal"), answer: `### ${payload.goal}\n\n${Array.isArray(payload.focus) ? payload.focus.map((item) => `- ${item}`).join("\n") : ""}` });
       setActivePage(pageIds.home);
-      recordAiIntervention(action.label ?? copy(locale, "调整学习目标", "Updated learning goal"), pageIds.home);
+      recordAiIntervention(action.label ?? copy(locale, "调整学习目标", "Updated learning goal"), pageIds.home, action.type);
       showAiGuidance(copy(locale, "AI 已更新当前学习目标。", "AI updated the current learning goal."));
     }
     if (action.type === "navigate_page" && (pageIds[payload.page] || Object.values(pageIds).includes(payload.page))) {
       const page = pageIds[payload.page] ?? payload.page;
       setActivePage(page);
-      recordAiIntervention(action.label ?? copy(locale, "切换页面", "Navigated page"), page);
+      recordAiIntervention(action.label ?? copy(locale, "切换页面", "Navigated page"), page, action.type);
       showAiGuidance(copy(locale, "AI 已切换到对应页面。", "AI navigated to the requested page."));
     }
     if (action.type === "set_chart_fields" && Array.isArray(payload.fields)) {
       const fields = payload.fields.filter((field) => chartFields.includes(field));
       setFieldSelection(fields.length ? fields : ["close"]);
       setActivePage(pageIds.workbench);
-      recordAiIntervention(copy(locale, "调整图表字段", "Adjusted chart fields"), pageIds.workbench);
+      recordAiIntervention(copy(locale, "调整图表字段", "Adjusted chart fields"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 已切到工作台并调整图表字段。", "AI opened the workbench and adjusted chart fields."));
     }
     if (action.type === "set_strategy_legs" && Array.isArray(payload.legs)) {
       setStrategyLegs(normalizeAssistantLegs(payload.legs));
       setActivePage(pageIds.workbench);
-      recordAiIntervention(action.label ?? copy(locale, "填入组合套保动作", "Filled hedge legs"), pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "填入组合套保动作", "Filled hedge legs"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 已把建议策略腿填入工作台，请你检查后再提交。", "AI filled suggested legs in the workbench. Review before submitting."));
     }
     if (action.type === "fill_rationale" && payload.text) {
       setRationale(payload.text);
       setActivePage(pageIds.workbench);
-      recordAiIntervention(action.label ?? copy(locale, "起草策略说明", "Drafted rationale"), pageIds.workbench);
+      recordAiIntervention(action.label ?? copy(locale, "起草策略说明", "Drafted rationale"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 已填入策略说明草稿。", "AI filled a rationale draft."));
     }
     if (action.type === "set_exam" && payload.exam) {
       setExam(payload.exam);
       setActivePage(pageIds.review);
-      recordAiIntervention(action.label ?? copy(locale, "生成测验并打开复盘", "Generated quiz"), pageIds.review);
+      recordAiIntervention(action.label ?? copy(locale, "生成测验并打开复盘", "Generated quiz"), pageIds.review, action.type);
       showAiGuidance(copy(locale, "AI 已创建测验并打开复盘页。", "AI created a quiz and opened Review."));
     }
     if (action.type === "set_learning_plan") {
@@ -3784,7 +3823,7 @@ export default function App() {
       setAiLessonPlan(nextPlan);
       saveAiLessonPlan(nextPlan);
       setActivePage(pageIds.home);
-      recordAiIntervention(action.label ?? copy(locale, "更新 AI 教学计划", "Updated AI teaching plan"), pageIds.home);
+      recordAiIntervention(action.label ?? copy(locale, "更新 AI 教学计划", "Updated AI teaching plan"), pageIds.home, action.type);
       showAiGuidance(copy(locale, "AI 已重新安排当前学习路线。", "AI updated the current learning route."));
     }
     if (action.type === "run_ai_capability" && payload.capability) runAiAction(payload.capability);
@@ -3899,12 +3938,7 @@ export default function App() {
         <section className="cl-content-shell">
           {generationStages.length && busyAction === "case_generation" ? <GenerationTimeline locale={locale} stages={generationStages} /> : null}
           {aiGuidanceAction ? <p className="cl-ai-guidance"><Icon name="sparkles" />{aiGuidanceAction}</p> : null}
-          {aiInterventions.length ? (
-            <div className="cl-ai-intervention-strip">
-              <span>{copy(locale, "AI 已介入当前学习", "AI is shaping this lesson")}</span>
-              {aiInterventions.slice(0, 3).map((item) => <button key={item.id} onClick={() => item.page ? setActivePage(item.page) : null} type="button"><Icon name="sparkles" />{item.label}</button>)}
-            </div>
-          ) : null}
+          <AiInterventionStrip interventions={aiInterventions} locale={locale} onNavigate={setActivePage} />
           {serviceMessage && activePage !== pageIds.settings ? <p className="cl-service-banner">{serviceMessage}</p> : null}
           {renderActivePage()}
         </section>
