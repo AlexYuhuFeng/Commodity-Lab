@@ -1004,6 +1004,26 @@ textarea:focus {
   color: #475569;
 }
 
+[data-theme="light"] .cl-learning-loop-panel.ai-guided {
+  border-color: rgba(15, 118, 110, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.06), 0 16px 42px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .cl-learning-loop-track > div {
+  border-color: rgba(15, 23, 42, 0.1);
+  background: #ffffff;
+}
+
+[data-theme="light"] .cl-learning-loop-track > div.active {
+  border-color: rgba(15, 118, 110, 0.35);
+  background: linear-gradient(180deg, rgba(20, 184, 166, 0.11), rgba(37, 99, 235, 0.06));
+}
+
+[data-theme="light"] .cl-learning-loop-focus > div {
+  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(248, 250, 252, 0.9);
+}
+
 [data-theme="light"] .cl-ai-plan-orbit {
   color: #0f766e;
   border-color: rgba(15, 118, 110, 0.18);
@@ -3448,6 +3468,120 @@ button:focus-visible {
   color: var(--cl-muted);
   font-size: 13px;
   line-height: 1.55;
+}
+
+.cl-learning-loop-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+}
+
+.cl-learning-loop-panel.ai-guided {
+  border-color: rgba(24, 195, 126, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(24, 195, 126, 0.08), 0 18px 50px rgba(2, 6, 23, 0.22);
+}
+
+.cl-learning-loop-track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cl-learning-loop-track > div {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-height: 96px;
+  border: 1px solid var(--cl-border);
+  border-radius: 10px;
+  padding: 11px;
+  background: var(--cl-panel-2);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.cl-learning-loop-track > div:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 23px;
+  right: -9px;
+  width: 9px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(31, 122, 255, 0.8), rgba(31, 122, 255, 0));
+}
+
+.cl-learning-loop-track > div.active {
+  transform: translateY(-2px);
+  border-color: rgba(24, 195, 126, 0.64);
+  background: linear-gradient(180deg, rgba(24, 195, 126, 0.16), rgba(31, 122, 255, 0.08));
+  animation: cl-ai-orbit-pulse 1800ms ease-in-out infinite;
+}
+
+.cl-learning-loop-track > div.done {
+  border-color: rgba(31, 122, 255, 0.34);
+}
+
+.cl-learning-loop-track span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: var(--cl-blue);
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.cl-learning-loop-track b {
+  color: var(--cl-text);
+  font-size: 13px;
+}
+
+.cl-learning-loop-track small {
+  color: var(--cl-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.cl-learning-loop-focus {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cl-learning-loop-focus > div {
+  display: grid;
+  gap: 5px;
+  min-height: 92px;
+  border: 1px solid rgba(51, 65, 85, 0.65);
+  border-radius: 10px;
+  padding: 11px;
+  background: rgba(2, 6, 23, 0.22);
+}
+
+.cl-learning-loop-focus small {
+  color: var(--cl-muted);
+  font-size: 11px;
+  font-weight: 740;
+}
+
+.cl-learning-loop-focus strong {
+  color: var(--cl-text);
+  font-size: 13px;
+}
+
+.cl-learning-loop-focus span {
+  color: var(--cl-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.cl-learning-loop-focus button {
+  align-self: end;
+  justify-self: start;
+  min-height: 30px;
+  padding: 5px 10px;
 }
 
 .cl-plan-evidence {
@@ -7104,6 +7238,21 @@ button:disabled {
 }
 
 @media (max-width: 1080px) {
+  .cl-learning-loop-track {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .cl-learning-loop-track > div {
+    flex: 0 0 min(210px, 72vw);
+  }
+
+  .cl-learning-loop-focus {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .cl-workbench-page .cl-learning-stepper {
     display: flex;
     gap: 8px;
