@@ -2297,6 +2297,47 @@ function LearningStepper({ active = 2, locale }) {
   );
 }
 
+function LearningLoopPanel({ aiLessonPlan, aiReady, learningProgress, locale, onGenerate }) {
+  const track = trackForId(aiLessonPlan?.track_id ?? recommendedTrackId(learningProgress));
+  const prompt = aiLessonPlan?.practice_prompt ?? copy(locale, track.requestZh, track.requestEn);
+  const activeIndex = aiLessonPlan ? 1 : learningProgress.hasRecords ? 3 : 0;
+  const activeStep = learningFlow[activeIndex] ?? learningFlow[0];
+  return (
+    <section className={aiLessonPlan ? "cl-panel cl-learning-loop-panel ai-guided" : "cl-panel cl-learning-loop-panel"}>
+      <div className="cl-panel-heading">
+        <span>{copy(locale, "学习闭环", "Learning Loop")}</span>
+        <strong>{aiLessonPlan ? copy(locale, "AI 正在引导这一步", "AI is guiding this step") : copy(locale, "先理解，再生成，再实操", "Understand, generate, practice")}</strong>
+      </div>
+      <div className="cl-learning-loop-track" aria-label={copy(locale, "学习闭环", "Learning Loop")}>
+        {learningFlow.map((step, index) => (
+          <div className={index === activeIndex ? "active" : index < activeIndex ? "done" : ""} key={step.en}>
+            <span>{index + 1}</span>
+            <b>{labelFor(locale, step)}</b>
+            <small>{copy(locale, step.detailZh, step.detailEn)}</small>
+          </div>
+        ))}
+      </div>
+      <div className="cl-learning-loop-focus">
+        <div>
+          <small>{copy(locale, "当前阶段", "Current stage")}</small>
+          <strong>{labelFor(locale, activeStep)}</strong>
+          <span>{copy(locale, activeStep.detailZh, activeStep.detailEn)}</span>
+        </div>
+        <div>
+          <small>{copy(locale, "当前模块", "Current module")}</small>
+          <strong>{labelFor(locale, track)}</strong>
+          <span>{aiLessonPlan?.objective ?? copy(locale, track.detailZh, track.detailEn)}</span>
+        </div>
+        <div>
+          <small>{copy(locale, "下一步课堂动作", "Next classroom move")}</small>
+          <strong>{copy(locale, "生成本节练习", "Generate this lesson")}</strong>
+          <button className="cl-secondary" disabled={!aiReady} onClick={() => onGenerate(track.templateId, prompt)} type="button"><Icon name="sparkles" />{copy(locale, "让 AI 生成", "Ask AI to generate")}</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PageTitle({ action, icon = "sparkles", locale, subtitleEn, subtitleZh, titleEn, titleZh }) {
   return (
     <div className="cl-page-title">
@@ -2415,6 +2456,7 @@ function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, lo
             <button className="cl-secondary" onClick={() => onPageChange(pageIds.knowledge)} type="button"><Icon name="map" />{copy(locale, "看课程地图", "Open course map")}</button>
           </div>
         </section>
+        <LearningLoopPanel aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={onGenerate} />
         <AiTeachingPlanPanel aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={onGenerate} />
         <section className="cl-panel cl-learning-route-panel cl-course-panel">
           <div className="cl-panel-heading"><span>{copy(locale, "业务课程路径", "Business Course Path")}</span><strong>{copy(locale, "Coursera + Roadmap 模式", "Course + Roadmap mode")}</strong></div>

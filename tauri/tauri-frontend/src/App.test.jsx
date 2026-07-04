@@ -571,7 +571,28 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("AI Teaching Plan")).toBeInTheDocument();
     expect(screen.getByText("AI customized")).toBeInTheDocument();
     expect(screen.getByText("Basis bridge plan")).toBeInTheDocument();
-    expect(screen.getByText("Generate this lesson")).toBeInTheDocument();
+    expect(screen.getAllByText("Generate this lesson").length).toBeGreaterThan(0);
     expect(screen.getByText("AI is shaping this lesson")).toBeInTheDocument();
+  });
+
+  it("turns the home page into a staged AI-guided course loop", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    expect(await screen.findByText("Learning Loop")).toBeInTheDocument();
+    expect(screen.getAllByText("Discover").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Generate").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Practice").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Review").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Reinforce").length).toBeGreaterThan(0);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+    fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Build my next course plan." } });
+    fireEvent.click(screen.getByText("Send"));
+
+    expect(await screen.findByText("AI is guiding this step")).toBeInTheDocument();
+    expect(screen.getByText("Current module")).toBeInTheDocument();
+    expect(screen.getByText("Next classroom move")).toBeInTheDocument();
+    expect(screen.getAllByText("Generate this lesson").length).toBeGreaterThan(0);
   });
 });
