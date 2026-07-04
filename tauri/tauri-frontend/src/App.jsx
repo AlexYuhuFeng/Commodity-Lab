@@ -1014,6 +1014,7 @@ const assistantAutoActionTypes = [
   "set_strategy_legs",
   "fill_rationale",
   "set_exam",
+  "submit_strategy",
   "set_learning_plan",
   "set_learning_goal",
   "navigate_page",
@@ -1029,6 +1030,7 @@ const assistantLocalActionTypes = [
   "set_strategy_legs",
   "fill_rationale",
   "set_exam",
+  "submit_strategy",
   "set_learning_plan",
   "set_learning_goal",
   "navigate_page"
@@ -2360,6 +2362,7 @@ function aiActionKindLabel(locale, kind) {
     set_strategy_legs: ["填入策略腿", "Filled strategy legs"],
     fill_rationale: ["起草说明", "Drafted rationale"],
     set_exam: ["生成测验", "Generated quiz"],
+    submit_strategy: ["提交评分", "Scored strategy"],
     set_learning_plan: ["更新路径", "Updated path"],
     set_learning_goal: ["调整目标", "Updated goal"],
     navigate_page: ["切换页面", "Navigated"],
@@ -3279,6 +3282,10 @@ function FloatingAssistant({ activePage, aiReady, applyAction, interventions, lo
       message: copy(locale, "根据当前课程和最近练习生成一套简短测验，并直接打开复盘测验页。", "Generate a short quiz from the current course and recent practice, then open the review quiz page.")
     },
     {
+      label: copy(locale, "提交评分", "Score strategy"),
+      message: copy(locale, "提交当前策略并使用本地评分规则立即评分，然后打开复盘页。", "Submit the current strategy for immediate local scoring, then open Review.")
+    },
+    {
       label: copy(locale, "检查缺口", "Check gaps"),
       message: copy(locale, "检查我当前策略还缺少哪些风险覆盖动作，回答要简短并给出可执行调整。", "Check the risk coverage gaps in my current strategy. Keep it concise and give actionable changes.")
     }
@@ -3873,6 +3880,11 @@ export default function App() {
       setActivePage(pageIds.review);
       recordAiIntervention(action.label ?? copy(locale, "生成测验并打开复盘", "Generated quiz"), pageIds.review, action.type);
       showAiGuidance(copy(locale, "AI 已创建测验并打开复盘页。", "AI created a quiz and opened Review."));
+    }
+    if (action.type === "submit_strategy") {
+      submitStrategy();
+      recordAiIntervention(action.label ?? copy(locale, "提交并本地评分", "Scored strategy"), pageIds.review, action.type);
+      showAiGuidance(copy(locale, "AI 已触发本地评分并打开复盘页。", "AI triggered local scoring and opened Review."));
     }
     if (action.type === "set_learning_plan") {
       const nextPlan = normalizeLearningPlan(payload, learningProgress);
