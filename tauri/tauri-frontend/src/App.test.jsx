@@ -237,6 +237,18 @@ function mockBackend({ aiReady = true, failTrainingCase = false, onCall } = {}) 
       return { template, case: body?.template_id === "crude_oil_hedging_basics" ? crudeGeneratedCase : generatedCase };
     }
     if (path === "/api/v1/ai/live-assistant") {
+      if (/score|submit|evaluate/i.test(body?.message ?? "")) {
+        return {
+          answer: "I submitted the current strategy for local scoring.",
+          actions: [
+            {
+              type: "submit_strategy",
+              label: "Scored strategy",
+              payload: {}
+            }
+          ]
+        };
+      }
       if (/quiz|exam|test/i.test(body?.message ?? "")) {
         return {
           answer: "I created a short quiz and opened Review.",
@@ -669,5 +681,22 @@ describe("Commodity Lab shell", () => {
     expect(screen.getByText("Conversation became app changes")).toBeInTheDocument();
     expect(screen.getAllByText("Generated quiz").length).toBeGreaterThan(0);
     expect(screen.getByText("AI is shaping this lesson")).toBeInTheDocument();
+  });
+
+  it("lets the floating assistant submit and locally score the current strategy", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
+
+    expect(await screen.findByText("AI Full Power")).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("Training Workbench"));
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Score strategy" }));
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/live-assistant")).toBe(true));
+    expect(await screen.findByText("Local scoring complete")).toBeInTheDocument();
+    expect(screen.getByText("User Strategy vs Target Actions")).toBeInTheDocument();
+    expect(screen.getByText("Conversation became app changes")).toBeInTheDocument();
+    expect(screen.getAllByText("Scored strategy").length).toBeGreaterThan(0);
   });
 });
