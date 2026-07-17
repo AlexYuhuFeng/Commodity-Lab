@@ -300,7 +300,8 @@ def test_ai_training_case_endpoint_parses_generated_json(monkeypatch) -> None:
         def complete(self, messages, tools=None):
             text = "\n".join(message["content"] for message in messages)
             assert "Business template" in text
-            assert "AI-generated training data" in text
+            assert "contango" in text
+            assert "ai_simulated" in text
             return """
             {
               "scenario": {
@@ -328,13 +329,23 @@ def test_ai_training_case_endpoint_parses_generated_json(monkeypatch) -> None:
     monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
     response = client.post(
         "/api/v1/ai/training-case",
-        json={"template_id": "procurement_beach_to_germany", "locale": "en", "user_request": "UK to Germany"},
+        json={
+            "template_id": "procurement_beach_to_germany",
+            "locale": "en",
+            "user_request": "UK to Germany",
+            "market_mode": "ai_simulated",
+            "market_regime": "contango",
+            "market_seed": 7,
+            "market_as_of": "2026-07-17",
+        },
     )
     assert response.status_code == 200
     payload = response.json()
     assert payload["template"]["id"] == "procurement_beach_to_germany"
     assert payload["case"]["scenario"]["title"] == "Generated gas case"
     assert [curve["id"] for curve in payload["case"]["market"]["curves"]] == ["TTF", "NBP"]
+    assert payload["case"]["market"]["curve_metrics"]["structure"] == "contango"
+    assert payload["case"]["market"]["provenance"]["mode"] == "ai_simulated"
 
 
 def test_ai_training_case_endpoint_repairs_common_llm_json_errors(monkeypatch) -> None:

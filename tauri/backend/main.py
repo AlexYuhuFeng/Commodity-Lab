@@ -1,3 +1,4 @@
+from copy import deepcopy
 from pathlib import Path
 import re
 import os
@@ -103,6 +104,25 @@ class TrainingCaseGenerateRequest(BaseModel):
     user_request: str = ""
     knowledge_coverage: list[dict[str, Any]] = Field(default_factory=list)
     gas_trading_models: list[dict[str, Any]] = Field(default_factory=list)
+    market_mode: str = "ai_simulated"
+    market_regime: str = "contango"
+    market_seed: int = 42
+    market_as_of: str | None = None
+    replay_id: str | None = None
+
+
+class SimulatedMarketRequest(BaseModel):
+    commodity: str = "natural_gas"
+    regime: str = "contango"
+    seed: int = 42
+    as_of: str | None = None
+    locale: str = "en"
+    base_price: float | None = Field(default=None, gt=0)
+
+
+class ReplaySessionRequest(BaseModel):
+    checkpoint: int = Field(default=0, ge=0)
+    locale: str = "en"
 
 
 class LiveAssistantRequest(BaseModel):
@@ -253,6 +273,49 @@ def v1_catalog(locale: str = "en"):
         "current_focus": {"commodities": ["natural_gas", "crude_oil"], "region": "europe_global", "status": "enabled"},
         "future_modules": ["oil_products", "carbon", "power"],
     }
+
+
+@app.get("/api/v1/market/capabilities")
+def v1_market_capabilities(locale: str = "en"):
+    from core.market_learning import market_capability_catalog
+
+    return market_capability_catalog(locale=locale)
+
+
+@app.post("/api/v1/market/simulate")
+def v1_market_simulate(payload: SimulatedMarketRequest):
+    from core.market_learning import build_simulated_market_context
+
+    try:
+        return build_simulated_market_context(
+            commodity=payload.commodity,
+            regime=payload.regime,
+            seed=payload.seed,
+            as_of=payload.as_of,
+            locale=payload.locale,
+            base_price=payload.base_price,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/replays")
+def v1_replays(locale: str = "en"):
+    from core.market_learning import list_replay_events
+
+    return {"events": list_replay_events(locale=locale)}
+
+
+@app.post("/api/v1/replays/{event_id}/session")
+def v1_replay_session(event_id: str, payload: ReplaySessionRequest):
+    from core.market_learning import build_replay_session
+
+    try:
+        return build_replay_session(event_id, checkpoint=payload.checkpoint, locale=payload.locale)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/v1/business-templates")
@@ -513,6 +576,105 @@ def _require_haineng_client():
     return client
 
 
+def _resolve_training_market(payload: TrainingCaseGenerateRequest, template: dict[str, Any]) -> dict[str, Any]:
+    from core.market_learning import (
+        build_replay_session,
+        build_simulated_market_context,
+        list_replay_events,
+        market_capability_catalog,
+    )
+
+    commodity = "crude_oil" if template.get("group") == "crude" else "natural_gas"
+    mode = (payload.market_mode or "ai_simulated").strip().lower()
+    if mode == "historical_replay":
+        replay_id = payload.replay_id or list_replay_events(locale=payload.locale)[0]["id"]
+        session = build_replay_session(replay_id, checkpoint=0, locale=payload.locale)
+        context = deepcopy(session["market"])
+        context["replay"] = {
+            "event": session["event"],
+            "current_checkpoint": session["current_checkpoint"],
+            "visible_timeline": session["visible_timeline"],
+            "information_policy": session["information_policy"],
+            "source_notes": session["source_notes"],
+        }
+        return context
+    if mode not in {"ai_simulated", "live"}:
+        raise HTTPException(status_code=400, detail=f"Unsupported market mode: {payload.market_mode}")
+
+    context = build_simulated_market_context(
+        commodity=commodity,
+        regime=payload.market_regime,
+        seed=payload.market_seed,
+        as_of=payload.market_as_of,
+        locale=payload.locale,
+    )
+    if mode == "live":
+        platts = next(
+            provider
+            for provider in market_capability_catalog(locale=payload.locale)["providers"]
+            if provider["id"] == "platts"
+        )
+        context["provenance"].update(
+            {
+                "requested_mode": "live",
+                "requested_provider": "platts",
+                "fallback_reason": (
+                    "platts_not_configured"
+                    if platts["status"] == "not_configured"
+                    else "platts_symbol_mapping_pending"
+                ),
+            }
+        )
+    return context
+
+
+def _sample_market_history(points: list[dict[str, Any]], count: int = 8) -> list[dict[str, Any]]:
+    if len(points) <= count:
+        return deepcopy(points)
+    indexes = sorted({round(index * (len(points) - 1) / (count - 1)) for index in range(count)})
+    return [deepcopy(points[index]) for index in indexes]
+
+
+def _attach_market_context(case: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    market = case.setdefault("market", {})
+    benchmark = context.get("benchmark", "MARKET")
+    history = context.get("history", [])
+    curves = market.setdefault("curves", [])
+    if history:
+        benchmark_curve = {
+            "id": benchmark,
+            "label": context.get("label", benchmark),
+            "color": "#0ea5e9",
+            "points": _sample_market_history(history),
+        }
+        matched = False
+        for index, curve in enumerate(curves):
+            if str(curve.get("id", "")).upper() == str(benchmark).upper():
+                curves[index] = {**curve, **benchmark_curve}
+                matched = True
+                break
+        if not matched:
+            curves.insert(0, benchmark_curve)
+    market.update(
+        {
+            "unit": context.get("unit", market.get("unit", "training index")),
+            "as_of": context.get("as_of"),
+            "benchmark": benchmark,
+            "forward_curve": deepcopy(context.get("forward_curve", [])),
+            "curve_metrics": deepcopy(context.get("curve_metrics", {})),
+            "provenance": deepcopy(context.get("provenance", {})),
+        }
+    )
+    replay = context.get("replay")
+    if replay:
+        market["replay"] = deepcopy(replay)
+        market["events"] = [
+            {"date": item["date"], "label": item["label"]}
+            for item in replay.get("visible_timeline", [])
+        ]
+    return case
+
+
 def _scenario_bundle(scenario_id: str | None, locale: str, source: str, provided_market: dict[str, Any] | None):
     from core.gas_scenarios import get_capacity_context, get_market_context, get_scenario, list_scenarios
 
@@ -720,19 +882,21 @@ def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
         template = get_template(payload.template_id, locale=payload.locale)
     except KeyError as exc:
         raise _unknown_scenario(exc)
+    market_context = _resolve_training_market(payload, template)
     messages = build_training_case_messages(
         payload.locale,
         template,
         payload.user_request,
         knowledge_coverage=payload.knowledge_coverage,
         gas_trading_models=payload.gas_trading_models,
+        market_context=market_context,
     )
     try:
         answer = client.complete(messages)
-        case = _parse_json_response(answer)
+        case = _attach_market_context(_parse_json_response(answer), market_context)
     except Exception as exc:
         raise _haineng_failure(exc) from exc
-    return {"template": template, "case": case}
+    return {"template": template, "case": case, "market_context": market_context}
 
 
 @app.post("/api/v1/ai/training-case/stream")
@@ -746,17 +910,21 @@ def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
             client = _require_haineng_client()
             template = get_template(payload.template_id, locale=payload.locale)
             yield _sse_event("template", template)
-            yield _sse_event("stage", {"id": "generate_market", "label": "Generating AI training curves"})
+            yield _sse_event("stage", {"id": "resolve_market", "label": "Resolving market evidence and provenance"})
+            market_context = _resolve_training_market(payload, template)
+            yield _sse_event("market", market_context)
+            yield _sse_event("stage", {"id": "generate_market", "label": "Composing the training market and decision path"})
             messages = build_training_case_messages(
                 payload.locale,
                 template,
                 payload.user_request,
                 knowledge_coverage=payload.knowledge_coverage,
                 gas_trading_models=payload.gas_trading_models,
+                market_context=market_context,
             )
             answer = client.complete(messages)
             yield _sse_event("stage", {"id": "parse_case", "label": "Building scenario, target actions, and rubric"})
-            case = _parse_json_response(answer)
+            case = _attach_market_context(_parse_json_response(answer), market_context)
             yield _sse_event("case", {"template": template, "case": case})
             yield _sse_event("done", {"ok": True})
         except Exception as exc:

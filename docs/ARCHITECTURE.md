@@ -1,64 +1,102 @@
 # Commodity Lab Architecture
 
-Commodity Lab V1 is an AI-driven Windows desktop training terminal for natural gas hedging. The active workflow is generated training, not external market-data retrieval.
+Commodity Lab is a Windows desktop learning platform for commodity trading and financial risk management. The product combines a stable competency framework with DeepSeek-generated lessons, market states, decisions, and coaching.
 
-## Core Loop
+## Product Contract
 
-```text
-Business template
-  -> AI-generated case, curves, target actions, and rubric
-  -> learner builds multi-leg hedge
-  -> local deterministic scoring
-  -> optional AI explanation, exam, or workspace action
-```
-
-## Layers
+The learning experience has one visible loop:
 
 ```text
-Business Template Layer
-  -> procurement and sales workflows for natural gas
-
-AI Generation Layer
-  -> Haineng / DeepSeek compatible prompts for cases, curves, rubrics, exams, and live assistant actions
-
-Learning Layer
-  -> multi-leg answer model, deterministic scoring, learner feedback, and future profile tracking
-
-Desktop Layer
-  -> FastAPI backend, React frontend, Tauri Windows shell
+Learning goal
+  -> market evidence
+  -> business decision
+  -> immediate deterministic score
+  -> concise AI review
+  -> next drill
 ```
 
-## AI-Generated Training Context
+The interface keeps this loop simple. Advanced parameters, provider details, and curriculum metadata stay collapsed until the learner needs them.
 
-V1 does not fetch external prices. The generated case owns its market context:
+## Learning Model
 
-- curves with `open`, `high`, `low`, and `close`;
-- events and business assumptions;
-- expected physical, paper, FX, basis, or capacity legs;
-- scoring rubric.
+The curriculum is stable across learners; the route through it is personalized.
 
-Deterministic gas fixtures remain in `core/gas_scenarios.py` only as offline fallback context for regression tests and unconfigured AI sessions.
+- **Competency graph:** exposure and hedge objective, market structure, physical-paper matching, basis, FX, capacity/freight/storage, options, execution, and controls.
+- **Business models:** European gas procurement and sales, LNG and regas, pipeline capacity, EFET/OCM/EEX workflows, and crude cargo, benchmark, calendar, inventory, and freight hedging.
+- **AI planner:** chooses the next explanation, drill, replay checkpoint, or exam from the learner's goal and actual local progress.
+- **Mission compiler:** produces the case background, evidence, decision gates, target actions, and rubric as one internally consistent session.
+- **Scoring engine:** scores generated target actions locally. AI explains and adapts; it is not required for the initial score.
 
-## Provider Model
+## Market Evidence Layer
 
-`core/haineng_client.py` contains the AI provider contract:
+Every market context uses the same contract and carries `mode`, `source_tier`, `as_of`, `benchmark`, unit, curve metrics, and provenance.
 
-- `haineng`: local Haineng deployment profile;
-- `deepseek`: separate fallback/testing profile;
-- runtime settings are configured through the desktop Settings menu or optional environment variables;
-- secrets are redacted from health responses and prompts.
+### Live market
 
-## UI Model
+The provider adapter is designed for entitled S&P Global Commodity Insights (Platts) delivery. S&P documents API, streaming, sFTP, and developer/MCP access for subscribed data. Live delivery still requires customer credentials, entitlements, symbol mapping, licensing review, and an encrypted local credential store.
 
-The React app is organized around a trading terminal layout:
+Current status: the capability contract and explicit fallback behavior exist; the production Platts fetch adapter is not complete. A live request that cannot be fulfilled falls back to a labelled simulation and never presents simulated data as live.
 
-- left rail: business templates and knowledge points;
-- center: generated case, Markdown decision prompt, chart, strategy builder, local score, rubric;
-- right rail: AI actions and Markdown output;
-- floating assistant: free-form questions and safe action cards;
-- settings menu: API, language, theme, developer info, version, and update check;
-- guided overlay: first-run step-by-step onboarding.
+### Historical replay
 
-## Delivery
+A replay event is a point-in-time information pack:
 
-Commodity Lab V1 ships Windows desktop artifacts from the Tauri build. Generated installers and bundles are release artifacts, not repository source files.
+- only facts available at the current checkpoint are visible;
+- future checkpoints and outcomes remain hidden;
+- each checkpoint has a decision prompt, observable market state, and source notes;
+- price paths may be historically calibrated simulations when licensed tick data is unavailable.
+
+The first pack covers the 2026 Strait of Hormuz disruption using an EIA event narrative and a clearly labelled simulated training curve.
+
+### AI-simulated market
+
+`core/market_learning.py` generates deterministic forward curves and OHLC histories for natural gas and crude oil. It supports contango, backwardation, flat, and high-volatility regimes. The numeric engine owns prices and consistency; DeepSeek owns the business narrative, events, decisions, and teaching language.
+
+This separation prevents prompt wording from producing contradictory curves and makes regression testing possible.
+
+## Runtime Layers
+
+```text
+React learning client
+  -> simple learning studio, workbench, replay, progress, floating assistant
+
+FastAPI application service
+  -> provider settings, market evidence, replay sessions, case generation, scoring
+
+Learning and market core
+  -> curriculum templates, deterministic market engine, replay packs, scoring rules
+
+AI provider contract
+  -> Haineng / DeepSeek prompts, structured case JSON, safe workspace actions
+
+Tauri Windows shell
+  -> native window, secure local settings, backend lifecycle, release packaging
+```
+
+## AI Interaction Contract
+
+AI may generate or update a case, curve context, strategy legs, explanation, exam, and learning route through structured actions. The UI applies visible actions and navigates to the affected workspace instead of only describing the change in chat.
+
+The app does not expose private chain-of-thought. During longer operations it shows useful stage summaries such as:
+
+1. Understanding the learning goal.
+2. Resolving market evidence and provenance.
+3. Building the curve and event path.
+4. Mapping exposures and target actions.
+5. Preparing the decision and rubric.
+
+## Data and Security Rules
+
+- AI and market credentials must never enter Git, release notes, screenshots, or logs.
+- Live data must preserve provider attribution, entitlement boundaries, symbol, and as-of time.
+- Historical replay must prevent future-information leakage.
+- Simulated values must remain labelled as simulated at every API boundary.
+- Generated rubrics and actions are validated before deterministic scoring.
+- Provider failures must leave the client responsive and offer a clear recovery path.
+
+## Primary References
+
+- [S&P Global Commodity Insights Market Data](https://www.spglobal.com/commodityinsights/en/products-services/market-data)
+- [S&P Global Commodity Insights Developer MCP Getting Started](https://developer.spglobal.com/commodityinsights/mcp/getting-started)
+- [CME Group: What is Contango and Backwardation?](https://www.cmegroup.com/education/courses/introduction-to-ferrous-metals/what-is-contango-and-backwardation)
+- [U.S. EIA: Petroleum markets responded to disruptions in the Middle East in Q2 2026](https://www.eia.gov/todayinenergy/detail.php?id=67865)

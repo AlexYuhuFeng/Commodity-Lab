@@ -33,6 +33,47 @@ const defaultProviderCatalog = {
   }
 };
 
+function fallbackMarketCapabilities(locale = "en") {
+  return {
+    modes: [
+      {
+        id: "ai_simulated",
+        label: copy(locale, "AI 模拟市场", "AI-simulated market"),
+        description: copy(locale, "本地数值引擎生成一致曲线，DeepSeek 负责业务情景与教学编排。", "A local numeric engine generates coherent curves while DeepSeek composes the business and lesson.")
+      },
+      {
+        id: "historical_replay",
+        label: copy(locale, "历史事件复盘", "Historical replay"),
+        description: copy(locale, "只显示当时可知信息，提交决策后再揭示后续市场。", "Only information available at the time is shown; later outcomes are revealed after a decision.")
+      },
+      {
+        id: "live",
+        label: copy(locale, "实盘市场", "Live market"),
+        description: copy(locale, "通过机构订阅接入真实评估价、曲线和市场元数据。", "Use entitled assessments, curves, and market metadata through an institutional subscription.")
+      }
+    ],
+    providers: [
+      {
+        id: "platts",
+        label: "S&P Global Commodity Insights (Platts)",
+        status: "not_configured",
+        integration_state: "adapter_contract_ready",
+        requires_subscription: true
+      }
+    ],
+    fallback_mode: "ai_simulated",
+    replays: [
+      {
+        id: "hormuz_2026_disruption",
+        commodity: "crude_oil",
+        title: copy(locale, "2026 霍尔木兹海峡供应冲击复盘", "2026 Strait of Hormuz supply-shock replay"),
+        summary: copy(locale, "从炼厂采购和原油贸易视角管理实货、Brent 纸货、月差、运费和可选性。", "Manage physical cargo, Brent paper, calendar spread, freight, and optionality as information is revealed."),
+        checkpoint_count: 3
+      }
+    ]
+  };
+}
+
 const chartFields = ["close", "high", "low"];
 
 const startupStageKeys = ["startupBackend", "startupAiRuntime", "startupWorkbench", "startupFinalizing"];
@@ -889,7 +930,17 @@ function defaultCase(locale) {
       }
     },
     market: {
-      unit: "training index",
+      unit: "EUR/MWh",
+      as_of: "2026-01-09",
+      benchmark: "TTF",
+      curve_metrics: { structure: "contango", front_price: 31.8, back_price: 33.0, front_back_spread: 1.2, percentage_slope: 0.0377 },
+      provenance: { mode: "ai_simulated", label: zh ? "AI 模拟市场" : "AI-simulated market", source_tier: "synthetic", is_live: false, as_of: "2026-01-09" },
+      forward_curve: [
+        { tenor: "M+1", delivery_month: "2026-02", price: 31.8, bid: 31.74, ask: 31.86 },
+        { tenor: "M+2", delivery_month: "2026-03", price: 32.2, bid: 32.14, ask: 32.26 },
+        { tenor: "M+3", delivery_month: "2026-04", price: 32.7, bid: 32.64, ask: 32.76 },
+        { tenor: "M+4", delivery_month: "2026-05", price: 33.0, bid: 32.94, ask: 33.06 }
+      ],
       curves: [
         {
           id: "TTF",
@@ -954,6 +1005,16 @@ function crudeDefaultCase(locale) {
     },
     market: {
       unit: "USD/bbl",
+      as_of: "2026-01-09",
+      benchmark: "Brent",
+      curve_metrics: { structure: "backwardation", front_price: 73.6, back_price: 71.9, front_back_spread: -1.7, percentage_slope: -0.0231 },
+      provenance: { mode: "ai_simulated", label: zh ? "AI 模拟市场" : "AI-simulated market", source_tier: "synthetic", is_live: false, as_of: "2026-01-09" },
+      forward_curve: [
+        { tenor: "M+1", delivery_month: "2026-02", price: 73.6, bid: 73.56, ask: 73.64 },
+        { tenor: "M+2", delivery_month: "2026-03", price: 73.0, bid: 72.96, ask: 73.04 },
+        { tenor: "M+3", delivery_month: "2026-04", price: 72.5, bid: 72.46, ask: 72.54 },
+        { tenor: "M+4", delivery_month: "2026-05", price: 71.9, bid: 71.86, ask: 71.94 }
+      ],
       curves: [
         {
           id: "BRENT",
@@ -1605,11 +1666,14 @@ function Icon({ name }) {
     globe: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3.6 9h16.8M3.6 15h16.8M12 3c2.2 2.5 3.2 5.5 3.2 9s-1 6.5-3.2 9c-2.2-2.5-3.2-5.5-3.2-9S9.8 5.5 12 3Z" />,
     grid: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />,
     home: <path d="M3 11l9-8 9 8M5 10v10h14V10M9 20v-6h6v6" />,
+    history: <path d="M4 5v5h5M5.6 16.5A8 8 0 1 0 5 8M12 7v5l3 2" />,
     library: <path d="M4 19V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2ZM8 7h7M8 11h7" />,
     map: <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3ZM9 3v15M15 6v15" />,
     play: <path d="M8 5v14l11-7Z" />,
     plus: <path d="M12 5v14M5 12h14" />,
     progress: <path d="M4 19h16M7 16V9M12 16V5M17 16v-4" />,
+    pulse: <path d="M3 12h4l2-6 4 12 2-6h6" />,
+    refresh: <path d="M20 7v5h-5M4 17v-5h5M6.1 8.5A7 7 0 0 1 18.7 7M17.9 15.5A7 7 0 0 1 5.3 17" />,
     search: <path d="M10.5 18a7.5 7.5 0 1 1 5.3-2.2L21 21" />,
     settings: (
       <>
@@ -1828,6 +1892,58 @@ function chartFieldLabel(field, locale) {
   return label ? copy(locale, label.zh, label.en) : field;
 }
 
+function marketStructureLabel(structure, locale) {
+  const normalized = String(structure ?? "flat").toLowerCase();
+  if (normalized === "contango") return "Contango";
+  if (normalized === "backwardation") return "Backwardation";
+  if (normalized === "volatile") return copy(locale, "高波动", "Volatile");
+  return copy(locale, "平坦", "Flat");
+}
+
+function ForwardCurveStrip({ locale, market }) {
+  const points = market.forward_curve ?? [];
+  if (points.length < 2) return null;
+  const visibleQuotes = points.slice(0, 6);
+  const width = 680;
+  const height = 118;
+  const pad = { left: 42, right: 24, top: 16, bottom: 28 };
+  const prices = points.map((point) => Number(point.price)).filter(Number.isFinite);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = Math.max(max - min, 0.01);
+  const xFor = (index) => pad.left + (index / Math.max(points.length - 1, 1)) * (width - pad.left - pad.right);
+  const yFor = (value) => pad.top + ((max - Number(value)) / range) * (height - pad.top - pad.bottom);
+  const path = points.map((point, index) => `${index ? "L" : "M"} ${xFor(index).toFixed(1)} ${yFor(point.price).toFixed(1)}`).join(" ");
+  return (
+    <div className="forward-curve-strip">
+      <div className="forward-curve-heading">
+        <strong>{market.benchmark ?? "--"} {copy(locale, "远期", "FORWARD")}</strong>
+        <small>{copy(locale, "曲线快照", "CURVE SNAPSHOT")} · {market.unit ?? "--"}</small>
+      </div>
+      <svg aria-label={copy(locale, "远期曲线", "Forward curve")} preserveAspectRatio="none" role="img" viewBox={`0 0 ${width} ${height}`}>
+        {[0, 0.5, 1].map((ratio) => <line className="forward-grid" key={ratio} x1={pad.left} x2={width - pad.right} y1={pad.top + ratio * (height - pad.top - pad.bottom)} y2={pad.top + ratio * (height - pad.top - pad.bottom)} />)}
+        <path className="forward-line" d={path} />
+        {points.map((point, index) => (
+          <g key={`${point.tenor}-${index}`}>
+            <circle cx={xFor(index)} cy={yFor(point.price)} r="3.5" />
+            <text className="forward-price" x={xFor(index)} y={Math.max(11, yFor(point.price) - 8)}>{formatNumber(point.price, 2)}</text>
+            <text className="forward-tenor" x={xFor(index)} y={height - 7}>{point.tenor}</text>
+          </g>
+        ))}
+      </svg>
+      <div aria-label={copy(locale, "远期报价", "Forward quotes")} className="forward-quote-grid" role="table">
+        {visibleQuotes.map((point) => (
+          <div key={point.tenor} role="row">
+            <strong role="cell">{point.tenor}</strong>
+            <span role="cell"><small>BID</small><b>{formatNumber(point.bid, 2)}</b></span>
+            <span role="cell"><small>ASK</small><b>{formatNumber(point.ask, 2)}</b></span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, strategyLegs }) {
   const market = caseData.market ?? {};
   const curves = market.curves ?? [];
@@ -1889,8 +2005,14 @@ function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, stra
     <section className="panel market-panel" data-guide="market-chart">
       <div className="panel-title">
         <span>{t("marketContext", locale)}</span>
-        <strong>{t("aiGeneratedData", locale)}</strong>
+        <strong>{market.provenance?.label ?? t("aiGeneratedData", locale)}</strong>
       </div>
+      <div className="market-evidence-strip">
+        <span>{copy(locale, "远期结构", "Forward curve structure")}<strong>{marketStructureLabel(market.curve_metrics?.structure, locale)}</strong></span>
+        <span>{copy(locale, "数据时点", "As of")}<strong>{copy(locale, `截至 ${market.as_of ?? market.provenance?.as_of ?? "--"}`, `As of ${market.as_of ?? market.provenance?.as_of ?? "--"}`)}</strong></span>
+        <span>{copy(locale, "基准", "Benchmark")}<strong>{market.benchmark ?? curves[0]?.label ?? "--"}</strong></span>
+      </div>
+      <ForwardCurveStrip locale={locale} market={market} />
       <div className="chart-toolbar">
         <div className="segmented compact">
           {chartFields.map((field) => (
@@ -2593,11 +2715,87 @@ function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, lo
   );
 }
 
-function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, loadingTemplate, onGenerate, setActiveTemplateId }) {
+function MarketEvidenceSelector({ capabilities, locale, marketMode, marketRegime, replayId, setMarketMode, setMarketRegime, setReplayId }) {
+  const modes = capabilities?.modes?.length ? capabilities.modes : fallbackMarketCapabilities(locale).modes;
+  const replays = capabilities?.replays?.length ? capabilities.replays : fallbackMarketCapabilities(locale).replays;
+  const platts = capabilities?.providers?.find((provider) => provider.id === "platts") ?? fallbackMarketCapabilities(locale).providers[0];
+  const activeReplay = replays.find((item) => item.id === replayId) ?? replays[0];
+  const orderedModes = ["ai_simulated", "historical_replay", "live"]
+    .map((id) => modes.find((mode) => mode.id === id))
+    .filter(Boolean);
+  return (
+    <div className="cl-market-evidence">
+      <div className="cl-market-evidence-heading">
+        <span>{copy(locale, "市场依据", "Market evidence")}</span>
+        <small>{copy(locale, "所有价格都会标明来源与时点", "Every price keeps its source and as-of time")}</small>
+      </div>
+      <div className="cl-market-mode-tabs" role="tablist" aria-label={copy(locale, "市场模式", "Market mode")}>
+        {orderedModes.map((mode) => (
+          <button
+            aria-label={mode.label}
+            aria-selected={marketMode === mode.id}
+            className={marketMode === mode.id ? "active" : ""}
+            key={mode.id}
+            onClick={() => setMarketMode(mode.id)}
+            role="tab"
+            type="button"
+          >
+            <Icon name={mode.id === "historical_replay" ? "history" : mode.id === "live" ? "pulse" : "sparkles"} />
+            <span>{mode.label}</span>
+          </button>
+        ))}
+      </div>
+      {marketMode === "ai_simulated" ? (
+        <div className="cl-market-mode-detail">
+          <div>
+            <strong>{copy(locale, "连贯的训练行情", "Coherent training market")}</strong>
+            <p>{copy(locale, "程序生成可复现曲线，AI 据此编排业务与决策。", "The app builds reproducible curves; AI composes the business and decisions around them.")}</p>
+          </div>
+          <label>{copy(locale, "远期曲线结构", "Forward curve structure")}
+            <select value={marketRegime} onChange={(event) => setMarketRegime(event.target.value)}>
+              <option value="contango">Contango</option>
+              <option value="backwardation">Backwardation</option>
+              <option value="flat">{copy(locale, "平坦", "Flat")}</option>
+              <option value="volatile">{copy(locale, "高波动", "Volatile")}</option>
+            </select>
+          </label>
+        </div>
+      ) : null}
+      {marketMode === "historical_replay" ? (
+        <div className="cl-market-mode-detail replay">
+          <label>{copy(locale, "复盘事件", "Replay event")}
+            <select value={activeReplay?.id ?? ""} onChange={(event) => setReplayId(event.target.value)}>
+              {replays.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+            </select>
+          </label>
+          <div>
+            <p>{activeReplay?.summary}</p>
+            <small>{copy(locale, `${activeReplay?.checkpoint_count ?? 0} 个决策时点 · 后续信息默认隐藏`, `${activeReplay?.checkpoint_count ?? 0} decision points · future information hidden`)}</small>
+          </div>
+        </div>
+      ) : null}
+      {marketMode === "live" ? (
+        <div className="cl-market-mode-detail live">
+          <div>
+            <strong>{platts.label}</strong>
+            <p>{platts.status === "connected"
+              ? copy(locale, "使用已授权行情并锁定数据时点。", "Use entitled prices and lock the data as-of time.")
+              : copy(locale, "未连接订阅；生成时会明确回退到 AI 模拟市场。", "No subscription; generation will clearly fall back to AI simulation.")}</p>
+          </div>
+          <span className={platts.status === "connected" ? "cl-source-status connected" : "cl-source-status"}>{platts.status === "connected" ? copy(locale, "已连接", "Connected") : copy(locale, "未配置", "Not configured")}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, loadingTemplate, marketCapabilities, onGenerate, setActiveTemplateId }) {
   const templates = businessTemplates.templates?.length ? businessTemplates.templates : fallbackTemplates.templates;
   const [request, setRequest] = useState("");
+  const [marketMode, setMarketModeState] = useState("ai_simulated");
+  const [marketRegime, setMarketRegime] = useState("contango");
+  const [replayId, setReplayId] = useState(() => marketCapabilities?.replays?.[0]?.id ?? "hormuz_2026_disruption");
   const active = templates.find((template) => template.id === activeTemplateId) ?? templates[0];
-  const gasTemplates = templates.filter((template) => template.group === active?.group || template.id === active?.id);
   const activeCoverage = coverageForTemplate(active);
   const activeModels = modelsForTemplate(active);
   const activeCommodity = active?.group === "crude" ? "crude-oil" : "natural-gas";
@@ -2607,6 +2805,25 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
     setActiveTemplateId(next.id);
   }
 
+  function setMarketMode(nextMode) {
+    setMarketModeState(nextMode);
+    if (nextMode === "historical_replay") {
+      const replay = marketCapabilities?.replays?.find((item) => item.id === replayId) ?? marketCapabilities?.replays?.[0];
+      if (replay?.commodity === "crude_oil") {
+        const crudeTemplate = templates.find((template) => template.group === "crude");
+        if (crudeTemplate) setActiveTemplateId(crudeTemplate.id);
+      }
+    }
+  }
+
+  function marketGenerationOptions() {
+    return {
+      market_mode: marketMode,
+      market_regime: marketRegime,
+      replay_id: marketMode === "historical_replay" ? replayId : null
+    };
+  }
+
   return (
     <section className="cl-page cl-case-lab-page" data-guide="case-lab">
       <PageTitle
@@ -2614,68 +2831,47 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
         locale={locale}
         titleZh="构建 AI 训练案例"
         titleEn="Build an AI Training Case"
-        subtitleZh="选择课程章节，或者直接用自然语言描述你想训练的商品套保问题。"
-        subtitleEn="Choose a chapter or describe the commodity hedging case you want to practice."
-        action={<button className="cl-secondary" type="button">{copy(locale, "操作说明", "How it works")}</button>}
+        subtitleZh="告诉 AI 你要练什么；市场、场景和评分规则会一起生成。"
+        subtitleEn="Tell AI what to practise; the market, scenario, and rubric are generated together."
       />
-      <section className="cl-panel cl-course-picker">
-        <div className="cl-panel-heading"><span>{copy(locale, "先选课程章节", "Choose a course chapter first")}</span><strong>{copy(locale, "AI 按章节生成练习", "AI generates by chapter")}</strong></div>
-        <div className="cl-course-grid compact">
-          {learningTracks.map((track, index) => (
-            <article key={track.id}>
-              <div><b>{index + 1}</b><span>{copy(locale, track.levelZh, track.levelEn)}</span></div>
-              <h3>{labelFor(locale, track)}</h3>
-              <p>{copy(locale, track.detailZh, track.detailEn)}</p>
-              <CourseLessonList aiReady={aiReady} currentTrackId={active?.group === track.id ? track.id : ""} learningProgress={{ scenarioStats: {} }} locale={locale} onGenerateLesson={onGenerate} track={track} />
-              <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={Boolean(loadingTemplate)} onClick={() => onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn))} type="button">
-                <Icon name="sparkles" />
-                {loadingTemplate === track.templateId
-                  ? t("loading", locale)
-                  : aiReady
-                    ? copy(locale, "生成练习并打开工作台", "Generate drill and open workbench")
-                    : copy(locale, "先配置 AI", "Connect AI first")}
-              </button>
-              <small className="cl-course-action-note">
-                {aiReady
-                  ? copy(locale, "点击后会生成本章案例、曲线和参考动作。", "Generates the case, curves, and target actions.")
-                  : copy(locale, "需要先导入 AI 密钥；点击按钮会打开设置。", "Import an AI key first; clicking opens Settings.")}
-              </small>
-            </article>
-          ))}
-        </div>
-      </section>
-      <div className="cl-case-lab-grid">
-        <section className="cl-panel cl-config-panel">
-          <div className="cl-panel-heading"><span>1 {copy(locale, "配置场景", "Configure Scenario")}</span><button className="cl-secondary" onClick={randomize} type="button">{copy(locale, "随机", "Randomize")}</button></div>
-          <div className="cl-form-grid">
-            <label>{copy(locale, "商品", "Commodity")}<select value={activeCommodity} disabled><option value="natural-gas">{copy(locale, "天然气", "Natural Gas")}</option><option value="crude-oil">{copy(locale, "原油", "Crude Oil")}</option></select></label>
-            <label>{copy(locale, "业务角色", "Business Role")}<select value={active?.group ?? "procurement"} onChange={(event) => {
-              const next = templates.find((template) => template.group === event.target.value);
-              if (next) setActiveTemplateId(next.id);
-            }}><option value="foundation">{copy(locale, "基础", "Foundation")}</option><option value="crude">{copy(locale, "原油采购/销售", "Crude procurement/sales")}</option><option value="procurement">{copy(locale, "采购端", "Procurement")}</option><option value="sales">{copy(locale, "销售端", "Sales")}</option><option value="integrated">{copy(locale, "组合策略", "Integrated")}</option></select></label>
-            <label>{copy(locale, "业务模板", "Scenario Family")}<select value={active?.id ?? ""} onChange={(event) => setActiveTemplateId(event.target.value)}>{templates.map((template) => <option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
-            <label>{copy(locale, "地区", "Region")}<select defaultValue="europe"><option value="europe">{copy(locale, "欧洲", "Europe")}</option><option value="uk">{copy(locale, "英国", "United Kingdom")}</option></select></label>
-            <label>{copy(locale, "难度", "Difficulty")}<select defaultValue="intermediate"><option>{copy(locale, "中等", "Intermediate")}</option><option>{copy(locale, "困难", "Advanced")}</option></select></label>
-            <label>{copy(locale, "风险重点", "Risk Focus")}<select defaultValue="basis"><option>{copy(locale, "价格、基差、汇率", "Price, Basis, FX")}</option><option>{copy(locale, "运力、信用、履约", "Capacity, Credit, Performance")}</option></select></label>
-          </div>
-          <label>{copy(locale, "自然语言需求", "Free-form request")}
-            <textarea value={request} onChange={(event) => setRequest(event.target.value)} placeholder={copy(locale, "例如：英国上游 beach delivery 卖德国，市场快速下跌，训练实货、基差、汇率和运力组合套保。", "Example: UK beach delivery sold into Germany during a sharp selloff; train physical, basis, FX, and capacity hedge design.")} />
+      <div className="cl-case-studio">
+        <section className="cl-panel cl-studio-composer">
+          <MarketEvidenceSelector
+            capabilities={marketCapabilities}
+            locale={locale}
+            marketMode={marketMode}
+            marketRegime={marketRegime}
+            replayId={replayId}
+            setMarketMode={setMarketMode}
+            setMarketRegime={setMarketRegime}
+            setReplayId={setReplayId}
+          />
+          <label className="cl-studio-prompt">{copy(locale, "你想练什么？", "What do you want to practise?")}
+            <textarea value={request} onChange={(event) => setRequest(event.target.value)} placeholder={copy(locale, "例如：训练一套英国上游气卖往德国的组合套保，市场快速下跌。", "Example: practise an integrated hedge for UK beach gas sold into Germany during a sharp selloff.")} />
           </label>
-          <div className="cl-action-row">
-            <button className="cl-primary" disabled={!aiReady || loadingTemplate === active?.id} onClick={() => onGenerate(active?.id, request)} type="button"><Icon name="sparkles" />{loadingTemplate ? t("loading", locale) : copy(locale, "生成案例", "Generate Case")}</button>
-            <button className="cl-secondary" onClick={() => setRequest("")} type="button">{copy(locale, "清空", "Clear")}</button>
+          <details className="cl-studio-advanced">
+            <summary><span>{copy(locale, "课程与业务设置", "Course and business settings")}</span><strong>{active?.title}</strong></summary>
+            <div className="cl-studio-setting-grid">
+              <label>{copy(locale, "商品", "Commodity")}<select value={activeCommodity} disabled><option value="natural-gas">{copy(locale, "天然气", "Natural Gas")}</option><option value="crude-oil">{copy(locale, "原油", "Crude Oil")}</option></select></label>
+              <label>{copy(locale, "课程章节", "Course chapter")}<select value={active?.id ?? ""} onChange={(event) => setActiveTemplateId(event.target.value)}>{templates.map((template) => <option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
+            </div>
+          </details>
+          <div className="cl-studio-actions">
+            <button className="cl-primary" disabled={!aiReady || loadingTemplate === active?.id} onClick={() => onGenerate(active?.id, request, marketGenerationOptions())} type="button"><Icon name="sparkles" />{loadingTemplate ? t("loading", locale) : copy(locale, "生成案例", "Generate Case")}</button>
+            <button aria-label={copy(locale, "随机选择课程", "Randomize course")} className="cl-secondary" onClick={randomize} type="button"><Icon name="refresh" />{copy(locale, "换一个", "Randomize")}</button>
           </div>
+          {!aiReady ? <p className="cl-studio-note">{copy(locale, "请先在设置中导入 AI 密钥。", "Import an AI key in Settings first.")}</p> : null}
         </section>
         <section className="cl-panel cl-ai-preview">
-          <div className="cl-panel-heading"><span>{copy(locale, "AI 预览", "AI Preview")}</span><strong>{aiReady ? t("online", locale) : t("connectToEnable", locale)}</strong></div>
+          <div className="cl-panel-heading"><span>{copy(locale, "本次训练", "This session")}</span><strong>{aiReady ? t("online", locale) : t("connectToEnable", locale)}</strong></div>
           <h3>{active?.title}</h3>
           <p>{active?.summary}</p>
           <div className="cl-chip-row">
             {(active?.knowledge_points ?? ["basis_spread", "physical_paper_matching"]).map((point) => <span key={point}>{knowledgePointLabel(locale, point, businessTemplates)}</span>)}
           </div>
           <div className="cl-preview-facts">
-            <span>{copy(locale, "将生成", "Will generate")}<strong>{copy(locale, "业务背景、曲线、事件、参考动作、评分规则", "Background, curves, events, target legs, rubric")}</strong></span>
-            <span>{copy(locale, "数据性质", "Data type")}<strong>{t("aiGeneratedData", locale)}</strong></span>
+            <span>{copy(locale, "训练结构", "Session structure")}<strong>{copy(locale, "市场 → 决策 → 复盘", "Market → Decision → Review")}</strong></span>
+            <span>{copy(locale, "参考市场", "Market basis")}<strong>{marketMode === "historical_replay" ? copy(locale, "历史复盘", "Historical replay") : marketMode === "live" ? copy(locale, "实盘 / 明示回退", "Live / explicit fallback") : copy(locale, "AI 模拟市场", "AI-simulated market")}</strong></span>
           </div>
           <div className="cl-preview-coverage">
             <h4>{copy(locale, "知识覆盖", "Knowledge Coverage")}</h4>
@@ -2685,25 +2881,8 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
               ))}
             </div>
           </div>
-          <div className="cl-preview-coverage">
-            <h4>{copy(locale, "业务模型", "Commodity Trading Models")}</h4>
-            <div>
-              {activeModels.slice(0, 4).map((item) => (
-                <span key={item.id}>{labelFor(locale, item, "titleZh", "titleEn")}</span>
-              ))}
-            </div>
-          </div>
+          <p className="cl-preview-models">{copy(locale, "业务模型", "Trading models")}: {activeModels.slice(0, 3).map((item) => labelFor(locale, item, "titleZh", "titleEn")).join(" · ")}</p>
         </section>
-        <aside className="cl-panel cl-template-families">
-          <div className="cl-panel-heading"><span>{copy(locale, "模板族", "Template Families")}</span><strong>{formatNumber(templates.length)}</strong></div>
-          {gasTemplates.map((template) => (
-            <button className={template.id === active?.id ? "active" : ""} key={template.id} onClick={() => setActiveTemplateId(template.id)} type="button">
-              <Icon name="library" />
-              <span>{template.title}</span>
-              <small>{template.business_type}</small>
-            </button>
-          ))}
-        </aside>
       </div>
     </section>
   );
@@ -3411,6 +3590,7 @@ export default function App() {
   const [startupStage, setStartupStage] = useState(startupStageKeys[0]);
   const [startupSlow, setStartupSlow] = useState(false);
   const [providerStatus, setProviderStatus] = useState(null);
+  const [marketCapabilities, setMarketCapabilities] = useState(() => fallbackMarketCapabilities(initialLocale));
   const [templates, setTemplates] = useState(fallbackTemplates);
   const [activeTemplateId, setActiveTemplateId] = useState(fallbackTemplates.templates[0].id);
   const [activePage, setActivePage] = useState(pageIds.home);
@@ -3584,6 +3764,13 @@ export default function App() {
 
   useEffect(() => {
     if (!backendReady) return;
+    backendRequest("GET", `/api/v1/market/capabilities?locale=${locale}`)
+      .then(setMarketCapabilities)
+      .catch(() => setMarketCapabilities(fallbackMarketCapabilities(locale)));
+  }, [backendReady, locale]);
+
+  useEffect(() => {
+    if (!backendReady) return;
     backendRequest("GET", "/api/v1/version").then(setUpdateInfo).catch(() => {});
   }, [backendReady]);
 
@@ -3630,7 +3817,7 @@ export default function App() {
     }
   }
 
-  async function generateTrainingCase(templateId, userRequest = "") {
+  async function generateTrainingCase(templateId, userRequest = "", marketOptions = {}) {
     setActiveTemplateId(templateId);
     if (!aiReady) {
       setServiceMessage(t("aiRequiredForCase", locale));
@@ -3651,6 +3838,9 @@ export default function App() {
         template_id: templateId,
         locale,
         user_request: userRequest,
+        market_mode: marketOptions.market_mode ?? "ai_simulated",
+        market_regime: marketOptions.market_regime ?? "contango",
+        replay_id: marketOptions.replay_id ?? null,
         ...curriculum
       });
       const nextCase = payload.case ?? localTemplateCase;
@@ -3940,6 +4130,17 @@ export default function App() {
     strategyLegs
   };
 
+  function selectTemplateForPractice(templateId) {
+    setActiveTemplateId(templateId);
+    const nextCase = defaultCaseForTemplate(templateId, locale);
+    setCaseData(nextCase);
+    setStrategyLegs((nextCase.target_actions ?? defaultLegs(locale)).map((leg, index) => ({ id: leg.id ?? `preview-leg-${index}`, ...leg })));
+    setEvaluation(null);
+    setAdvisorFeedback("");
+    setExam("");
+    setAiOutput(null);
+  }
+
   function renderActivePage() {
     if (activePage === pageIds.caseLab) {
       return (
@@ -3949,8 +4150,9 @@ export default function App() {
           businessTemplates={templates}
           locale={locale}
           loadingTemplate={loadingTemplate}
+          marketCapabilities={marketCapabilities}
           onGenerate={generateTrainingCase}
-          setActiveTemplateId={setActiveTemplateId}
+          setActiveTemplateId={selectTemplateForPractice}
         />
       );
     }

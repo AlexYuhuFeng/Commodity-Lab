@@ -90,7 +90,17 @@ const generatedCase = {
     exposure: { direction: "spread", volume_mmbtu: 60000, risk: "NBP/TTF spread, EUR/GBP FX, and route capacity." }
   },
   market: {
-    unit: "training index",
+    unit: "EUR/MWh",
+    as_of: "2026-07-17",
+    benchmark: "TTF",
+    curve_metrics: { structure: "contango", front_price: 31.5, back_price: 35.2, front_back_spread: 3.7, percentage_slope: 0.11746 },
+    provenance: { mode: "ai_simulated", label: "AI-simulated market", source_tier: "synthetic", is_live: false, as_of: "2026-07-17" },
+    forward_curve: [
+      { tenor: "M+1", delivery_month: "2026-08", price: 31.5, bid: 31.45, ask: 31.55 },
+      { tenor: "M+2", delivery_month: "2026-09", price: 32.1, bid: 32.05, ask: 32.15 },
+      { tenor: "M+3", delivery_month: "2026-10", price: 33.0, bid: 32.95, ask: 33.05 },
+      { tenor: "M+4", delivery_month: "2026-11", price: 35.2, bid: 35.15, ask: 35.25 }
+    ],
     curves: [
       {
         id: "TTF",
@@ -211,6 +221,28 @@ function mockBackend({ aiReady = true, failTrainingCase = false, onCall } = {}) 
       };
     }
     if (path.startsWith("/api/v1/business-templates?")) return businessTemplates;
+    if (path.startsWith("/api/v1/market/capabilities?")) {
+      return {
+        modes: [
+          { id: "live", label: "Live market", description: "Use entitled market data." },
+          { id: "historical_replay", label: "Historical replay", description: "Reveal the market point by point." },
+          { id: "ai_simulated", label: "AI-simulated market", description: "Use coherent deterministic curves." }
+        ],
+        providers: [
+          { id: "platts", label: "S&P Global Commodity Insights (Platts)", status: "not_configured", integration_state: "adapter_contract_ready", requires_subscription: true }
+        ],
+        fallback_mode: "ai_simulated",
+        replays: [
+          {
+            id: "hormuz_2026_disruption",
+            commodity: "crude_oil",
+            title: "2026 Strait of Hormuz supply-shock replay",
+            summary: "Manage physical cargo, Brent paper, calendar spread, freight, and optionality as information is revealed.",
+            checkpoint_count: 3
+          }
+        ]
+      };
+    }
     if (path === "/api/v1/version") {
       return {
         current_version: "1.2.1",
@@ -320,7 +352,7 @@ describe("i18n catalog", () => {
 });
 
 describe("Commodity Lab shell", () => {
-  it("defaults to Mandarin and no longer exposes external data source labels", async () => {
+  it("defaults to Mandarin and presents the new market-aware learning model", async () => {
     renderShell({ aiReady: true });
 
     expect(await screen.findByText("AI 全功能")).toBeInTheDocument();
@@ -328,8 +360,54 @@ describe("Commodity Lab shell", () => {
     expect(screen.getAllByText("设置")[0]).toBeInTheDocument();
     expect(screen.getByText("商品套保学习路径")).toBeInTheDocument();
     expect(screen.getAllByText("生成练习").length).toBeGreaterThan(0);
-    expect(screen.queryByText(/external market data source/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/涓|鈥|娴疯兘/)).not.toBeInTheDocument();
+  });
+
+  it("lets the learner choose a historical replay and sends the point-in-time mode to DeepSeek", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
+
+    fireEvent.click(await screen.findByText("Practice Generator"));
+    expect(await screen.findByText("Market evidence")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Historical replay" }));
+    expect(screen.getByText("2026 Strait of Hormuz supply-shock replay")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Generate Case"));
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/training-case")).toBe(true));
+    const request = calls.find((call) => call.path === "/api/v1/ai/training-case")?.body;
+    expect(request.market_mode).toBe("historical_replay");
+    expect(request.replay_id).toBe("hormuz_2026_disruption");
+  });
+
+  it("lets the learner request a backwardated simulated market and shows provenance in the workbench", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
+
+    fireEvent.click(await screen.findByText("Practice Generator"));
+    fireEvent.change(await screen.findByLabelText("Forward curve structure"), { target: { value: "backwardation" } });
+    fireEvent.click(screen.getByText("Generate Case"));
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/training-case")).toBe(true));
+    const request = calls.find((call) => call.path === "/api/v1/ai/training-case")?.body;
+    expect(request.market_mode).toBe("ai_simulated");
+    expect(request.market_regime).toBe("backwardation");
+    expect(await screen.findByText("AI-simulated market")).toBeInTheDocument();
+    expect(screen.getByText("Contango")).toBeInTheDocument();
+    expect(screen.getByText("As of 2026-07-17")).toBeInTheDocument();
+  });
+
+  it("keeps the preview workbench aligned with a crude historical replay before generation", async () => {
+    renderShell({ aiReady: false });
+
+    fireEvent.click(await screen.findByText("生成练习"));
+    fireEvent.click(screen.getByRole("tab", { name: "Historical replay" }));
+    fireEvent.click(screen.getByRole("button", { name: "训练工作台" }));
+
+    expect(await screen.findByText("第一课：原油船货与基准风险")).toBeInTheDocument();
+    expect(screen.getByText("Backwardation")).toBeInTheDocument();
+    expect(screen.queryByText("第一课：套保对象与风险敞口")).not.toBeInTheDocument();
   });
 
   it("saves DeepSeek settings with a separate provider contract from Haineng", async () => {

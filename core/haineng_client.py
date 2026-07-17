@@ -611,11 +611,14 @@ def build_training_case_messages(
     user_request: str = "",
     knowledge_coverage: Any | None = None,
     gas_trading_models: Any | None = None,
+    market_context: Any | None = None,
 ) -> list[dict[str, str]]:
     system = (
         _base_system(locale)
         + " Generate a complete Commodity Lab training case from a business template. "
-        "The product no longer uses external market data; all market curves must be AI-generated training data. "
+        "The market context may be live subscription data, a point-in-time historical replay, or a deterministic simulation. "
+        "Treat the supplied market context as authoritative, preserve its provenance, and never relabel simulated data as live. "
+        "For historical replay, never reveal facts after the current checkpoint. "
         "Make the case concrete and commercially realistic. "
         "If the template group is foundation, keep the case beginner-friendly with one clear exposure and one simple physical-paper hedge before adding spread, FX, or capacity complexity. "
         "For intermediate or advanced templates, teach the case as part of a connected curriculum instead of a standalone riddle. "
@@ -625,6 +628,7 @@ def build_training_case_messages(
         "textbook_style_coverage": knowledge_coverage or [],
         "commodity_trading_models": gas_trading_models or [],
         "gas_trading_models": gas_trading_models or [],
+        "market_context": market_context or {},
     }
     user = (
         "Generate one training case as compact strict JSON only. Do not use Markdown fences. "
@@ -641,6 +645,8 @@ def build_training_case_messages(
         '  "prompt": "Decision task shown to the learner in Markdown"\n'
         "}\n"
         "Use scenario.knowledge_points from the template coverage where possible. "
+        "Use the supplied forward-curve structure, as-of date, and provenance in the learner task. "
+        "If the supplied context is incomplete, state the missing field instead of inventing a live value. "
         "The rubric must contain exactly 4 rows totaling 100 points: exposure identification, instrument choice, physical-paper matching, and risk-control explanation. "
         "Keep every rubric rule under 24 words. "
         "Include two or more curves when the business type involves a spread such as TTF/NBP. "
