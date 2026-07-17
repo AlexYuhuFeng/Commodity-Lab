@@ -348,6 +348,76 @@ def test_ai_training_case_endpoint_parses_generated_json(monkeypatch) -> None:
     assert payload["case"]["market"]["provenance"]["mode"] == "ai_simulated"
 
 
+def test_general_course_uses_the_selected_product_market() -> None:
+    from core.training_templates import get_template
+    from tauri.backend.main import TrainingCaseGenerateRequest, _resolve_training_market
+
+    payload = TrainingCaseGenerateRequest(
+        template_id="foundation_hedging_basics",
+        product_scope="crude_oil",
+        locale="en",
+        market_mode="ai_simulated",
+    )
+    market = _resolve_training_market(payload, get_template("foundation_hedging_basics", "en"))
+
+    assert market["commodity"] == "crude_oil"
+    assert market["benchmark"] == "Brent"
+
+
+def test_ai_training_case_stream_emits_market_before_real_model_deltas(monkeypatch) -> None:
+    captured_prompt: list[str] = []
+    answer = """{
+      "scenario": {
+        "id": "stream-case",
+        "title": "Streaming procurement hedge",
+        "summary": "A compact streamed training case.",
+        "business_type": "Gas procurement",
+        "knowledge_points": ["exposure_objective"],
+        "exposure": {"direction": "long", "volume_mmbtu": 1000, "risk": "TTF price"}
+      },
+      "market": {"curves": [], "events": [], "markers": []},
+      "target_actions": [{"leg_type": "swap", "market": "TTF", "side": "buy", "quantity": 1000, "tenor": "M+1"}],
+      "rubric": [{"id": "direction", "label": "Direction", "points": 100, "rule": "Buy TTF"}],
+      "prompt": "### Decision task"
+    }"""
+
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def stream_complete(self, messages, tools=None):
+            captured_prompt.append("\n".join(message["content"] for message in messages))
+            midpoint = len(answer) // 2
+            yield answer[:midpoint]
+            yield answer[midpoint:]
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post(
+        "/api/v1/ai/training-case/stream",
+        json={
+            "template_id": "foundation_hedging_basics",
+            "locale": "en",
+            "user_request": "Build a first lesson",
+            "market_mode": "ai_simulated",
+            "market_regime": "backwardation",
+            "knowledge_coverage": [{"id": f"item-{index}", "title": "x"} for index in range(20)],
+            "gas_trading_models": [{"id": f"model-{index}", "title": "x"} for index in range(20)],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.text
+    assert body.index("event: market") < body.index("event: model_delta")
+    assert body.count("event: model_delta") == 2
+    assert "event: case" in body
+    assert '"received"' in body
+    assert len(captured_prompt) == 1
+    assert "item-7" in captured_prompt[0]
+    assert "item-8" not in captured_prompt[0]
+    assert "model-5" in captured_prompt[0]
+    assert "model-6" not in captured_prompt[0]
+
+
 def test_ai_training_case_endpoint_repairs_common_llm_json_errors(monkeypatch) -> None:
     class FakeClient:
         def is_configured(self) -> bool:
@@ -389,6 +459,58 @@ def test_ai_training_case_endpoint_repairs_common_llm_json_errors(monkeypatch) -
     payload = response.json()
     assert payload["case"]["scenario"]["title"] == "Repaired gas case"
     assert payload["case"]["market"]["curves"][0]["id"] == "TTF"
+
+
+def test_historical_replay_training_case_hides_model_actions_until_submission(monkeypatch) -> None:
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def complete(self, messages, tools=None):
+            return """
+            {
+              "scenario": {
+                "id": "replay-case",
+                "title": "Hormuz replay",
+                "summary": "Point-in-time crude procurement replay",
+                "business_type": "Crude procurement / sales hedging",
+                "knowledge_points": ["crude_benchmark_basis"],
+                "exposure": {"direction": "long", "volume_mmbtu": 100000, "risk": "price and freight"}
+              },
+              "market": {
+                "unit": "USD/bbl",
+                "curves": [{"id": "WTI", "label": "WTI", "points": [{"date": "2026-12-01", "close": 88.0}]}],
+                "events": []
+              },
+              "target_actions": [{"leg_type": "future", "market": "ICE Brent", "side": "buy", "quantity": 70000, "tenor": "M+2"}],
+              "rubric": [{"id": "paper", "label": "Paper", "points": 100, "rule": "Buy Brent"}],
+              "prompt": "The model answer is to buy Brent."
+            }
+            """
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post(
+        "/api/v1/ai/training-case",
+        json={
+            "template_id": "crude_oil_hedging_basics",
+            "locale": "en",
+            "market_mode": "historical_replay",
+            "replay_id": "hormuz_2026_disruption",
+        },
+    )
+
+    assert response.status_code == 200
+    case = response.json()["case"]
+    assert case["target_actions"] == []
+    assert sum(item["points"] for item in case["rubric"]) == 100
+    assert case["market"]["replay"]["current_checkpoint"]["index"] == 0
+    assert case["market"]["replay"]["next_checkpoint"] == 1
+    assert case["scenario"]["title"] == "2026 Strait of Hormuz supply-shock replay"
+    assert case["scenario"]["exposure"]["direction"] == "long"
+    assert case["scenario"]["exposure"]["unit"] == "bbl"
+    assert [curve["id"] for curve in case["market"]["curves"]] == ["Brent"]
+    assert max(point["date"] for point in case["market"]["curves"][0]["points"]) <= "2026-04-01"
+    assert "buy Brent" not in case["prompt"]
 
 
 def test_ai_training_case_endpoint_hides_raw_json_parse_errors(monkeypatch) -> None:

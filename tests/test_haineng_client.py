@@ -274,6 +274,47 @@ def test_deepseek_provider_uses_public_v4_flash_contract(monkeypatch: pytest.Mon
     assert captured_payload["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
+def test_stream_complete_yields_provider_text_deltas(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_payload: dict[str, object] = {}
+
+    class Delta:
+        def __init__(self, content: str | None) -> None:
+            self.content = content
+
+    class Choice:
+        def __init__(self, content: str | None) -> None:
+            self.delta = Delta(content)
+
+    class Chunk:
+        def __init__(self, content: str | None) -> None:
+            self.choices = [Choice(content)]
+
+    class Completions:
+        def create(self, **payload):
+            captured_payload.update(payload)
+            return iter([Chunk('{"scenario":'), Chunk(None), Chunk('{"title":"Live"}}')])
+
+    class Chat:
+        completions = Completions()
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str, base_url: str) -> None:
+            assert api_key == "secret-key"
+            assert base_url == "https://api.deepseek.com"
+            self.chat = Chat()
+
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(OpenAI=FakeOpenAI))
+    client = HainengClient(HainengSettings(api_key="secret-key", provider="deepseek"))
+
+    assert list(client.stream_complete([{"role": "user", "content": "build"}])) == [
+        '{"scenario":',
+        '{"title":"Live"}}',
+    ]
+    assert captured_payload["stream"] is True
+    assert captured_payload["model"] == "deepseek-v4-flash"
+    assert captured_payload["extra_body"] == {"thinking": {"type": "disabled"}}
+
+
 def test_training_case_prompt_requests_compact_complete_json() -> None:
     messages = build_training_case_messages(
         locale="zh",

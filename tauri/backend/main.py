@@ -100,6 +100,7 @@ class AITrainingRequest(BaseModel):
 
 class TrainingCaseGenerateRequest(BaseModel):
     template_id: str
+    product_scope: str = "natural_gas"
     locale: str = "en"
     user_request: str = ""
     knowledge_coverage: list[dict[str, Any]] = Field(default_factory=list)
@@ -123,6 +124,13 @@ class SimulatedMarketRequest(BaseModel):
 class ReplaySessionRequest(BaseModel):
     checkpoint: int = Field(default=0, ge=0)
     locale: str = "en"
+
+
+class ReplayDecisionRequest(BaseModel):
+    checkpoint: int = Field(default=0, ge=0)
+    locale: str = "en"
+    strategy_legs: list[dict[str, Any]] = Field(default_factory=list)
+    rationale: str = Field(default="", max_length=12000)
 
 
 class LiveAssistantRequest(BaseModel):
@@ -312,6 +320,24 @@ def v1_replay_session(event_id: str, payload: ReplaySessionRequest):
 
     try:
         return build_replay_session(event_id, checkpoint=payload.checkpoint, locale=payload.locale)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/replays/{event_id}/decision")
+def v1_replay_decision(event_id: str, payload: ReplayDecisionRequest):
+    from core.market_learning import evaluate_replay_decision
+
+    try:
+        return evaluate_replay_decision(
+            event_id,
+            checkpoint=payload.checkpoint,
+            strategy_legs=payload.strategy_legs,
+            rationale=payload.rationale,
+            locale=payload.locale,
+        )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -584,16 +610,19 @@ def _resolve_training_market(payload: TrainingCaseGenerateRequest, template: dic
         market_capability_catalog,
     )
 
-    commodity = "crude_oil" if template.get("group") == "crude" else "natural_gas"
+    commodity = "crude_oil" if payload.product_scope == "crude_oil" or template.get("group") == "crude" else "natural_gas"
     mode = (payload.market_mode or "ai_simulated").strip().lower()
     if mode == "historical_replay":
         replay_id = payload.replay_id or list_replay_events(locale=payload.locale)[0]["id"]
         session = build_replay_session(replay_id, checkpoint=0, locale=payload.locale)
         context = deepcopy(session["market"])
         context["replay"] = {
+            "locale": payload.locale,
             "event": session["event"],
             "current_checkpoint": session["current_checkpoint"],
             "visible_timeline": session["visible_timeline"],
+            "next_checkpoint": session["next_checkpoint"],
+            "decision_rubric": session["decision_rubric"],
             "information_policy": session["information_policy"],
             "source_notes": session["source_notes"],
         }
@@ -635,11 +664,24 @@ def _sample_market_history(points: list[dict[str, Any]], count: int = 8) -> list
     return [deepcopy(points[index]) for index in indexes]
 
 
+def _market_prompt_context(context: dict[str, Any]) -> dict[str, Any]:
+    """Keep model context decision-relevant while the local engine owns full data."""
+    compact = {
+        key: deepcopy(context.get(key))
+        for key in ("commodity", "benchmark", "label", "unit", "as_of", "curve_metrics", "market_narrative", "provenance", "replay")
+        if context.get(key) is not None
+    }
+    compact["forward_curve"] = deepcopy(context.get("forward_curve", [])[:6])
+    compact["history"] = _sample_market_history(context.get("history", []), count=6)
+    return compact
+
+
 def _attach_market_context(case: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     market = case.setdefault("market", {})
     benchmark = context.get("benchmark", "MARKET")
     history = context.get("history", [])
     curves = market.setdefault("curves", [])
+    benchmark_curve = None
     if history:
         benchmark_curve = {
             "id": benchmark,
@@ -667,11 +709,41 @@ def _attach_market_context(case: dict[str, Any], context: dict[str, Any]) -> dic
     )
     replay = context.get("replay")
     if replay:
+        if benchmark_curve:
+            market["curves"] = [benchmark_curve]
         market["replay"] = deepcopy(replay)
         market["events"] = [
             {"date": item["date"], "label": item["label"]}
             for item in replay.get("visible_timeline", [])
         ]
+        current_checkpoint = replay.get("current_checkpoint", {})
+        event = replay.get("event", {})
+        scenario = case.setdefault("scenario", {})
+        scenario.update(
+            {
+                "title": event.get("title", scenario.get("title", "Historical replay")),
+                "summary": event.get("summary", scenario.get("summary", "")),
+                "knowledge_points": deepcopy(event.get("skills", scenario.get("knowledge_points", []))),
+            }
+        )
+        replay_exposure = event.get("exposure", {})
+        scenario["exposure"] = {
+            **scenario.get("exposure", {}),
+            "direction": replay_exposure.get("direction", scenario.get("exposure", {}).get("direction", "")),
+            "volume_mmbtu": replay_exposure.get("volume", scenario.get("exposure", {}).get("volume_mmbtu", 0)),
+            "risk": replay_exposure.get("risk", scenario.get("exposure", {}).get("risk", "")),
+            "unit": replay_exposure.get("unit", scenario.get("exposure", {}).get("unit", "")),
+        }
+        case["target_actions"] = []
+        case["rubric"] = deepcopy(replay.get("decision_rubric", []))
+        facts = current_checkpoint.get("facts", [])
+        facts_markdown = "\n".join(f"- {fact}" for fact in facts)
+        decision_label = "决策" if str(replay.get("locale", "")).lower().startswith("zh") else "Decision"
+        case["prompt"] = (
+            f"### {current_checkpoint.get('label', 'Replay checkpoint')}\n\n"
+            f"{facts_markdown}\n\n"
+            f"**{decision_label}:** {current_checkpoint.get('decision_required', '')}"
+        )
     return case
 
 
@@ -887,9 +959,9 @@ def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
         payload.locale,
         template,
         payload.user_request,
-        knowledge_coverage=payload.knowledge_coverage,
-        gas_trading_models=payload.gas_trading_models,
-        market_context=market_context,
+        knowledge_coverage=payload.knowledge_coverage[:8],
+        gas_trading_models=payload.gas_trading_models[:6],
+        market_context=_market_prompt_context(market_context),
     )
     try:
         answer = client.complete(messages)
@@ -918,11 +990,33 @@ def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
                 payload.locale,
                 template,
                 payload.user_request,
-                knowledge_coverage=payload.knowledge_coverage,
-                gas_trading_models=payload.gas_trading_models,
-                market_context=market_context,
+                knowledge_coverage=payload.knowledge_coverage[:8],
+                gas_trading_models=payload.gas_trading_models[:6],
+                market_context=_market_prompt_context(market_context),
             )
-            answer = client.complete(messages)
+            chunks: list[str] = []
+            received = 0
+            stream_complete = getattr(client, "stream_complete", None)
+            if callable(stream_complete):
+                try:
+                    for delta in stream_complete(messages):
+                        if not delta:
+                            continue
+                        chunks.append(delta)
+                        received += len(delta)
+                        yield _sse_event("model_delta", {"delta": delta, "received": received})
+                    if chunks:
+                        answer = "".join(chunks)
+                    else:
+                        yield _sse_event("stage", {"id": "stream_fallback", "label": "Provider stream was empty; continuing without restart"})
+                        answer = client.complete(messages)
+                except Exception:
+                    if chunks:
+                        raise
+                    yield _sse_event("stage", {"id": "stream_fallback", "label": "Provider streaming unavailable; continuing without restart"})
+                    answer = client.complete(messages)
+            else:
+                answer = client.complete(messages)
             yield _sse_event("stage", {"id": "parse_case", "label": "Building scenario, target actions, and rubric"})
             case = _attach_market_context(_parse_json_response(answer), market_context)
             yield _sse_event("case", {"template": template, "case": case})

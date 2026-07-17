@@ -701,3 +701,39 @@ class HainengClient:
         if getattr(message, "tool_calls", None):
             raise RuntimeError("AI provider requested a tool call, but tool execution is not enabled.")
         return message.content or ""
+
+    def stream_complete(
+        self,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
+    ):
+        """Yield text deltas from OpenAI-compatible providers.
+
+        Structured callers can buffer the deltas for parsing while still using
+        them to report real provider progress to the desktop UI.
+        """
+        if not self.is_configured():
+            raise RuntimeError("AI provider is not configured.")
+
+        from openai import OpenAI
+
+        client = OpenAI(api_key=self.settings.api_key, base_url=_provider_base_url(self.settings))
+        payload: dict[str, Any] = {
+            "model": _provider_model_name(self.settings),
+            "messages": messages,
+            "stream": True,
+            **_provider_request_options(self.settings),
+        }
+        if self.settings.function_calling and tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+
+        response = client.chat.completions.create(**payload)
+        for chunk in response:
+            choices = getattr(chunk, "choices", None) or []
+            if not choices:
+                continue
+            delta = getattr(choices[0], "delta", None)
+            content = getattr(delta, "content", None) if delta is not None else None
+            if content:
+                yield content

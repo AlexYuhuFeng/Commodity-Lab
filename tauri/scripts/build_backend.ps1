@@ -67,6 +67,7 @@ $HiddenImports = @(
     "core.learner_profile",
     "core.learning_journey",
     "core.learning_session",
+    "core.market_learning",
     "core.scenario_registry",
     "core.training_templates"
 )

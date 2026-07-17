@@ -77,6 +77,23 @@ Tauri Windows shell
 
 AI may generate or update a case, curve context, strategy legs, explanation, exam, and learning route through structured actions. The UI applies visible actions and navigates to the affected workspace instead of only describing the change in chat.
 
+### Curriculum and product workspaces
+
+The curriculum has two layers:
+
+1. **General hedging tools:** exposure direction, forward structure and carry, futures/forwards/swaps, physical-paper matching, basis, options, hedge ratios, FX, and execution controls. Completion records in this layer are shared across products.
+2. **Product-specific application:** market conventions, business flows, benchmarks, logistics, and risk combinations for the selected commodity. Natural Gas and Crude Oil are active workspaces. Refined Products, Power, and Carbon are visible but disabled until their reviewed curriculum and scenario packs are ready.
+
+The compact product selector changes the active curriculum, scenarios, market engine, historical events, progress view, and AI context together. Product changes invalidate in-flight generation and assistant requests, and template actions are checked against the selected product before execution. This prevents stale or hallucinated cross-product content from entering the current lesson.
+
+The generation path uses three execution planes so model latency never blocks the whole lesson:
+
+1. **Local evidence plane:** the deterministic market engine immediately creates forward quotes, OHLC history, provenance, and replay state.
+2. **Streamed orchestration plane:** the backend sends stage, market, and provider-token events over SSE. The Tauri shell forwards those events to React, which progressively replaces the local scenario skeleton with generated fields.
+3. **Local decision plane:** rubric and replay decisions are scored locally as soon as the learner submits. The model is used afterward for explanation, counterfactuals, and the next drill.
+
+Only decision-relevant curriculum items, six forward tenors, and a sampled history are sent to the model. The full market dataset remains in the client. This reduces prompt size without reducing chart fidelity or curriculum coverage across the overall learning path.
+
 The app does not expose private chain-of-thought. During longer operations it shows useful stage summaries such as:
 
 1. Understanding the learning goal.
@@ -84,6 +101,8 @@ The app does not expose private chain-of-thought. During longer operations it sh
 3. Building the curve and event path.
 4. Mapping exposures and target actions.
 5. Preparing the decision and rubric.
+
+Provider text is not the primary control surface. Structured AI actions such as `patch_case`, `set_market_curves`, `set_chart_fields`, `set_strategy_legs`, and learning-route updates must produce an immediate visible workspace change. Text explains the change briefly after the UI has applied it.
 
 ## Data and Security Rules
 

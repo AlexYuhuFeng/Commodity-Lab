@@ -31,10 +31,17 @@ Implemented in the current development branch:
 - forward curves, OHLC history, structure metrics, provenance, and as-of time;
 - historical replay API with future-information isolation;
 - initial 2026 Strait of Hormuz disruption replay pack;
+- checkpoint-by-checkpoint replay decisions with submit-before-reveal gates and immediate local scoring;
 - market-aware DeepSeek case generation;
+- true provider-token streaming through FastAPI, Tauri, and React;
+- progressive workspace projection: market terminal first, generated scenario fields second, complete task and rubric last;
+- compact decision-relevant model context while the complete dataset stays local;
 - explicit live-data fallback without false live labels;
 - compact AI learning studio with one goal input and one generate action;
 - workbench display for provenance, forward structure, and market time.
+- shared inter-commodity financial-tool curriculum with product-scoped Natural Gas and Crude Oil workspaces;
+- product-aware scenario library, knowledge map, progress records, market context, and AI actions;
+- program-level guards that prevent stale or cross-product AI responses from changing the active workspace.
 
 Exit checks:
 
@@ -65,7 +72,7 @@ Goal: train decisions under uncertainty, not hindsight.
 
 - Add replay authoring schema and source review checklist.
 - Add event packs for supply disruption, storage shock, infrastructure outage, price collapse, and demand surge.
-- Reveal evidence checkpoint by checkpoint.
+- Reveal evidence checkpoint by checkpoint. The first gated decision loop is implemented for the Hormuz replay; additional reviewed event packs remain pending.
 - Compare the learner's decision with plausible alternatives, not one perfect trade.
 - Generate counterfactual drills by changing hedge timing, basis, optionality, or physical constraints.
 

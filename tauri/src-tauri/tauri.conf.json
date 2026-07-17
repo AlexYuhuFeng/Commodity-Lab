@@ -31,8 +31,8 @@
       "publisher": "天然气中心",
       "copyright": "Copyright © 2026 天然气中心. Repository: https://github.com/AlexYuhuFeng/Commodity-Lab",
       "category": "Education",
-      "shortDescription": "AI-generated natural gas hedging training terminal.",
-      "longDescription": "Commodity Lab is a Windows desktop training terminal for natural gas hedging practice with AI-generated cases, training curves, deterministic local scoring, and Haineng-compatible AI coaching.",
+      "shortDescription": "AI-guided commodity hedging training terminal.",
+      "longDescription": "Commodity Lab is a Windows desktop learning terminal with a shared hedging curriculum and product workspaces for natural gas and crude oil, using AI-generated cases, progressive market data, deterministic local scoring, and Haineng- or DeepSeek-compatible coaching.",
       "icon": [
         "icons/icon.ico"
       ],

@@ -76,7 +76,9 @@ For test distribution, provide users with a local `AI密钥` file instead of ask
 - Settings menu for API provider, key-file import, language, light/dark/system theme, developer info, version info, and update checks.
 - First-run guided overlay with visual highlights.
 - Floating AI assistant with Markdown rendering and safe action cards.
-- AI thinking and action progress states so long responses do not feel frozen.
+- A shared inter-commodity hedging curriculum plus a compact product workspace switch. Natural Gas and Crude Oil are active; Refined Products, Power, and Carbon remain visible as constructing tracks.
+- Real token streaming and progressive workspace updates: market evidence appears first, generated scenario text follows, and the complete task/rubric lands last.
+- Structured AI actions update the case, curves, chart fields, strategy, and learning route directly instead of only replying in chat.
 - Local deterministic scoring from generated target actions and rubrics.
 - Professional multi-series chart for hub curves, high/low/close values, events, and strategy-leg overlays.
 
@@ -85,7 +87,9 @@ For test distribution, provide users with a local `AI密钥` file instead of ask
 - 设置菜单集中管理 API 供应方、密钥文件导入、语言、日间/夜间/跟随系统主题、开发者信息、版本信息和更新检查。
 - 首次启动提供蒙版高亮式引导。
 - 悬浮 AI 助手支持 Markdown 显示和安全动作卡。
-- AI 思考与动作进度可视化，避免等待时卡顿无反馈。
+- 课程体系由跨品种套保通识与单一产品工作区组成；天然气和原油已开放，成品油、电力与碳保留为建设中课程。
+- 真实 token 流式传输与渐进式工作台更新：先显示市场依据，再补充场景文字，最后落位完整任务与评分规则。
+- 结构化 AI 动作可直接修改案例、曲线、图表字段、策略和学习路径，而不是只在聊天框中回复。
 - 根据生成的目标动作和评分规则进行本地确定性评分。
 - 专业多曲线图表展示枢纽曲线、high/low/close、事件和策略腿叠加。
 

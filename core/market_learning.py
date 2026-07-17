@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 import math
 import os
 import random
+import re
 from typing import Any, Iterable
 
 
@@ -254,6 +255,15 @@ _REPLAY_EVENTS: list[dict[str, Any]] = [
             "zh": "从炼厂采购和原油贸易视角，在信息逐步揭示的过程中管理实货、Brent 纸货、月差、运费和可选性。",
             "en": "Manage physical cargo, Brent paper, calendar spread, freight, and optionality as information is revealed to a refinery procurement desk.",
         },
+        "exposure": {
+            "direction": "long",
+            "volume": 100000,
+            "unit": "bbl",
+            "risk": {
+                "zh": "未来炼厂原油采购成本、Brent 基准、月差与运费上涨风险",
+                "en": "Future refinery crude procurement cost, Brent benchmark, calendar-spread, and freight upside risk",
+            },
+        },
         "skills": ["flat_price", "calendar_spread", "physical_paper_matching", "freight", "options", "risk_controls"],
         "source_notes": [
             {
@@ -276,6 +286,16 @@ _REPLAY_EVENTS: list[dict[str, Any]] = [
                     "zh": "你负责未来两个月的炼厂原油采购。先决定实货覆盖、Brent 套保比例和是否购买上行保护。",
                     "en": "You manage two months of refinery crude procurement. Decide physical coverage, Brent hedge ratio, and whether to buy upside protection.",
                 },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Middle East crude cargo", "side": "buy", "quantity": 100000, "tenor": "M+2"},
+                    {"leg_type": "future", "market": "ICE Brent", "side": "buy", "quantity": 70000, "tenor": "M+2"},
+                    {"leg_type": "option", "market": "Brent call", "side": "buy", "quantity": 30000, "tenor": "M+2"},
+                    {"leg_type": "capacity", "market": "VLCC freight", "side": "buy", "quantity": 1, "tenor": "M+2"},
+                ],
+                "outcome": {
+                    "zh": "随后近月价格继续上冲。长 Brent 与看涨期权能缓冲采购成本，但运费、保证金和流动性同样决定策略能否执行。",
+                    "en": "Prompt prices continued higher. Long Brent and calls cushioned procurement cost, while freight, margin, and liquidity determined whether the hedge remained executable.",
+                },
                 "regime": "backwardation",
                 "base_price": 103.0,
                 "seed": 260401,
@@ -291,6 +311,16 @@ _REPLAY_EVENTS: list[dict[str, Any]] = [
                     "zh": "重新评估原套保是否过度、是否应使用价差或期权替代追加期货。",
                     "en": "Reassess whether the original hedge is excessive and whether spreads or options should replace additional futures.",
                 },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Refinery crude cargo", "side": "buy", "quantity": 100000, "tenor": "M+1"},
+                    {"leg_type": "future", "market": "ICE Brent", "side": "buy", "quantity": 50000, "tenor": "M+1"},
+                    {"leg_type": "option", "market": "Brent call spread", "side": "buy", "quantity": 50000, "tenor": "M+1"},
+                    {"leg_type": "basis", "market": "Brent M1/M3 calendar spread", "side": "buy", "quantity": 50000, "tenor": "M+1/M+3"},
+                ],
+                "outcome": {
+                    "zh": "价格在高位剧烈波动，继续等比例追加期货会放大保证金和过度套保风险；价差与期权更适合管理尾部风险。",
+                    "en": "Prices became highly volatile near the peak. Adding futures one-for-one increased margin and over-hedge risk; spreads and options offered more controlled tail protection.",
+                },
                 "regime": "backwardation",
                 "base_price": 118.0,
                 "seed": 260429,
@@ -305,6 +335,16 @@ _REPLAY_EVENTS: list[dict[str, Any]] = [
                 "decision_required": {
                     "zh": "决定是否平掉上行保护、锁定炼厂利润，并检查远期采购是否暴露于价格回落。",
                     "en": "Decide whether to unwind upside protection, lock refinery margin, and check whether deferred procurement is exposed to falling prices.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Refinery crude cargo", "side": "buy", "quantity": 100000, "tenor": "M+2"},
+                    {"leg_type": "option", "market": "Brent call", "side": "sell", "quantity": 30000, "tenor": "M+2"},
+                    {"leg_type": "future", "market": "ICE Brent inventory hedge", "side": "sell", "quantity": 50000, "tenor": "M+2"},
+                    {"leg_type": "basis", "market": "Brent M1/M3 calendar spread", "side": "sell", "quantity": 50000, "tenor": "M+1/M+3"},
+                ],
+                "outcome": {
+                    "zh": "供应恢复预期推动价格和近端月差回落。及时平掉上行保护并为已锁定库存建立下行保护，可避免把危机阶段的头寸带入恢复阶段。",
+                    "en": "Reopening expectations weakened prices and prompt spreads. Unwinding upside protection and adding downside cover for committed inventory avoided carrying crisis positioning into normalization.",
                 },
                 "regime": "contango",
                 "base_price": 84.0,
@@ -324,6 +364,29 @@ def _localize_checkpoint(checkpoint: dict[str, Any], locale: str, index: int) ->
         "facts": list(checkpoint["facts"][language]),
         "decision_required": checkpoint["decision_required"][language],
     }
+
+
+def _replay_rubric(locale: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": "decision_structure",
+            "label": _localized(locale, "组合动作", "Decision structure"),
+            "points": 55,
+            "rule": _localized(locale, "实货、纸货、方向、数量与期限应形成一致的风险覆盖。", "Physical and paper legs, sides, quantities, and tenors should form a coherent hedge."),
+        },
+        {
+            "id": "risk_reasoning",
+            "label": _localized(locale, "风险推理", "Risk reasoning"),
+            "points": 25,
+            "rule": _localized(locale, "解释价格、月差/基差、期权和运费风险。", "Explain price, calendar/basis, option, and freight risk."),
+        },
+        {
+            "id": "controls",
+            "label": _localized(locale, "执行与风控", "Execution and controls"),
+            "points": 20,
+            "rule": _localized(locale, "检查保证金、流动性、信用、限额和执行窗口。", "Check margin, liquidity, credit, limits, and execution windows."),
+        },
+    ]
 
 
 def list_replay_events(locale: str = "en") -> list[dict[str, Any]]:
@@ -375,6 +438,11 @@ def build_replay_session(event_id: str, checkpoint: int = 0, locale: str = "en")
             "title": event["title"][language],
             "summary": event["summary"][language],
             "skills": list(event["skills"]),
+            "checkpoint_count": len(event["checkpoints"]),
+            "exposure": {
+                **{key: value for key, value in event["exposure"].items() if key != "risk"},
+                "risk": event["exposure"]["risk"][language],
+            },
         },
         "current_checkpoint": _localize_checkpoint(current, locale, checkpoint),
         "visible_timeline": [
@@ -382,6 +450,7 @@ def build_replay_session(event_id: str, checkpoint: int = 0, locale: str = "en")
             for index, item in enumerate(event["checkpoints"][: checkpoint + 1])
         ],
         "next_checkpoint": checkpoint + 1 if checkpoint + 1 < len(event["checkpoints"]) else None,
+        "decision_rubric": _replay_rubric(locale),
         "market": market,
         "source_notes": deepcopy(event["source_notes"]),
         "information_policy": _localized(
@@ -389,6 +458,125 @@ def build_replay_session(event_id: str, checkpoint: int = 0, locale: str = "en")
             "只显示该决策时点已经发生的信息；后续市场结果在提交决策后才揭示。",
             "Only information available at this decision point is shown; later outcomes are revealed after submission.",
         ),
+    }
+
+
+def _leg_tokens(value: Any) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", str(value or "").lower())
+        if len(token) > 1
+    }
+
+
+def _absolute_number(value: Any) -> float:
+    try:
+        return abs(float(value or 0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _target_leg_score(target: dict[str, Any], candidate: dict[str, Any]) -> float:
+    if str(target.get("leg_type", "")).lower() != str(candidate.get("leg_type", "")).lower():
+        return 0.0
+    score = 0.5
+    if str(target.get("side", "")).lower() == str(candidate.get("side", "")).lower():
+        score += 0.15
+    target_market = _leg_tokens(target.get("market"))
+    candidate_market = _leg_tokens(candidate.get("market"))
+    if target_market:
+        score += 0.15 * (len(target_market & candidate_market) / len(target_market))
+    if str(target.get("tenor", "")).lower() == str(candidate.get("tenor", "")).lower():
+        score += 0.1
+    target_quantity = _absolute_number(target.get("quantity"))
+    candidate_quantity = _absolute_number(candidate.get("quantity"))
+    if target_quantity and candidate_quantity:
+        score += 0.1 * min(target_quantity, candidate_quantity) / max(target_quantity, candidate_quantity)
+    return min(1.0, score)
+
+
+def evaluate_replay_decision(
+    event_id: str,
+    checkpoint: int,
+    strategy_legs: list[dict[str, Any]],
+    rationale: str,
+    locale: str = "en",
+) -> dict[str, Any]:
+    """Score a point-in-time replay decision without requiring an LLM call."""
+    event = next((item for item in _REPLAY_EVENTS if item["id"] == event_id), None)
+    if event is None:
+        raise KeyError(f"Unknown replay event '{event_id}'.")
+    if checkpoint < 0 or checkpoint >= len(event["checkpoints"]):
+        raise ValueError("Replay checkpoint is out of range.")
+
+    current = event["checkpoints"][checkpoint]
+    targets = current["target_actions"]
+    legs = [leg for leg in strategy_legs if str(leg.get("leg_type", "")).strip()]
+    target_matches = [
+        max((_target_leg_score(target, leg) for leg in legs), default=0.0)
+        for target in targets
+    ]
+    target_coverage = sum(target_matches) / len(target_matches) if target_matches else 0.0
+
+    reasoning_text = " ".join(
+        [str(rationale or ""), *[f"{leg.get('market', '')} {leg.get('leg_type', '')}" for leg in legs]]
+    ).lower()
+    risk_groups = [
+        ("price", "flat price", "价格", "上涨", "下跌", "波动"),
+        ("basis", "spread", "calendar", "基差", "价差", "月差"),
+        ("option", "call", "put", "期权", "可选性"),
+        ("freight", "capacity", "shipping", "运费", "运力", "船期"),
+    ]
+    control_terms = ("margin", "liquidity", "credit", "limit", "execution", "保证金", "流动性", "信用", "限额", "执行")
+    risk_covered = sum(any(term in reasoning_text for term in group) for group in risk_groups)
+    controls_covered = sum(term in reasoning_text for term in control_terms)
+
+    decision_score = round(target_coverage * 55)
+    risk_score = round((risk_covered / len(risk_groups)) * 25)
+    controls_score = 20 if controls_covered >= 3 else 12 if controls_covered == 2 else 6 if controls_covered == 1 else 0
+    baseline_score = min(100, decision_score + risk_score + controls_score)
+
+    has_physical = any(leg.get("leg_type") == "physical" for leg in legs)
+    has_paper = any(leg.get("leg_type") in {"future", "swap", "basis", "option"} for leg in legs)
+    mistake_tags = [
+        *([] if has_physical else ["missing_physical_leg"]),
+        *([] if has_paper else ["missing_paper_hedge"]),
+        *([] if target_coverage >= 0.7 else ["incomplete_decision_structure"]),
+        *([] if risk_covered >= 3 else ["thin_risk_reasoning"]),
+        *([] if controls_covered >= 2 else ["missing_execution_controls"]),
+    ]
+    if baseline_score >= 80:
+        feedback = _localized(locale, "组合结构完整，可以推进到下一市场节点。", "The hedge is coherent enough to advance to the next market checkpoint.")
+    elif baseline_score >= 60:
+        feedback = _localized(locale, "方向基本正确，但仍需补足数量、期限或执行风控。", "The direction is broadly sound, but sizing, tenor, or execution controls still need work.")
+    else:
+        feedback = _localized(locale, "先补齐实货与纸货的对应关系，再检查风险解释和执行条件。", "First connect the physical and paper legs, then strengthen the risk rationale and execution controls.")
+
+    return {
+        "event_id": event_id,
+        "checkpoint": _localize_checkpoint(current, locale, checkpoint),
+        "evaluation": {
+            "valid": True,
+            "baseline_score": baseline_score,
+            "rubric": _replay_rubric(locale),
+            "mistake_tags": mistake_tags,
+            "dimensions": [
+                {"id": "decision_structure", "score": decision_score, "points": 55},
+                {"id": "risk_reasoning", "score": risk_score, "points": 25},
+                {"id": "controls", "score": controls_score, "points": 20},
+            ],
+            "metrics": {
+                "strategy_leg_count": len(legs),
+                "target_coverage": round(target_coverage, 4),
+                "risk_groups_covered": risk_covered,
+                "controls_covered": controls_covered,
+            },
+        },
+        "feedback": feedback,
+        "outcome": current["outcome"]["zh" if (locale or "").lower().startswith("zh") else "en"],
+        "model_strategy": deepcopy(targets),
+        "next_checkpoint": checkpoint + 1 if checkpoint + 1 < len(event["checkpoints"]) else None,
+        "complete": checkpoint + 1 >= len(event["checkpoints"]),
     }
 
 
