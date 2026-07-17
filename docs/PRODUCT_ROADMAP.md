@@ -1,183 +1,103 @@
 # Commodity Lab Product Roadmap
 
-Commodity Lab is built as an AI-powered energy trading learning platform. The roadmap keeps V1 commercially focused on natural gas hedging and AI-generated training while preserving clean expansion paths for North America gas, LNG, crude oil, refined products, carbon, and power.
+## North Star
 
-## Product North Star
+Commodity Lab should feel like an expert tutor with a trading workbench, not a static question bank. A learner states a goal once; the platform selects the right market evidence, generates a realistic decision, evaluates the response immediately, and builds the next exercise from demonstrated gaps.
 
-Train energy traders through realistic, repeated decision practice:
+The UI rule is equally strict: one screen, one primary job, one obvious next action.
 
-```text
-Choose business workflow
-  -> AI generates case, curves, events, target actions, and rubric
-  -> learner builds physical/paper/FX/capacity hedge
-  -> receive immediate local score
-  -> use AI for coaching, concepts, exams, and workspace actions
-```
+## Stable Curriculum
 
-## V1: Europe Natural Gas First
+Every learner should ultimately cover the same core outcomes:
 
-Goal: make the first vertical credible and professionally useful.
+1. Exposure and hedge objective.
+2. Forward curves, contango/backwardation, and carry.
+3. Physical-paper matching and hedge direction.
+4. Hub, location, grade, and time basis.
+5. FX, capacity, freight, storage, and inventory.
+6. Hedge ratio, correlation, and cross-hedge quality.
+7. Options and operational optionality.
+8. Liquidity, margin, credit, limits, and execution.
+9. Integrated portfolio decisions and post-trade review.
 
-Primary scope:
+DeepSeek can change examples, pacing, explanations, difficulty, and the next drill. It must not silently remove required outcomes.
 
-- TTF, NBP, THE, PEG, PSV, PVB as conceptual hub set.
-- Hub spreads and basis.
-- Unit and FX normalization.
-- Storage calendar spreads.
-- Route and capacity thinking.
-- Nomination and operational context as training themes.
-- AI-generated curves, target actions, rubrics, Socratic coaching, trade playbooks, exams, and safe workspace action cards.
+## Active Delivery: Market-Aware Learning Foundation
 
-Required V1 experience:
+Implemented in the current development branch:
 
-- User lands in a windowed Windows desktop client with a Codex-inspired native shell.
-- User sees Mandarin by default and can switch language/theme from Settings.
-- User chooses Haineng or DeepSeek in Settings and provides only an API key or local key file; model and endpoint are fixed by the app.
-- User can generate a gas business case from procurement or sales templates.
-- User can inspect generated multi-series high/low/close curves and strategy overlays.
-- User can submit multi-leg hedges and receive immediate deterministic scoring.
-- User can use the floating AI assistant for case generation, concept Q&A, and safe workspace customization.
+- natural gas and crude-oil simulated market contexts;
+- contango, backwardation, flat, and volatile regimes;
+- forward curves, OHLC history, structure metrics, provenance, and as-of time;
+- historical replay API with future-information isolation;
+- initial 2026 Strait of Hormuz disruption replay pack;
+- market-aware DeepSeek case generation;
+- explicit live-data fallback without false live labels;
+- compact AI learning studio with one goal input and one generate action;
+- workbench display for provenance, forward structure, and market time.
 
-Exit criteria:
+Exit checks:
 
-- CI passes.
-- Windows artifact builds.
-- First-run UX is understandable.
-- AI capabilities have mock tests.
-- V1 contains no external market-data source selector or connector.
-- Secrets are redacted.
+- all market modes use the same evidence contract;
+- simulations are deterministic for the same seed;
+- replay checkpoints cannot reveal future facts;
+- generated cases retain market provenance;
+- light and dark themes remain readable at supported desktop sizes;
+- frontend, backend, and production builds pass.
 
-## V2: North America Gas and LNG
+## Phase 2: Production Platts Adapter
 
-Goal: expand natural gas while retaining same learning model.
+Goal: add entitled live-market learning without coupling the curriculum to a single feed.
 
-Candidate scope:
+- Confirm the customer's Platts product, API/stream/sFTP access, symbols, units, and redistribution rights.
+- Implement secure local OAuth/client-credential storage.
+- Build provider adapter, cache, retry, rate-limit, and stale-data behavior.
+- Add natural-gas and crude symbol mapping plus unit normalization.
+- Snapshot the exact evidence used by each training session.
+- Add delayed/stale indicators and explicit simulated fallback.
+- Test against a non-production subscription before release.
 
-- Henry Hub, AECO, Waha, Dawn.
-- Producer hedging.
-- Regional basis risk.
-- Pipeline constraints.
-- Weather-driven load risk.
-- LNG optionality and cargo diversion concepts.
+The repository must not contain customer credentials or licensed market payloads.
 
-New requirements:
+## Phase 3: Replay Studio
 
-- Add North America gas assets.
-- Add region-specific market context providers or deterministic fixtures.
-- Add scenario registry entries.
-- Extend skill-to-scenario mapping.
-- Keep AI capabilities commodity-agnostic.
+Goal: train decisions under uncertainty, not hindsight.
 
-## V3: Crude Oil
+- Add replay authoring schema and source review checklist.
+- Add event packs for supply disruption, storage shock, infrastructure outage, price collapse, and demand surge.
+- Reveal evidence checkpoint by checkpoint.
+- Compare the learner's decision with plausible alternatives, not one perfect trade.
+- Generate counterfactual drills by changing hedge timing, basis, optionality, or physical constraints.
 
-Goal: extend beyond gas without changing platform architecture.
+## Phase 4: Adaptive Tutor
 
-Candidate scope:
+Goal: turn completed work into a coherent learning path.
 
-- Brent, WTI, Dubai.
-- Brent-WTI and Brent-Dubai spreads.
-- Time spreads.
-- Physical differential and freight-aware cases.
-- Refinery procurement exposure.
+- Persist only real attempts and demonstrated skills.
+- Build a mastery model from rubric-level evidence.
+- Let DeepSeek choose the next lesson inside curriculum prerequisites.
+- Keep responses concise by default and move generated content directly into the relevant UI.
+- Add spaced review, exams, and targeted remediation.
+- Show AI activity as high-level stages and visible workspace changes.
 
-Key training concepts:
+## Phase 5: Portfolio and Trade Operations
 
-- Outright futures hedge.
-- Calendar spread.
-- Quality differential.
-- Location differential.
-- Freight and storage.
+Goal: move from single cases to realistic desk decisions.
 
-## V4: Refined Products
+- multi-position and multi-period portfolios;
+- P&L attribution and hedge effectiveness;
+- limits, liquidity, credit, margin, and execution planning;
+- LNG, pipeline, storage, and crude-cargo optionality;
+- role-based procurement, sales, trading, and risk-manager simulations.
 
-Candidate scope:
+## Release Gate
 
-- Gasoil, gasoline, jet, fuel oil.
-- Crack spreads.
-- Regional arbitrage.
-- Inventory and demand seasonality.
-- Refinery margin training.
+A formal release requires:
 
-Key training concepts:
-
-- Crack spread logic.
-- Product yield and margin.
-- Specification and location risk.
-- Seasonal demand.
-
-## V5: Carbon and Power
-
-Candidate carbon scope:
-
-- EUA, UKA, CEA.
-- Compliance exposure.
-- Calendar spread.
-- Carbon-power linkage.
-
-Candidate power scope:
-
-- German baseload and peakload.
-- UK power.
-- Spark spread.
-- Clean spark / clean dark spread.
-- Renewable intermittency and load risk.
-
-Key training concepts:
-
-- Carbon compliance risk.
-- Power shape risk.
-- Fuel switching.
-- Clean spread economics.
-
-## AI Capability Evolution
-
-Current and planned capabilities:
-
-| Capability | V1 | Notes |
-|---|---:|---|
-| Case generation | Yes | Generate realistic cases from scenario and context. |
-| Event drill | Yes | Convert events into structured drills. |
-| Concept tutor | Yes | Teach energy concepts with examples. |
-| Trade playbook | Yes | Pre-trade checklist and execution plan. |
-| Socratic coach | Yes | Ask questions instead of giving answers. |
-| Advisor review | Yes | Post-decision coaching. |
-| Adaptive exam | Yes | Targeted questions from weak skills. |
-| Market research assistant | Future | Search-backed case generation. |
-| Negotiation coach | Future | Contract and counterparty roleplay. |
-| Risk manager persona | Future | Risk-limit and portfolio review mode. |
-
-## Commercial Readiness Roadmap
-
-### Alpha
-
-- Core platform architecture exists.
-- Europe gas scenarios available.
-- Deterministic scoring works.
-- AI endpoint works with mock tests.
-- Windows build workflow exists.
-
-### Beta
-
-- First-run UX completed.
-- Learning journey visible in UI.
-- AI Full Power Mode visually distinct.
-- Scenario Registry is the primary scenario source.
-- User settings and provider state are clear.
-
-### Release Candidate
-
-- CI passes reliably.
-- Windows artifact installs and launches.
-- No borderless shell unless explicitly designed.
-- Secrets are not leaked.
-- README and docs explain setup and use.
-- Demo workflow can be followed by a new user without developer help.
-
-### Commercial Delivery
-
-- One complete Europe gas learning path.
-- Multiple realistic use cases.
-- AI coaching validated with representative prompts.
-- Release artifacts versioned.
-- Known limitations documented.
-- Data-source caveats visible.
+- full automated test suite and production build passing;
+- installed Windows executable launched and exercised through a complete training flow;
+- API credentials retained securely across restart;
+- no misleading live-data labels;
+- no placeholder progress or placeholder market values presented as user history;
+- visual QA in Chinese and English, light/dark/system themes, and representative window sizes;
+- bilingual UTF-8 release notes and installers published only as GitHub release assets.

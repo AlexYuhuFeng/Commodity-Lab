@@ -279,6 +279,10 @@ def test_training_case_prompt_requests_compact_complete_json() -> None:
         locale="zh",
         template={"id": "foundation_hedging_basics", "title": "套保入门", "coverage": ["outright_price"]},
         user_request="生成第一课练习",
+        market_context={
+            "curve_metrics": {"structure": "contango"},
+            "provenance": {"mode": "ai_simulated", "source_tier": "synthetic"},
+        },
     )
     text = "\n".join(message["content"] for message in messages)
 
@@ -286,3 +290,6 @@ def test_training_case_prompt_requests_compact_complete_json() -> None:
     assert "exactly 4 rows" in text
     assert "Use exactly 8 price points per curve" in text
     assert "under 120 words" in text
+    assert "contango" in text
+    assert "ai_simulated" in text
+    assert "preserve its provenance" in text
