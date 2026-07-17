@@ -1,7 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use futures_util::StreamExt;
 use reqwest::blocking::Client as BlockingClient;
 use reqwest::Client;
+use serde::Serialize;
 use serde_json::Value;
 use std::env;
 use std::net::TcpListener;
@@ -13,6 +15,13 @@ use std::time::{Duration, Instant};
 
 const DEFAULT_BACKEND_HOST: &str = "127.0.0.1";
 const DEFAULT_BACKEND_PORT: u16 = 8000;
+
+#[derive(Clone, Serialize)]
+struct BackendStreamEventPayload {
+    request_id: String,
+    event: String,
+    data: Value,
+}
 
 fn backend_host() -> String {
     env::var("COMMODITY_LAB_BACKEND_HOST")
@@ -111,6 +120,86 @@ async fn backend_request(method: String, path: String, body: Option<Value>) -> R
     }
 
     Ok(json)
+}
+
+fn decode_sse_block(block: &[u8]) -> Option<(String, Value)> {
+    let text = String::from_utf8_lossy(block).replace("\r\n", "\n");
+    let mut event = "message".to_string();
+    let mut data_lines: Vec<&str> = Vec::new();
+    for line in text.lines() {
+        if let Some(value) = line.strip_prefix("event:") {
+            event = value.trim().to_string();
+        } else if let Some(value) = line.strip_prefix("data:") {
+            data_lines.push(value.trim_start());
+        }
+    }
+    if data_lines.is_empty() {
+        return None;
+    }
+    let raw = data_lines.join("\n");
+    let data = serde_json::from_str(&raw).unwrap_or_else(|_| serde_json::json!({ "text": raw }));
+    Some((event, data))
+}
+
+#[tauri::command]
+async fn backend_stream(
+    window: tauri::Window,
+    path: String,
+    body: Value,
+    request_id: String,
+) -> Result<(), String> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(120))
+        .build()
+        .map_err(|e| format!("http client init failed: {}", e))?;
+    let response = client
+        .post(backend_url(&path))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("stream request failed: {}", e))?;
+    let status = response.status();
+    if !status.is_success() {
+        let detail = response.text().await.unwrap_or_default();
+        return Err(format!("backend status {}: {}", status.as_u16(), detail));
+    }
+
+    let mut stream = response.bytes_stream();
+    let mut buffer: Vec<u8> = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("stream read failed: {}", e))?;
+        buffer.extend_from_slice(&chunk);
+        while let Some(index) = buffer.windows(2).position(|window| window == b"\n\n") {
+            let block: Vec<u8> = buffer.drain(..index + 2).collect();
+            if let Some((event, data)) = decode_sse_block(&block) {
+                window
+                    .emit(
+                        "backend-stream-event",
+                        BackendStreamEventPayload {
+                            request_id: request_id.clone(),
+                            event,
+                            data,
+                        },
+                    )
+                    .map_err(|e| format!("stream event emit failed: {}", e))?;
+            }
+        }
+    }
+    if !buffer.is_empty() {
+        if let Some((event, data)) = decode_sse_block(&buffer) {
+            window
+                .emit(
+                    "backend-stream-event",
+                    BackendStreamEventPayload {
+                        request_id,
+                        event,
+                        data,
+                    },
+                )
+                .map_err(|e| format!("stream event emit failed: {}", e))?;
+        }
+    }
+    Ok(())
 }
 
 fn executable_names() -> [&'static str; 2] {
@@ -223,7 +312,7 @@ fn main() {
     let run_backend_handle = backend_handle.clone();
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![ping_backend, simulate_backend, backend_request])
+        .invoke_handler(tauri::generate_handler![ping_backend, simulate_backend, backend_request, backend_stream])
         .on_window_event(move |event| {
             if matches!(event.event(), tauri::WindowEvent::CloseRequested { .. }) {
                 if let Ok(mut lock) = window_backend_handle.lock() {

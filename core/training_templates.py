@@ -15,19 +15,27 @@ _KNOWLEDGE_POINTS: list[dict[str, Any]] = [
         },
     },
     {
+        "id": "forward_curve_carry",
+        "label": {"en": "Forward structure and carry", "zh": "远期结构与持有成本"},
+        "description": {
+            "en": "Understand contango, backwardation, cost of carry, and roll yield before sizing or timing a hedge.",
+            "zh": "在确定套保规模和时点前，理解 Contango、Backwardation、持有成本和展期收益。",
+        },
+    },
+    {
         "id": "physical_paper_matching",
         "label": {"en": "Physical-paper matching", "zh": "实货与纸货匹配"},
         "description": {
-            "en": "Match GSA, EFET, LNG, capacity, futures, swaps, basis, FX, and options as one strategy.",
-            "zh": "把 GSA、EFET、LNG、运力、期货、掉期、基差、汇率和期权作为一个组合策略匹配。",
+            "en": "Match physical commodity obligations with futures, swaps, basis, FX, and options as one strategy.",
+            "zh": "把商品实货义务与期货、掉期、基差、汇率和期权作为一个组合策略匹配。",
         },
     },
     {
         "id": "outright_price",
         "label": {"en": "Outright price hedge", "zh": "单边价格套保"},
         "description": {
-            "en": "Use futures, forwards, or swaps to reduce exposure to absolute gas price moves.",
-            "zh": "使用期货、远期或掉期降低天然气绝对价格波动风险。",
+            "en": "Use futures, forwards, or swaps to reduce exposure to absolute commodity price moves.",
+            "zh": "使用期货、远期或掉期降低商品绝对价格波动风险。",
         },
     },
     {
@@ -110,18 +118,18 @@ _TEMPLATES: list[dict[str, Any]] = [
     {
         "id": "foundation_hedging_basics",
         "group": "foundation",
-        "business_type": {"en": "Natural gas hedging foundations", "zh": "天然气套保基础"},
-        "title": {"en": "What exposure are we hedging?", "zh": "我们到底在套保什么？"},
+        "business_type": {"en": "General hedging foundations", "zh": "套保通识基础"},
+        "title": {"en": "General hedging tools", "zh": "通识金融工具"},
         "summary": {
-            "en": "A beginner case that teaches exposure direction, hedge objective, physical-paper matching, quantity, tenor, and basic execution checks.",
-            "zh": "入门案例：先讲清楚敞口方向、套保目标、实货/纸货匹配、数量、期限和基础执行检查。",
+            "en": "Inter-commodity foundations covering exposure, forward structure, futures/swaps, basis, options, hedge ratio, physical-paper matching, and controls.",
+            "zh": "跨品种通识课程：覆盖敞口、远期结构、期货/掉期、基差、期权、套保比率、实货/纸货匹配和风控。",
         },
-        "coverage": ["exposure_objective", "physical_paper_matching", "outright_price"],
-        "gas_models": ["customer_indexed_sale", "simple_procurement"],
-        "knowledge_points": ["exposure_objective", "outright_price", "physical_paper_matching"],
-        "required_curves": ["TTF", "TRAINING_HEDGE_INDEX"],
+        "coverage": ["exposure_objective", "forward_curve_carry", "outright_price", "physical_paper_matching", "basis_spread", "hedge_ratio_cross_hedge", "options_optionality", "fx", "risk_controls"],
+        "gas_models": ["simple_procurement"],
+        "knowledge_points": ["exposure_objective", "forward_curve_carry", "outright_price", "physical_paper_matching", "basis_spread", "hedge_ratio_cross_hedge", "options_optionality", "fx", "risk_controls"],
+        "required_curves": ["PRIMARY_BENCHMARK", "HEDGE_BENCHMARK"],
         "suggested_leg_types": ["physical", "swap"],
-        "lesson_sequence": ["identify exposure", "choose hedge side", "match quantity and tenor", "explain residual risk"],
+        "lesson_sequence": ["identify exposure", "read forward structure", "choose instrument", "set hedge ratio", "match physical and paper legs", "check controls", "explain residual risk"],
     },
     {
         "id": "crude_oil_hedging_basics",

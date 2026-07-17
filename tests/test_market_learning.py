@@ -6,6 +6,7 @@ from core.market_learning import (
     build_replay_session,
     build_simulated_market_context,
     classify_forward_curve,
+    evaluate_replay_decision,
     market_capability_catalog,
 )
 from tauri.backend.main import app
@@ -53,6 +54,8 @@ def test_replay_session_never_leaks_future_checkpoint_information() -> None:
     assert session["next_checkpoint"] == 1
     assert len(session["visible_timeline"]) == 1
     assert "June 17" not in str(session)
+    assert "target_actions" not in str(session)
+    assert sum(item["points"] for item in session["decision_rubric"]) == 100
     assert session["market"]["provenance"]["mode"] == "historical_replay"
     assert session["market"]["provenance"]["source_tier"] == "historically_calibrated_simulation"
     assert session["source_notes"][0]["url"].startswith("https://www.eia.gov/")
@@ -102,3 +105,36 @@ def test_replay_catalog_and_session_endpoints() -> None:
     session = session_response.json()
     assert session["current_checkpoint"]["decision_required"]
     assert session["market"]["curve_metrics"]["structure"] in {"contango", "backwardation", "flat"}
+
+
+def test_replay_decision_scores_locally_and_reveals_model_strategy_only_after_submission() -> None:
+    result = evaluate_replay_decision(
+        "hormuz_2026_disruption",
+        checkpoint=0,
+        locale="en",
+        strategy_legs=[
+            {"leg_type": "physical", "market": "Middle East crude cargo", "side": "buy", "quantity": 100000, "tenor": "M+2"},
+            {"leg_type": "future", "market": "ICE Brent", "side": "buy", "quantity": 70000, "tenor": "M+2"},
+            {"leg_type": "option", "market": "Brent call", "side": "buy", "quantity": 30000, "tenor": "M+2"},
+            {"leg_type": "capacity", "market": "VLCC freight", "side": "buy", "quantity": 1, "tenor": "M+2"},
+        ],
+        rationale="Cover flat price, calendar spread, option and freight risk; check margin, liquidity, limits, credit, and execution.",
+    )
+
+    assert result["evaluation"]["baseline_score"] >= 90
+    assert result["next_checkpoint"] == 1
+    assert result["model_strategy"]
+    assert result["outcome"]
+
+
+def test_replay_decision_endpoint_returns_zero_for_an_empty_decision() -> None:
+    response = client.post(
+        "/api/v1/replays/hormuz_2026_disruption/decision",
+        json={"checkpoint": 0, "locale": "zh", "strategy_legs": [], "rationale": ""},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["evaluation"]["baseline_score"] == 0
+    assert "missing_physical_leg" in payload["evaluation"]["mistake_tags"]
+    assert payload["checkpoint"]["label"] == "供应通道受阻"

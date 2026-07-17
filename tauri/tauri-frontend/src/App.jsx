@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { backendRequest } from "./api";
+import { backendRequest, backendStreamRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
 const currentVersion = "1.2.1";
@@ -130,16 +130,16 @@ const learningTracks = [
   {
     id: "foundation",
     templateId: "foundation_hedging_basics",
-    zh: "套保入门",
-    en: "Hedging Foundations",
+    zh: "通识金融工具",
+    en: "General Hedging Tools",
     levelZh: "从这里开始",
     levelEn: "Start here",
-    detailZh: "先理解敞口、套保目标、实货与纸货为什么要匹配。",
-    detailEn: "Start with exposure, hedge objective, and why physical and paper legs must match.",
-    requestZh: "生成一个入门级天然气套保训练案例：只关注敞口识别、实货/纸货匹配、买卖方向、数量和期限，不要直接使用复杂跨境 Beach Delivery。",
-    requestEn: "Generate a beginner natural gas hedging drill focused only on exposure identification, physical-paper matching, side, quantity, and tenor. Keep the case at foundation level instead of using a complex cross-border Beach Delivery scenario.",
-    lessons: ["敞口识别", "套保工具", "实货/纸货匹配"],
-    lessonsEn: ["Exposure", "Hedge tools", "Physical-paper matching"]
+    detailZh: "跨品种学习敞口、远期结构、期货/掉期、基差、期权、套保比率和风控。",
+    detailEn: "Learn exposure, forward structure, futures/swaps, basis, options, hedge ratios, and controls across commodities.",
+    requestZh: "生成一个跨品种通用的套保基础训练案例，聚焦敞口识别、远期结构、工具选择、套保比率、实货/纸货匹配和执行风控。",
+    requestEn: "Generate an inter-commodity general hedging drill focused on exposure, forward structure, instrument choice, hedge ratio, physical-paper matching, and execution controls.",
+    lessons: ["敞口与目标", "远期结构", "期货/掉期", "基差", "期权", "套保比率", "执行风控"],
+    lessonsEn: ["Exposure", "Forward structure", "Futures/swaps", "Basis", "Options", "Hedge ratio", "Controls"]
   },
   {
     id: "crude",
@@ -199,6 +199,62 @@ const learningTracks = [
   }
 ];
 
+const productWorkspaces = [
+  { id: "natural_gas", zh: "天然气", en: "Natural Gas", icon: "flame", trackIds: ["foundation", "procurement", "sales", "integrated"], groups: ["foundation", "procurement", "sales", "integrated"], enabled: true },
+  { id: "crude_oil", zh: "原油", en: "Crude Oil", icon: "chart", trackIds: ["foundation", "crude"], groups: ["foundation", "crude"], enabled: true },
+  { id: "refined_products", zh: "成品油（建设中）", en: "Refined Products (Constructing)", icon: "library", trackIds: ["foundation"], groups: ["foundation"], enabled: false },
+  { id: "power", zh: "电力（建设中）", en: "Power (Constructing)", icon: "pulse", trackIds: ["foundation"], groups: ["foundation"], enabled: false },
+  { id: "carbon", zh: "碳（建设中）", en: "Carbon (Constructing)", icon: "grid", trackIds: ["foundation"], groups: ["foundation"], enabled: false }
+];
+
+const generalCoverageIds = new Set([
+  "exposure_objective",
+  "forward_curve_carry",
+  "outright_price",
+  "physical_paper_matching",
+  "basis_spread",
+  "hedge_ratio_cross_hedge",
+  "options_optionality",
+  "fx",
+  "risk_controls"
+]);
+
+function productWorkspace(productScope) {
+  return productWorkspaces.find((item) => item.id === productScope) ?? productWorkspaces[0];
+}
+
+function tracksForProduct(productScope) {
+  const allowed = new Set(productWorkspace(productScope).trackIds);
+  return learningTracks.filter((track) => allowed.has(track.id));
+}
+
+function templatesForProduct(templates, productScope) {
+  const allowed = new Set(productWorkspace(productScope).groups);
+  return templates.filter((template) => allowed.has(template.group));
+}
+
+function coverageForProduct(productScope) {
+  const productIds = productScope === "crude_oil"
+    ? new Set(["crude_benchmark_basis", "inventory_freight_roll"])
+    : new Set(["capacity_storage_balancing"]);
+  return hedgingKnowledgeCoverage.filter((item) => generalCoverageIds.has(item.id) || productIds.has(item.id));
+}
+
+function modelsForProduct(productScope) {
+  return gasTradingModels.filter((item) => productScope === "crude_oil"
+    ? ["foundation", "crude"].includes(item.group)
+    : item.group !== "crude");
+}
+
+function scenarioCommodityForProduct(productScope) {
+  return productScope === "crude_oil" ? "crude-oil" : "natural-gas";
+}
+
+function productScopeForTemplate(templateId) {
+  if (templateId === "foundation_hedging_basics") return "general";
+  return String(templateId ?? "").includes("crude") ? "crude_oil" : "natural_gas";
+}
+
 const courseSyllabus = [
   {
     trackId: "foundation",
@@ -211,11 +267,18 @@ const courseSyllabus = [
         outcomeEn: "Identify exposure direction, volume, and tenor for procurement, sales, or spread risk."
       },
       {
+        id: "foundation-forward-curve",
+        titleZh: "远期结构与持有成本",
+        titleEn: "Forward Structure and Carry",
+        outcomeZh: "识别 Contango、Backwardation、展期和持有成本如何改变套保。",
+        outcomeEn: "Explain how contango, backwardation, roll, and carry change a hedge."
+      },
+      {
         id: "foundation-instruments",
-        titleZh: "套保工具选择",
-        titleEn: "Hedge Instrument Selection",
-        outcomeZh: "区分实货、期货、掉期、基差和期权分别覆盖什么风险。",
-        outcomeEn: "Separate what physical, futures, swaps, basis, and options actually hedge."
+        titleZh: "期货、远期与掉期",
+        titleEn: "Futures, Forwards, and Swaps",
+        outcomeZh: "比较标准化期货、场外远期与掉期的现金流、流动性和信用差异。",
+        outcomeEn: "Compare cash flows, liquidity, and credit across futures, forwards, and swaps."
       },
       {
         id: "foundation-match",
@@ -223,6 +286,27 @@ const courseSyllabus = [
         titleEn: "Physical / Paper Matching",
         outcomeZh: "把实货义务和纸货工具匹配成一组可解释的套保动作。",
         outcomeEn: "Match physical obligations and paper instruments into one explainable hedge package."
+      },
+      {
+        id: "foundation-basis-ratio",
+        titleZh: "基差、相关性与套保比率",
+        titleEn: "Basis, Correlation, and Hedge Ratio",
+        outcomeZh: "识别不完全匹配并按敏感度、相关性、数量和期限确定套保比例。",
+        outcomeEn: "Size imperfect hedges using sensitivity, correlation, volume, and tenor."
+      },
+      {
+        id: "foundation-options",
+        titleZh: "期权与非线性保护",
+        titleEn: "Options and Nonlinear Protection",
+        outcomeZh: "理解 cap、floor、collar 和运营可选性的非对称损益。",
+        outcomeEn: "Understand asymmetric payoffs from caps, floors, collars, and operational optionality."
+      },
+      {
+        id: "foundation-controls",
+        titleZh: "执行、保证金与风控",
+        titleEn: "Execution, Margin, and Controls",
+        outcomeZh: "在交易前检查流动性、保证金、信用、限额、结算和执行窗口。",
+        outcomeEn: "Check liquidity, margin, credit, limits, settlement, and execution windows before trading."
       }
     ]
   },
@@ -376,18 +460,28 @@ const hedgingKnowledgeCoverage = [
     id: "physical_paper_matching",
     titleZh: "实货与纸货匹配",
     titleEn: "Physical-Paper Matching",
-    summaryZh: "把 GSA、EFET、LNG、运力与 futures、swap、basis、FX、option 组合成同一个风险闭环。",
-    summaryEn: "Connect GSA, EFET, LNG, and capacity with futures, swaps, basis, FX, and options as one risk loop.",
+    summaryZh: "把商品实货义务与 futures、swap、basis、FX、option 组合成同一个风险闭环。",
+    summaryEn: "Connect physical commodity obligations with futures, swaps, basis, FX, and options as one risk loop.",
     conceptsZh: ["实货腿", "纸货腿", "名义量", "履约义务"],
     conceptsEn: ["Physical leg", "Paper leg", "Notional", "Performance obligation"],
     modelIds: ["gsa_procurement", "efet_bilateral_sale", "lng_regas_sale"]
   },
   {
+    id: "forward_curve_carry",
+    titleZh: "远期结构与持有成本",
+    titleEn: "Forward Structure and Carry",
+    summaryZh: "理解 Contango、Backwardation、库存持有成本和展期如何改变套保损益与执行节奏。",
+    summaryEn: "Understand how contango, backwardation, inventory carry, and roll change hedge P&L and execution timing.",
+    conceptsZh: ["Contango", "Backwardation", "持有成本", "展期收益"],
+    conceptsEn: ["Contango", "Backwardation", "Cost of carry", "Roll yield"],
+    modelIds: ["simple_procurement", "crude_inventory_hedge"]
+  },
+  {
     id: "outright_price",
     titleZh: "单边价格套保",
     titleEn: "Outright Price Hedge",
-    summaryZh: "用期货、远期或掉期管理 TTF、NBP、THE、JKM 等基准价格的绝对涨跌。",
-    summaryEn: "Use futures, forwards, or swaps to manage absolute moves in TTF, NBP, THE, JKM, or similar benchmarks.",
+    summaryZh: "用期货、远期或掉期管理商品基准价格的绝对涨跌。",
+    summaryEn: "Use futures, forwards, or swaps to manage absolute moves in commodity benchmarks.",
     conceptsZh: ["期货", "远期", "固定/浮动掉期", "保证金"],
     conceptsEn: ["Futures", "Forwards", "Fixed-floating swaps", "Margin"],
     modelIds: ["eex_ocm_procurement", "customer_indexed_sale", "lng_cargo_procurement"]
@@ -398,9 +492,19 @@ const hedgingKnowledgeCoverage = [
     titleEn: "Basis, Hub, and Calendar Spread",
     summaryZh: "拆分地点、枢纽、期限、单位和汇率带来的价差风险，避免只盯单一基准。",
     summaryEn: "Separate location, hub, tenor, unit, and FX basis from the benchmark price instead of watching one index.",
-    conceptsZh: ["TTF/NBP", "地点基差", "跨期价差", "单位归一"],
-    conceptsEn: ["TTF/NBP", "Location basis", "Calendar spread", "Unit normalization"],
+    conceptsZh: ["基准价差", "地点基差", "跨期价差", "单位归一"],
+    conceptsEn: ["Benchmark spread", "Location basis", "Calendar spread", "Unit normalization"],
     modelIds: ["cross_border_sale", "pipeline_capacity", "lng_regas_sale"]
+  },
+  {
+    id: "fx",
+    titleZh: "汇率敞口与套保",
+    titleEn: "FX Exposure and Hedge",
+    summaryZh: "识别商品计价、结算与本位币之间的汇率敞口，并用远期或掉期匹配金额和期限。",
+    summaryEn: "Identify FX exposure between commodity pricing, settlement, and functional currency, then match amount and tenor with forwards or swaps.",
+    conceptsZh: ["交易币种", "本位币", "FX Forward", "交叉币种错配"],
+    conceptsEn: ["Trade currency", "Functional currency", "FX forward", "Cross-currency mismatch"],
+    modelIds: ["gsa_procurement", "lng_cargo_procurement", "crude_cargo_hedge"]
   },
   {
     id: "crude_benchmark_basis",
@@ -465,6 +569,18 @@ const hedgingKnowledgeCoverage = [
 ];
 
 const gasTradingModels = [
+  {
+    id: "simple_procurement",
+    group: "foundation",
+    titleZh: "基础固定价采购",
+    titleEn: "Basic Fixed-Price Procurement",
+    summaryZh: "从采购实货敞口出发，练习买卖方向、数量、期限和基准的一一匹配。",
+    summaryEn: "Start from a physical procurement exposure and match side, quantity, tenor, and benchmark one by one.",
+    risksZh: ["价格上涨", "数量错配", "期限错配", "基准错配"],
+    risksEn: ["Price increase", "Quantity mismatch", "Tenor mismatch", "Benchmark mismatch"],
+    instrumentsZh: ["实货采购", "固定价掉期", "期货"],
+    instrumentsEn: ["Physical procurement", "Fixed-price swap", "Future"]
+  },
   {
     id: "gsa_procurement",
     group: "procurement",
@@ -786,7 +902,7 @@ function copy(locale, zh, en) {
 
 const fallbackTemplates = {
   groups: [
-    { id: "foundation", label: "套保基础" },
+    { id: "foundation", label: "通识金融工具" },
     { id: "crude", label: "原油套保" },
     { id: "procurement", label: "采购端" },
     { id: "sales", label: "销售端" },
@@ -807,13 +923,13 @@ const fallbackTemplates = {
     {
       id: "foundation_hedging_basics",
       group: "foundation",
-      business_type: "天然气套保基础",
-      title: "套保对象与风险敞口识别",
-      summary: "入门案例：识别业务敞口，并匹配实货、纸货、方向、数量和期限。",
-      coverage: ["exposure_objective", "physical_paper_matching", "outright_price"],
-      gas_models: ["simple_procurement", "customer_indexed_sale"],
-      knowledge_points: ["exposure_objective", "outright_price", "physical_paper_matching"],
-      required_curves: ["TTF", "TRAINING_HEDGE_INDEX"],
+      business_type: "跨品种套保通识",
+      title: "金融工具与套保决策基础",
+      summary: "通识案例：识别敞口，理解远期结构，并匹配工具、方向、数量、期限和风控。",
+      coverage: ["exposure_objective", "forward_curve_carry", "outright_price", "physical_paper_matching", "basis_spread", "hedge_ratio_cross_hedge", "options_optionality", "fx", "risk_controls"],
+      gas_models: ["simple_procurement"],
+      knowledge_points: ["exposure_objective", "forward_curve_carry", "outright_price", "physical_paper_matching", "basis_spread", "hedge_ratio_cross_hedge", "options_optionality", "fx", "risk_controls"],
+      required_curves: ["PRIMARY_BENCHMARK", "HEDGE_BENCHMARK"],
       suggested_leg_types: ["physical", "swap"]
     },
     {
@@ -1065,7 +1181,126 @@ function defaultCaseForTemplate(templateId, locale) {
 }
 
 function defaultLegs(locale = "zh") {
-  return defaultCase(locale).target_actions.map((leg) => ({ ...leg }));
+  return [{
+    id: `draft-${Date.now()}`,
+    leg_type: "",
+    market: "",
+    side: "",
+    quantity: 0,
+    price: 0,
+    tenor: "",
+    hedge_type: ""
+  }];
+}
+
+function replayBundleFromSession(session) {
+  return {
+    event: session.event,
+    current_checkpoint: session.current_checkpoint,
+    visible_timeline: session.visible_timeline,
+    next_checkpoint: session.next_checkpoint,
+    decision_rubric: session.decision_rubric,
+    information_policy: session.information_policy,
+    source_notes: session.source_notes
+  };
+}
+
+function replayPrompt(session, locale) {
+  const checkpoint = session.current_checkpoint ?? {};
+  const facts = (checkpoint.facts ?? []).map((fact) => `- ${fact}`).join("\n");
+  return copy(
+    locale,
+    `### ${checkpoint.label ?? "复盘节点"}\n\n${facts}\n\n**决策：** ${checkpoint.decision_required ?? ""}`,
+    `### ${checkpoint.label ?? "Replay checkpoint"}\n\n${facts}\n\n**Decision:** ${checkpoint.decision_required ?? ""}`
+  );
+}
+
+function sampleMarketHistory(points, count = 8) {
+  if (!Array.isArray(points) || points.length <= count) return points ?? [];
+  const indexes = new Set(Array.from({ length: count }, (_, index) => Math.round(index * (points.length - 1) / (count - 1))));
+  return [...indexes].map((index) => points[index]);
+}
+
+function applyStreamedMarketContext(current, context, locale) {
+  const benchmark = context.benchmark ?? current.market?.benchmark ?? "MARKET";
+  const history = sampleMarketHistory(context.history ?? [], 8);
+  const replay = context.replay;
+  const market = {
+    ...(current.market ?? {}),
+    unit: context.unit ?? current.market?.unit,
+    as_of: context.as_of,
+    benchmark,
+    curve_metrics: context.curve_metrics,
+    forward_curve: context.forward_curve ?? [],
+    provenance: context.provenance,
+    curves: history.length ? [{ id: benchmark, label: context.label ?? benchmark, color: "#0ea5e9", points: history }] : current.market?.curves ?? [],
+    replay,
+    events: replay?.visible_timeline?.map((item) => ({ date: item.date, label: item.label })) ?? current.market?.events ?? []
+  };
+  if (!replay?.event) return { ...current, market };
+  const checkpoint = replay.current_checkpoint ?? {};
+  return {
+    ...current,
+    scenario: {
+      ...current.scenario,
+      title: replay.event.title,
+      summary: replay.event.summary,
+      business_type: copy(locale, "原油历史复盘", "Crude Historical Replay"),
+      knowledge_points: replay.event.skills,
+      exposure: { ...(current.scenario?.exposure ?? {}), risk: checkpoint.decision_required }
+    },
+    market,
+    target_actions: [],
+    rubric: replay.decision_rubric ?? current.rubric,
+    prompt: replayPrompt({ current_checkpoint: checkpoint }, locale)
+  };
+}
+
+function partialJsonString(buffer, key) {
+  const source = String(buffer ?? "");
+  const prefix = new RegExp(`"${key}"\\s*:\\s*"`).exec(source);
+  if (!prefix) return "";
+  let raw = "";
+  let escaped = false;
+  for (let index = prefix.index + prefix[0].length; index < source.length; index += 1) {
+    const character = source[index];
+    if (escaped) {
+      raw += `\\${character}`;
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') break;
+    raw += character;
+  }
+  try {
+    return JSON.parse(`"${raw}"`);
+  } catch {
+    return raw.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  }
+}
+
+function streamedCasePreview(buffer) {
+  return {
+    title: partialJsonString(buffer, "title"),
+    summary: partialJsonString(buffer, "summary"),
+    business_type: partialJsonString(buffer, "business_type")
+  };
+}
+
+function generationStageLabel(id, locale, fallback = "") {
+  const labels = {
+    read_template: ["读取课程范围", "Reading lesson scope"],
+    resolve_market: ["建立行情与证据", "Building market evidence"],
+    generate_market: ["DeepSeek 编排业务场景", "DeepSeek composing the business scenario"],
+    parse_case: ["写入题目与评分规则", "Applying task and scoring rubric"],
+    stream_fallback: ["切换供应方兼容模式", "Switching provider compatibility mode"]
+  };
+  const label = labels[id];
+  return label ? copy(locale, label[0], label[1]) : fallback;
 }
 
 const assistantAutoActionTypes = [
@@ -1425,13 +1660,14 @@ function saveAiLessonPlan(plan) {
   localStorage.setItem(aiLessonPlanKey, JSON.stringify(plan));
 }
 
-function recordLearningAttempt({ activeTemplateId, caseData, evaluation, rationale, strategyLegs }) {
+function recordLearningAttempt({ activeTemplateId, caseData, evaluation, productScope, rationale, strategyLegs }) {
   return {
     id: `attempt-${Date.now()}`,
     created_at: new Date().toISOString(),
     template_id: activeTemplateId,
     scenario_id: caseData?.scenario?.id ?? activeTemplateId,
     scenario_title: caseData?.scenario?.title ?? "",
+    product_scope: productScopeForTemplate(activeTemplateId) === "general" ? "general" : productScope,
     evaluation,
     rationale,
     strategy_legs: strategyLegs
@@ -1450,21 +1686,32 @@ function attemptsForTrack(learningProgress, track) {
   return learningProgress?.scenarioStats?.[track.templateId] ?? { attempts: 0, score: null };
 }
 
-function recommendedTrackId(learningProgress) {
-  if (!learningProgress?.hasRecords) return "foundation";
-  const unattempted = learningTracks.find((track) => !attemptsForTrack(learningProgress, track).attempts);
+function recommendedTrackId(learningProgress, productScope = "natural_gas") {
+  const tracks = tracksForProduct(productScope);
+  if (!learningProgress?.hasRecords) return tracks[0]?.id ?? "foundation";
+  const unattempted = tracks.find((track) => !attemptsForTrack(learningProgress, track).attempts);
   if (unattempted) return unattempted.id;
   const weakestId = learningProgress.weakest?.[0]?.id;
-  return learningTracks.find((track) => (trackSkillFocus[track.id] ?? []).includes(weakestId))?.id ?? "integrated";
+  return tracks.find((track) => (trackSkillFocus[track.id] ?? []).includes(weakestId))?.id ?? tracks.at(-1)?.id ?? "foundation";
 }
 
-function normalizeLearningPlan(payload, learningProgress) {
-  const track = trackForId(payload.track_id ?? payload.trackId ?? recommendedTrackId(learningProgress));
+function selectedTrackForProduct(trackId, learningProgress, productScope) {
+  const tracks = tracksForProduct(productScope);
+  return tracks.find((track) => track.id === trackId)
+    ?? tracks.find((track) => track.id === recommendedTrackId(learningProgress, productScope))
+    ?? tracks[0];
+}
+
+function normalizeLearningPlan(payload, learningProgress, productScope = "natural_gas") {
+  const allowedTracks = tracksForProduct(productScope);
+  const requestedTrack = allowedTracks.find((item) => item.id === (payload.track_id ?? payload.trackId));
+  const track = requestedTrack ?? trackForId(recommendedTrackId(learningProgress, productScope));
   const syllabus = syllabusForTrack(track.id);
   const fallbackSteps = syllabus.lessons.slice(0, 3).map((lesson) => lesson.titleZh);
   return {
     id: `plan-${Date.now()}`,
     track_id: track.id,
+    product_scope: productScope,
     lesson_id: payload.lesson_id ?? payload.lessonId ?? syllabus.lessons[0]?.id,
     title: String(payload.title ?? payload.goal ?? track.zh ?? track.en),
     objective: String(payload.objective ?? payload.summary ?? track.detailZh ?? track.detailEn),
@@ -1869,15 +2116,23 @@ function BusinessNavigator({ activeTemplateId, businessTemplates, footer, genera
   );
 }
 
-function GenerationTimeline({ locale, stages }) {
+function GenerationTimeline({ locale, stages, streamState }) {
   return (
     <div className="ai-generation-timeline">
-      {(stages.length ? stages : [{ id: "ready", label: t("aiCaseReady", locale) }]).map((stage, index) => (
-        <span className={index === stages.length - 1 && stages.length ? "active" : ""} key={`${stage.id}-${index}`}>
-          <i />
-          {stage.label}
-        </span>
-      ))}
+      <div>
+        {(stages.length ? stages : [{ id: "ready", label: t("aiCaseReady", locale) }]).map((stage, index) => (
+          <span className={index === stages.length - 1 && stages.length ? "active" : ""} key={`${stage.id}-${index}`}>
+            <i />
+            {stage.label}
+          </span>
+        ))}
+      </div>
+      {streamState?.received ? (
+        <small>
+          <b>{copy(locale, "实时生成", "LIVE")}</b>
+          {copy(locale, `已接收 ${formatNumber(streamState.received)} 个结构化字符`, `${formatNumber(streamState.received)} structured characters received`)}
+        </small>
+      ) : null}
     </div>
   );
 }
@@ -2107,12 +2362,12 @@ function CaseWorkspace({ caseData, generationStages, locale }) {
   );
 }
 
-function StrategyBuilder({ busy, locale, onSubmit, rationale, setRationale, setStrategyLegs, strategyLegs }) {
+function StrategyBuilder({ busy, locale, locked = false, onSubmit, rationale, setRationale, setStrategyLegs, strategyLegs }) {
   function updateLeg(index, patch) {
     setStrategyLegs((current) => current.map((leg, itemIndex) => itemIndex === index ? { ...leg, ...patch } : leg));
   }
   function addLeg() {
-    setStrategyLegs((current) => [...current, { id: `leg-${Date.now()}`, leg_type: "swap", market: "TTF", side: "sell", quantity: 0, price: 0, tenor: "M+1", hedge_type: "short_hedge" }]);
+    setStrategyLegs((current) => [...current, { id: `leg-${Date.now()}`, leg_type: "", market: "", side: "", quantity: 0, price: 0, tenor: "", hedge_type: "" }]);
   }
   function removeLeg(index) {
     setStrategyLegs((current) => current.filter((_, itemIndex) => itemIndex !== index));
@@ -2123,18 +2378,18 @@ function StrategyBuilder({ busy, locale, onSubmit, rationale, setRationale, setS
       <div className="strategy-leg-list">
         {strategyLegs.map((leg, index) => (
           <div className="strategy-leg" key={leg.id ?? index}>
-            <label>{t("legType", locale)}<select value={leg.leg_type} onChange={(event) => updateLeg(index, { leg_type: event.target.value })}><option value="physical">{t("physicalLeg", locale)}</option><option value="swap">Swap</option><option value="future">Future</option><option value="basis">{t("basisLeg", locale)}</option><option value="fx">FX</option><option value="capacity">{t("capacityLeg", locale)}</option><option value="option">{copy(locale, "期权", "Option")}</option></select></label>
-            <label>{t("market", locale)}<input value={leg.market} onChange={(event) => updateLeg(index, { market: event.target.value })} /></label>
-            <label>{t("side", locale)}<select value={leg.side} onChange={(event) => updateLeg(index, { side: event.target.value })}><option value="sell">{t("sell", locale)}</option><option value="buy">{t("buy", locale)}</option><option value="pay">Pay</option><option value="receive">Receive</option></select></label>
-            <label>{t("quantity", locale)}<input min="0" type="number" value={leg.quantity} onChange={(event) => updateLeg(index, { quantity: Number(event.target.value) })} /></label>
-            <label>{t("tenor", locale)}<input value={leg.tenor} onChange={(event) => updateLeg(index, { tenor: event.target.value })} /></label>
-            <button className="icon-button danger" disabled={strategyLegs.length <= 1} onClick={() => removeLeg(index)} type="button">×</button>
+            <label>{t("legType", locale)}<select disabled={locked} value={leg.leg_type} onChange={(event) => updateLeg(index, { leg_type: event.target.value })}><option value="">{copy(locale, "选择工具", "Select tool")}</option><option value="physical">{t("physicalLeg", locale)}</option><option value="swap">Swap</option><option value="future">Future</option><option value="basis">{t("basisLeg", locale)}</option><option value="fx">FX</option><option value="capacity">{t("capacityLeg", locale)}</option><option value="option">{copy(locale, "期权", "Option")}</option></select></label>
+            <label>{t("market", locale)}<input disabled={locked} value={leg.market} onChange={(event) => updateLeg(index, { market: event.target.value })} /></label>
+            <label>{t("side", locale)}<select disabled={locked} value={leg.side} onChange={(event) => updateLeg(index, { side: event.target.value })}><option value="">{copy(locale, "选择方向", "Select side")}</option><option value="sell">{t("sell", locale)}</option><option value="buy">{t("buy", locale)}</option><option value="pay">Pay</option><option value="receive">Receive</option></select></label>
+            <label>{t("quantity", locale)}<input disabled={locked} min="0" type="number" value={leg.quantity} onChange={(event) => updateLeg(index, { quantity: Number(event.target.value) })} /></label>
+            <label>{t("tenor", locale)}<input disabled={locked} value={leg.tenor} onChange={(event) => updateLeg(index, { tenor: event.target.value })} /></label>
+            <button className="icon-button danger" disabled={locked || strategyLegs.length <= 1} onClick={() => removeLeg(index)} type="button">×</button>
           </div>
         ))}
       </div>
-      <button className="secondary" onClick={addLeg} type="button">{t("addLeg", locale)}</button>
-      <label>{t("rationale", locale)}<textarea value={rationale} onChange={(event) => setRationale(event.target.value)} /></label>
-      <button className="primary" disabled={busy} onClick={onSubmit} type="button">{busy ? t("loading", locale) : t("submitOrder", locale)}</button>
+      <button className="secondary" disabled={locked} onClick={addLeg} type="button">{t("addLeg", locale)}</button>
+      <label>{t("rationale", locale)}<textarea disabled={locked} value={rationale} onChange={(event) => setRationale(event.target.value)} /></label>
+      <button className="primary" disabled={busy || locked} onClick={onSubmit} type="button">{locked ? copy(locale, "本节点已提交", "Checkpoint submitted") : busy ? t("loading", locale) : t("submitOrder", locale)}</button>
     </section>
   );
 }
@@ -2306,8 +2561,8 @@ function pageLabelFor(locale, activePage) {
   return page ? labelFor(locale, page) : t("decisionLab", locale);
 }
 
-function curriculumReference(locale) {
-  const commodityModels = gasTradingModels.map((item) => ({
+function curriculumReference(locale, productScope = "natural_gas") {
+  const commodityModels = modelsForProduct(productScope).map((item) => ({
     id: item.id,
     group: item.group,
     title: labelFor(locale, item, "titleZh", "titleEn"),
@@ -2316,7 +2571,7 @@ function curriculumReference(locale) {
     instruments: copy(locale, item.instrumentsZh, item.instrumentsEn)
   }));
   return {
-    knowledge_coverage: hedgingKnowledgeCoverage.map((item) => ({
+    knowledge_coverage: coverageForProduct(productScope).map((item) => ({
       id: item.id,
       title: labelFor(locale, item, "titleZh", "titleEn"),
       summary: copy(locale, item.summaryZh, item.summaryEn),
@@ -2325,6 +2580,24 @@ function curriculumReference(locale) {
     commodity_trading_models: commodityModels,
     gas_trading_models: commodityModels
   };
+}
+
+function trainingCurriculumReference(template, locale, productScope = "natural_gas") {
+  const coverage = coverageForTemplate(template).map((item) => ({
+    id: item.id,
+    title: labelFor(locale, item, "titleZh", "titleEn"),
+    summary: copy(locale, item.summaryZh, item.summaryEn),
+    concepts: copy(locale, item.conceptsZh, item.conceptsEn)
+  }));
+  const allowedModelIds = new Set(modelsForProduct(productScope).map((item) => item.id));
+  const models = modelsForTemplate(template).filter((item) => allowedModelIds.has(item.id)).map((item) => ({
+    id: item.id,
+    group: item.group,
+    title: labelFor(locale, item, "titleZh", "titleEn"),
+    risks: copy(locale, item.risksZh, item.risksEn),
+    instruments: copy(locale, item.instrumentsZh, item.instrumentsEn)
+  }));
+  return { knowledge_coverage: coverage, commodity_trading_models: models, gas_trading_models: models };
 }
 
 function knowledgePointLabel(locale, pointId, businessTemplates) {
@@ -2376,8 +2649,9 @@ function LogoMark() {
   return <CommodityLogo />;
 }
 
-function ProductTopbar({ activePage, aiReady, locale }) {
+function ProductTopbar({ activePage, aiReady, locale, onProductScopeChange, productScope }) {
   const currentPageLabel = pageLabelFor(locale, activePage);
+  const workspace = productWorkspace(productScope);
   return (
     <header className="cl-topbar">
       <div className="cl-brand">
@@ -2387,6 +2661,15 @@ function ProductTopbar({ activePage, aiReady, locale }) {
         </div>
       </div>
       <div className="cl-top-actions">
+        <label className="cl-product-switcher">
+          <Icon name={workspace.icon} />
+          <span>{copy(locale, "通识 +", "General +")}</span>
+          <select aria-label={copy(locale, "课程产品", "Course product")} onChange={(event) => onProductScopeChange(event.target.value)} value={productScope}>
+            {productWorkspaces.map((item) => (
+              <option disabled={!item.enabled} key={item.id} value={item.id}>{labelFor(locale, item)}</option>
+            ))}
+          </select>
+        </label>
         <span className="cl-route-pill">{currentPageLabel}</span>
         <AiStatusBadge aiReady={aiReady} locale={locale} />
       </div>
@@ -2433,16 +2716,17 @@ function LearningStepper({ active = 2, locale }) {
   );
 }
 
-function LearningLoopPanel({ aiLessonPlan, aiReady, learningProgress, locale, onGenerate }) {
-  const track = trackForId(aiLessonPlan?.track_id ?? recommendedTrackId(learningProgress));
-  const prompt = aiLessonPlan?.practice_prompt ?? copy(locale, track.requestZh, track.requestEn);
-  const activeIndex = aiLessonPlan ? 1 : learningProgress.hasRecords ? 3 : 0;
+function LearningLoopPanel({ aiLessonPlan, aiReady, learningProgress, locale, onGenerate, productScope }) {
+  const activePlan = !aiLessonPlan?.product_scope || aiLessonPlan.product_scope === productScope ? aiLessonPlan : null;
+  const track = selectedTrackForProduct(activePlan?.track_id, learningProgress, productScope);
+  const prompt = activePlan?.practice_prompt ?? copy(locale, track.requestZh, track.requestEn);
+  const activeIndex = activePlan ? 1 : learningProgress.hasRecords ? 3 : 0;
   const activeStep = learningFlow[activeIndex] ?? learningFlow[0];
   return (
-    <section className={aiLessonPlan ? "cl-panel cl-learning-loop-panel ai-guided" : "cl-panel cl-learning-loop-panel"}>
+    <section className={activePlan ? "cl-panel cl-learning-loop-panel ai-guided" : "cl-panel cl-learning-loop-panel"}>
       <div className="cl-panel-heading">
         <span>{copy(locale, "学习闭环", "Learning Loop")}</span>
-        <strong>{aiLessonPlan ? copy(locale, "AI 正在引导这一步", "AI is guiding this step") : copy(locale, "先理解，再生成，再实操", "Understand, generate, practice")}</strong>
+        <strong>{activePlan ? copy(locale, "AI 正在引导这一步", "AI is guiding this step") : copy(locale, "先理解，再生成，再实操", "Understand, generate, practice")}</strong>
       </div>
       <div className="cl-learning-loop-track" aria-label={copy(locale, "学习闭环", "Learning Loop")}>
         {learningFlow.map((step, index) => (
@@ -2462,7 +2746,7 @@ function LearningLoopPanel({ aiLessonPlan, aiReady, learningProgress, locale, on
         <div>
           <small>{copy(locale, "当前模块", "Current module")}</small>
           <strong>{labelFor(locale, track)}</strong>
-          <span>{aiLessonPlan?.objective ?? copy(locale, track.detailZh, track.detailEn)}</span>
+          <span>{activePlan?.objective ?? copy(locale, track.detailZh, track.detailEn)}</span>
         </div>
         <div>
           <small>{copy(locale, "下一步课堂动作", "Next classroom move")}</small>
@@ -2569,19 +2853,20 @@ function CourseLessonList({ aiReady = true, currentTrackId, learningProgress, lo
   );
 }
 
-function AiTeachingPlanPanel({ aiLessonPlan, aiReady, learningProgress, locale, onGenerate }) {
-  const track = trackForId(aiLessonPlan?.track_id ?? recommendedTrackId(learningProgress));
+function AiTeachingPlanPanel({ aiLessonPlan, aiReady, learningProgress, locale, onGenerate, productScope }) {
+  const activePlan = !aiLessonPlan?.product_scope || aiLessonPlan.product_scope === productScope ? aiLessonPlan : null;
+  const track = selectedTrackForProduct(activePlan?.track_id, learningProgress, productScope);
   const syllabus = syllabusForTrack(track.id);
   const stats = attemptsForTrack(learningProgress, track);
-  const steps = aiLessonPlan?.steps?.length ? aiLessonPlan.steps : syllabus.lessons.slice(0, 3).map((lesson) => copy(locale, lesson.titleZh, lesson.titleEn));
-  const title = aiLessonPlan?.title ?? copy(locale, `下一节：${track.zh}`, `Next: ${track.en}`);
-  const objective = aiLessonPlan?.objective ?? copy(locale, track.detailZh, track.detailEn);
-  const prompt = aiLessonPlan?.practice_prompt ?? copy(locale, track.requestZh, track.requestEn);
+  const steps = activePlan?.steps?.length ? activePlan.steps : syllabus.lessons.slice(0, 3).map((lesson) => copy(locale, lesson.titleZh, lesson.titleEn));
+  const title = activePlan?.title ?? copy(locale, `下一节：${track.zh}`, `Next: ${track.en}`);
+  const objective = activePlan?.objective ?? copy(locale, track.detailZh, track.detailEn);
+  const prompt = activePlan?.practice_prompt ?? copy(locale, track.requestZh, track.requestEn);
   return (
-    <section className={aiLessonPlan ? "cl-panel cl-ai-plan-panel active" : "cl-panel cl-ai-plan-panel"}>
+    <section className={activePlan ? "cl-panel cl-ai-plan-panel active" : "cl-panel cl-ai-plan-panel"}>
       <div className="cl-panel-heading">
         <span>{copy(locale, "AI 教学计划", "AI Teaching Plan")}</span>
-        <strong>{aiLessonPlan ? copy(locale, "AI 已定制", "AI customized") : copy(locale, "按真实记录推荐", "Recommended from records")}</strong>
+        <strong>{activePlan ? copy(locale, "AI 已定制", "AI customized") : copy(locale, "按真实记录推荐", "Recommended from records")}</strong>
       </div>
       <div className="cl-ai-plan-body">
         <div className="cl-ai-plan-orbit" aria-hidden="true"><Icon name="sparkles" /></div>
@@ -2605,14 +2890,16 @@ function AiTeachingPlanPanel({ aiLessonPlan, aiReady, learningProgress, locale, 
   );
 }
 
-function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, locale, onGenerate, onPageChange }) {
+function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, locale, onGenerate, onPageChange, productScope }) {
+  const workspace = productWorkspace(productScope);
+  const visibleTracks = tracksForProduct(productScope);
   const score = learningProgress.latestScore;
   const hasProgress = learningProgress.hasRecords && score != null;
-  const recommendedTrack = recommendedTrackId(learningProgress);
+  const recommendedTrack = recommendedTrackId(learningProgress, productScope);
   const weakSummary = learningProgress.weakest.length
     ? learningProgress.weakest.map((item) => labelFor(locale, item, "zh", "en")).join(" / ")
     : copy(locale, "提交一次策略后自动生成能力画像。", "Submit a strategy once to build your capability profile.");
-  const startTrack = learningTracks[0];
+  const startTrack = visibleTracks[0];
   function startTrackDrill(track) {
     onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn));
   }
@@ -2631,10 +2918,10 @@ function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, lo
       <PageTitle
         icon="home"
         locale={locale}
-        titleZh="商品套保学习路径"
-        titleEn="Commodity Hedging Learning Path"
-        subtitleZh="以天然气为主线，新增原油套保轨道；先建立框架，再进入 AI 生成案例、组合操作和复盘。"
-        subtitleEn="Natural gas remains the core path, with a new crude oil hedging track; build the framework first, then move into AI-generated cases, multi-leg decisions, and review."
+        titleZh={`通识 + ${workspace.zh} 学习路径`}
+        titleEn={`General + ${workspace.en} Learning Path`}
+        subtitleZh={`先掌握跨品种通用的金融工具，再进入${workspace.zh}业务、市场结构和组合套保。`}
+        subtitleEn={`Build inter-commodity hedging fundamentals first, then apply them to ${workspace.en.toLowerCase()} business, market structure, and multi-leg hedges.`}
         action={<button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={Boolean(loadingTemplate)} type="button"><Icon name="play" />{aiReady ? copy(locale, "开始第一课", "Start Lesson 1") : copy(locale, "配置 AI", "Connect AI")}</button>}
       />
       <div className="cl-home-grid">
@@ -2649,12 +2936,12 @@ function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, lo
             <button className="cl-secondary" onClick={() => onPageChange(pageIds.knowledge)} type="button"><Icon name="map" />{copy(locale, "看课程地图", "Open course map")}</button>
           </div>
         </section>
-        <LearningLoopPanel aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={onGenerate} />
-        <AiTeachingPlanPanel aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={onGenerate} />
+        <LearningLoopPanel aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={onGenerate} productScope={productScope} />
+        <AiTeachingPlanPanel aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={onGenerate} productScope={productScope} />
         <section className="cl-panel cl-learning-route-panel cl-course-panel">
-          <div className="cl-panel-heading"><span>{copy(locale, "业务课程路径", "Business Course Path")}</span><strong>{copy(locale, "Coursera + Roadmap 模式", "Course + Roadmap mode")}</strong></div>
+          <div className="cl-panel-heading"><span>{copy(locale, "课程路径", "Course Path")}</span><strong>{copy(locale, `通识 + ${workspace.zh}`, `General + ${workspace.en}`)}</strong></div>
           <div className="cl-course-grid">
-            {learningTracks.map((track, index) => (
+            {visibleTracks.map((track, index) => (
               <article key={track.id}>
                 <div>
                   <b>{index + 1}</b>
@@ -2715,14 +3002,16 @@ function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, lo
   );
 }
 
-function MarketEvidenceSelector({ capabilities, locale, marketMode, marketRegime, replayId, setMarketMode, setMarketRegime, setReplayId }) {
+function MarketEvidenceSelector({ capabilities, locale, marketMode, marketRegime, productScope, replayId, setMarketMode, setMarketRegime, setReplayId }) {
   const modes = capabilities?.modes?.length ? capabilities.modes : fallbackMarketCapabilities(locale).modes;
-  const replays = capabilities?.replays?.length ? capabilities.replays : fallbackMarketCapabilities(locale).replays;
+  const allReplays = capabilities?.replays?.length ? capabilities.replays : fallbackMarketCapabilities(locale).replays;
+  const replayCommodity = productScope === "crude_oil" ? "crude_oil" : "natural_gas";
+  const replays = allReplays.filter((item) => item.commodity === replayCommodity);
   const platts = capabilities?.providers?.find((provider) => provider.id === "platts") ?? fallbackMarketCapabilities(locale).providers[0];
   const activeReplay = replays.find((item) => item.id === replayId) ?? replays[0];
   const orderedModes = ["ai_simulated", "historical_replay", "live"]
     .map((id) => modes.find((mode) => mode.id === id))
-    .filter(Boolean);
+    .filter((mode) => Boolean(mode) && (mode.id !== "historical_replay" || replays.length));
   return (
     <div className="cl-market-evidence">
       <div className="cl-market-evidence-heading">
@@ -2789,8 +3078,9 @@ function MarketEvidenceSelector({ capabilities, locale, marketMode, marketRegime
   );
 }
 
-function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, loadingTemplate, marketCapabilities, onGenerate, setActiveTemplateId }) {
-  const templates = businessTemplates.templates?.length ? businessTemplates.templates : fallbackTemplates.templates;
+function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, loadingTemplate, marketCapabilities, onGenerate, productScope, setActiveTemplateId }) {
+  const allTemplates = businessTemplates.templates?.length ? businessTemplates.templates : fallbackTemplates.templates;
+  const templates = templatesForProduct(allTemplates, productScope);
   const [request, setRequest] = useState("");
   const [marketMode, setMarketModeState] = useState("ai_simulated");
   const [marketRegime, setMarketRegime] = useState("contango");
@@ -2798,7 +3088,17 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
   const active = templates.find((template) => template.id === activeTemplateId) ?? templates[0];
   const activeCoverage = coverageForTemplate(active);
   const activeModels = modelsForTemplate(active);
-  const activeCommodity = active?.group === "crude" ? "crude-oil" : "natural-gas";
+  const replayCommodity = productScope === "crude_oil" ? "crude_oil" : "natural_gas";
+  const availableReplays = (marketCapabilities?.replays ?? []).filter((item) => item.commodity === replayCommodity);
+
+  useEffect(() => {
+    if (active?.id && active.id !== activeTemplateId) setActiveTemplateId(active.id);
+  }, [active?.id, activeTemplateId, setActiveTemplateId]);
+
+  useEffect(() => {
+    if (!availableReplays.length && marketMode === "historical_replay") setMarketModeState("ai_simulated");
+    if (availableReplays.length && !availableReplays.some((item) => item.id === replayId)) setReplayId(availableReplays[0].id);
+  }, [availableReplays, marketMode, replayId]);
 
   function randomize() {
     const next = templates[Math.floor(Math.random() * templates.length)];
@@ -2808,7 +3108,7 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
   function setMarketMode(nextMode) {
     setMarketModeState(nextMode);
     if (nextMode === "historical_replay") {
-      const replay = marketCapabilities?.replays?.find((item) => item.id === replayId) ?? marketCapabilities?.replays?.[0];
+      const replay = availableReplays.find((item) => item.id === replayId) ?? availableReplays[0];
       if (replay?.commodity === "crude_oil") {
         const crudeTemplate = templates.find((template) => template.group === "crude");
         if (crudeTemplate) setActiveTemplateId(crudeTemplate.id);
@@ -2841,18 +3141,20 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
             locale={locale}
             marketMode={marketMode}
             marketRegime={marketRegime}
+            productScope={productScope}
             replayId={replayId}
             setMarketMode={setMarketMode}
             setMarketRegime={setMarketRegime}
             setReplayId={setReplayId}
           />
           <label className="cl-studio-prompt">{copy(locale, "你想练什么？", "What do you want to practise?")}
-            <textarea value={request} onChange={(event) => setRequest(event.target.value)} placeholder={copy(locale, "例如：训练一套英国上游气卖往德国的组合套保，市场快速下跌。", "Example: practise an integrated hedge for UK beach gas sold into Germany during a sharp selloff.")} />
+            <textarea value={request} onChange={(event) => setRequest(event.target.value)} placeholder={productScope === "crude_oil"
+              ? copy(locale, "例如：训练 Brent 计价船货在快速下跌中的采购套保。", "Example: practise a Brent-indexed cargo procurement hedge during a sharp selloff.")
+              : copy(locale, "例如：训练一套英国上游气卖往德国的组合套保，市场快速下跌。", "Example: practise an integrated hedge for UK beach gas sold into Germany during a sharp selloff.")} />
           </label>
           <details className="cl-studio-advanced">
             <summary><span>{copy(locale, "课程与业务设置", "Course and business settings")}</span><strong>{active?.title}</strong></summary>
             <div className="cl-studio-setting-grid">
-              <label>{copy(locale, "商品", "Commodity")}<select value={activeCommodity} disabled><option value="natural-gas">{copy(locale, "天然气", "Natural Gas")}</option><option value="crude-oil">{copy(locale, "原油", "Crude Oil")}</option></select></label>
               <label>{copy(locale, "课程章节", "Course chapter")}<select value={active?.id ?? ""} onChange={(event) => setActiveTemplateId(event.target.value)}>{templates.map((template) => <option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
             </div>
           </details>
@@ -2945,9 +3247,9 @@ function scenarioFilterLabel(locale, filterId, value) {
   return value;
 }
 
-function scenarioFilterOptions(filterId, locale) {
+function scenarioFilterOptions(filterId, locale, items = scenarioLibraryItems) {
   const seen = new Set();
-  return scenarioLibraryItems
+  return items
     .map((item) => scenarioFilterValue(item, filterId))
     .filter(Boolean)
     .filter((value) => {
@@ -2958,24 +3260,27 @@ function scenarioFilterOptions(filterId, locale) {
     .map((value) => ({ value, label: scenarioFilterLabel(locale, filterId, value) }));
 }
 
-function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadingTemplate, onGenerate, onPageChange }) {
+function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadingTemplate, onGenerate, onPageChange, productScope }) {
+  const workspace = productWorkspace(productScope);
+  const productItems = scenarioLibraryItems.filter((item) => item.commodity === scenarioCommodityForProduct(productScope));
+  const filterDefinitions = scenarioFilterDefinitions.filter((item) => item.id !== "commodity");
   const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState(() => Object.fromEntries(scenarioFilterDefinitions.map((item) => [item.id, "all"])));
-  const visible = scenarioLibraryItems.filter((item) => {
+  const [filters, setFilters] = useState(() => Object.fromEntries(filterDefinitions.map((item) => [item.id, "all"])));
+  const visible = productItems.filter((item) => {
     const text = `${item.titleZh} ${item.titleEn} ${item.summaryZh} ${item.summaryEn} ${item.tags.join(" ")}`.toLowerCase();
     const matchesSearch = text.includes(query.trim().toLowerCase());
-    const matchesFilters = scenarioFilterDefinitions.every((filter) => filters[filter.id] === "all" || scenarioFilterValue(item, filter.id) === filters[filter.id]);
+    const matchesFilters = filterDefinitions.every((filter) => filters[filter.id] === "all" || scenarioFilterValue(item, filter.id) === filters[filter.id]);
     return matchesSearch && matchesFilters;
   });
   const scenarioStat = (item) => learningProgress.scenarioStats[item.id] ?? null;
   const trainedScenarios = Object.values(learningProgress.scenarioStats).filter((stat) => stat.attempts > 0).length;
-  const hasFilters = query.trim() || scenarioFilterDefinitions.some((filter) => filters[filter.id] !== "all");
+  const hasFilters = query.trim() || filterDefinitions.some((filter) => filters[filter.id] !== "all");
   function updateFilter(filterId, value) {
     setFilters((current) => ({ ...current, [filterId]: value }));
   }
   function clearFilters() {
     setQuery("");
-    setFilters(Object.fromEntries(scenarioFilterDefinitions.map((item) => [item.id, "all"])));
+    setFilters(Object.fromEntries(filterDefinitions.map((item) => [item.id, "all"])));
   }
   return (
     <section className="cl-page cl-library-page">
@@ -2984,8 +3289,8 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
         locale={locale}
         titleZh="场景库"
         titleEn="Scenario Library"
-        subtitleZh="浏览、搜索并管理 AI 生成的训练案例，天然气场景优先开放。"
-        subtitleEn="Browse, search, and manage AI-generated training cases. Natural gas scenarios are live first."
+        subtitleZh={`只显示当前${workspace.zh}工作区的 AI 训练案例。`}
+        subtitleEn={`Only AI training cases for the current ${workspace.en} workspace are shown.`}
         action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="plus" />{copy(locale, "新建案例", "New Case")}</button>}
       />
       <div className="cl-library-grid">
@@ -2995,12 +3300,12 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy(locale, "搜索场景标题、描述、标签或关键词...", "Search scenario titles, descriptions, tags, or keywords...")} />
           </div>
           <div className="cl-filter-row">
-            {scenarioFilterDefinitions.map((filter) => (
+            {filterDefinitions.map((filter) => (
               <label key={filter.id}>
                 <span>{copy(locale, filter.labelZh, filter.labelEn)}</span>
                 <select value={filters[filter.id]} onChange={(event) => updateFilter(filter.id, event.target.value)}>
                   <option value="all">{copy(locale, `全部${filter.labelZh}`, `All ${filter.labelEn}`)}</option>
-                  {scenarioFilterOptions(filter.id, locale).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  {scenarioFilterOptions(filter.id, locale, productItems).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </label>
             ))}
@@ -3008,7 +3313,7 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
           </div>
           <div className="cl-scenario-table">
             <div className="cl-scenario-head">
-              <span>{copy(locale, "场景", "Scenario")}</span><span>{copy(locale, "商品", "Commodity")}</span><span>{copy(locale, "难度", "Difficulty")}</span><span>{copy(locale, "预计时长", "Est.")}</span><span>{copy(locale, "进度", "Progress")}</span><span>{copy(locale, "操作", "Action")}</span>
+              <span>{copy(locale, "场景", "Scenario")}</span><span>{copy(locale, "难度", "Difficulty")}</span><span>{copy(locale, "预计时长", "Est.")}</span><span>{copy(locale, "进度", "Progress")}</span><span>{copy(locale, "操作", "Action")}</span>
             </div>
             {visible.map((item) => {
               const stat = scenarioStat(item);
@@ -3023,7 +3328,6 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
                     <div className="cl-chip-row">{item.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
                   </div>
                 </div>
-                <span>{scenarioFilterLabel(locale, "commodity", item.commodity)}</span>
                 <span>{copy(locale, item.difficultyZh, item.difficultyEn)}</span>
                 <span>{item.duration}{item.duration === "--" ? "" : copy(locale, " 分钟", " min")}</span>
                 <span className={progress == null ? "cl-progress-cell is-empty" : "cl-progress-cell"} style={{ "--pct": `${progress ?? 0}%` }}><b>{progress == null ? copy(locale, "未训练", "Not trained") : `${progress}%`}</b><i><em /></i></span>
@@ -3052,7 +3356,7 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
           ].map(([label, value]) => <button key={label} type="button"><Icon name="progress" /><span>{label}</span><small>{value}</small></button>)}
           <div className="cl-divider" />
           <div className="cl-panel-heading"><span>{copy(locale, "为你推荐", "Recommended")}</span><strong>{copy(locale, "换一换", "Refresh")}</strong></div>
-          {scenarioLibraryItems.filter((item) => item.enabled).slice(0, 3).map((item) => <button key={item.id} onClick={() => onGenerate(item.id)} type="button"><span>{copy(locale, item.titleZh, item.titleEn)}</span><small>{item.duration} min</small></button>)}
+          {productItems.filter((item) => item.enabled).slice(0, 3).map((item) => <button key={item.id} onClick={() => onGenerate(item.id)} type="button"><span>{copy(locale, item.titleZh, item.titleEn)}</span><small>{item.duration} min</small></button>)}
         </aside>
       </div>
     </section>
@@ -3096,31 +3400,90 @@ function CaseHero({ activeTemplate, caseData, locale }) {
   );
 }
 
-function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData, fieldSelection, locale, onCheckStrategy, onGenerateVariant, onSuggestTarget, strategyProps }) {
+function ReplayDecisionPanel({ advancing, caseData, decisionResult, locale, onAdvance }) {
+  const replay = caseData.market?.replay;
+  if (!replay?.event?.id) return null;
+  const current = replay.current_checkpoint ?? {};
+  const total = replay.event.checkpoint_count ?? Math.max((replay.visible_timeline ?? []).length, (current.index ?? 0) + 1);
+  const visibleByIndex = Object.fromEntries((replay.visible_timeline ?? []).map((item) => [item.index, item]));
+  const score = decisionResult?.evaluation?.baseline_score;
+  return (
+    <section className={advancing ? "cl-replay-console is-advancing" : "cl-replay-console"} aria-live="polite">
+      <header>
+        <div>
+          <Icon name="history" />
+          <span>{copy(locale, "事件复盘", "Event Replay")}</span>
+          <strong>{replay.event.title}</strong>
+        </div>
+        <small>{copy(locale, `决策点 ${(current.index ?? 0) + 1} / ${total}`, `Checkpoint ${(current.index ?? 0) + 1} / ${total}`)}</small>
+      </header>
+      <div className="cl-replay-timeline" aria-label={copy(locale, "复盘进度", "Replay progress")}>
+        {Array.from({ length: total }).map((_, index) => {
+          const item = visibleByIndex[index];
+          const status = index < (current.index ?? 0) ? "complete" : index === (current.index ?? 0) ? "active" : "locked";
+          return (
+            <div className={status} key={index}>
+              <i>{index + 1}</i>
+              <span>{item?.date ?? copy(locale, "待解锁", "Locked")}</span>
+              <strong>{item?.label ?? copy(locale, "提交后揭示", "Reveal after decision")}</strong>
+            </div>
+          );
+        })}
+      </div>
+      <div className="cl-replay-brief">
+        <div>
+          <small>{copy(locale, "当时已知信息", "Known at the time")}</small>
+          <ul>{(current.facts ?? []).map((fact) => <li key={fact}>{fact}</li>)}</ul>
+        </div>
+        <div>
+          <small>{copy(locale, "本节点决策", "Decision now")}</small>
+          <p>{current.decision_required}</p>
+          <em>{replay.information_policy}</em>
+        </div>
+      </div>
+      {decisionResult ? (
+        <div className="cl-replay-result">
+          <div><small>{copy(locale, "节点得分", "Checkpoint score")}</small><strong>{score}/100</strong></div>
+          <p><b>{decisionResult.feedback}</b><span>{decisionResult.outcome}</span></p>
+          <button className="cl-primary" disabled={advancing} onClick={onAdvance} type="button">
+            <Icon name={decisionResult.complete ? "chart" : "arrow"} />
+            {advancing ? copy(locale, "正在推进市场...", "Advancing market...") : decisionResult.complete ? copy(locale, "完成复盘并查看总结", "Finish replay and review") : copy(locale, "揭示下一市场阶段", "Reveal next market phase")}
+          </button>
+        </div>
+      ) : (
+        <div className="cl-replay-gate"><i /><span>{copy(locale, "先提交当前组合决策，后续市场信息才会解锁。", "Submit the current hedge decision before later market information is unlocked.")}</span></div>
+      )}
+    </section>
+  );
+}
+
+function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData, fieldSelection, locale, onAdvanceReplay, onCheckStrategy, onGenerateVariant, onSuggestTarget, replayAdvancing, replayDecision, strategyProps }) {
+  const isReplay = Boolean(caseData.market?.replay?.event?.id);
   return (
     <section className="cl-page cl-workbench-page">
       <LearningStepper active={2} locale={locale} />
       <CaseHero activeTemplate={activeTemplate} caseData={caseData} locale={locale} />
+      <ReplayDecisionPanel advancing={replayAdvancing} caseData={caseData} decisionResult={replayDecision} locale={locale} onAdvance={onAdvanceReplay} />
       <div className="cl-workbench-grid">
         <div className="cl-workbench-left">
-          <DecisionTaskPanel caseData={caseData} locale={locale} />
+          {!isReplay ? <DecisionTaskPanel caseData={caseData} locale={locale} /> : null}
           <MarketChart caseData={caseData} fieldSelection={fieldSelection.value} locale={locale} setFieldSelection={fieldSelection.set} strategyLegs={strategyProps.strategyLegs} />
         </div>
         <div className="cl-workbench-center">
           <section className="cl-panel cl-strategy-tools">
             <div className="cl-panel-heading"><span>3 {copy(locale, "策略构建辅助", "Strategy Assistance")}</span><strong>{copy(locale, "本地即时反馈", "Immediate local feedback")}</strong></div>
             <div className="cl-action-grid">
-              <button onClick={onSuggestTarget} type="button"><Icon name="sparkles" />{copy(locale, "AI 建议策略腿", "AI Suggest Legs")}</button>
-              <button onClick={onCheckStrategy} type="button"><Icon name="coach" />{copy(locale, "提交前检查", "Check Before Submit")}</button>
-              <button onClick={onGenerateVariant} type="button"><Icon name="plus" />{copy(locale, "生成变体", "Generate Variant")}</button>
-              <button className="cl-submit-inline" disabled={strategyProps.busy} onClick={strategyProps.onSubmit} type="button"><Icon name="chart" />{strategyProps.busy ? t("loading", locale) : t("submitOrder", locale)}</button>
+              {!isReplay ? <button onClick={onSuggestTarget} type="button"><Icon name="sparkles" />{copy(locale, "AI 建议策略腿", "AI Suggest Legs")}</button> : null}
+              {!isReplay ? <button onClick={onCheckStrategy} type="button"><Icon name="coach" />{copy(locale, "提交前检查", "Check Before Submit")}</button> : null}
+              {!isReplay ? <button onClick={onGenerateVariant} type="button"><Icon name="plus" />{copy(locale, "生成变体", "Generate Variant")}</button> : null}
+              <button className="cl-submit-inline" disabled={strategyProps.busy || strategyProps.locked} onClick={strategyProps.onSubmit} type="button"><Icon name="chart" />{strategyProps.locked ? copy(locale, "本节点已提交", "Checkpoint submitted") : strategyProps.busy ? t("loading", locale) : t("submitOrder", locale)}</button>
             </div>
           </section>
           <AiControlLog interventions={aiInterventions} locale={locale} />
           <StrategyBuilder {...strategyProps} />
-          <RiskCoverageMap caseData={caseData} locale={locale} strategyLegs={strategyProps.strategyLegs} />
+          {!isReplay ? <RiskCoverageMap caseData={caseData} locale={locale} strategyLegs={strategyProps.strategyLegs} /> : null}
           <div className="cl-bottom-grid">
-            <ScorePanel evaluation={strategyProps.evaluation} locale={locale} />
+            {strategyProps.evaluation ? <ScorePanel evaluation={strategyProps.evaluation} locale={locale} /> : null}
             <RubricPanel caseData={caseData} locale={locale} />
           </div>
         </div>
@@ -3130,10 +3493,12 @@ function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData
   );
 }
 
-function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onPageChange, runAiAction, strategyLegs }) {
+function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onPageChange, replayHistory = [], runAiAction, strategyLegs }) {
   const target = caseData.target_actions ?? [];
   const quizQuestions = quizQuestionsFromText(exam);
   const quizOnly = quizQuestions.length > 0 && !evaluation;
+  const isReplay = replayHistory.length > 0;
+  const replayAverage = isReplay ? Math.round(replayHistory.reduce((sum, item) => sum + Number(item.evaluation?.baseline_score ?? 0), 0) / replayHistory.length) : null;
   const quizPanel = quizQuestions.length ? (
     <section className="cl-panel cl-quiz-panel">
       <div className="cl-panel-heading"><span>{copy(locale, "AI 测验模式", "AI Quiz Mode")}</span><strong>{copy(locale, "已生成", "Generated")}</strong></div>
@@ -3161,41 +3526,59 @@ function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onP
         titleEn="Review & Feedback"
         subtitleZh="把你的组合动作和 AI 生成的目标动作逐项对照，再进入强化训练。"
         subtitleEn="Compare your multi-leg strategy with the AI-generated target before reinforcement drills."
-        action={quizOnly ? <button className="cl-primary" onClick={onGenerateVariant} type="button"><Icon name="sparkles" />{copy(locale, "生成类似练习", "Generate similar drill")}</button> : <button className="cl-primary" onClick={() => runAiAction("advisor_review")} disabled={!evaluation} type="button"><Icon name="coach" />{copy(locale, "AI 解释评分", "AI Explain Score")}</button>}
+        action={isReplay ? <button className="cl-primary" onClick={() => onPageChange(pageIds.home)} type="button"><Icon name="arrow" />{copy(locale, "返回学习路径", "Back to Learning Path")}</button> : quizOnly ? <button className="cl-primary" onClick={onGenerateVariant} type="button"><Icon name="sparkles" />{copy(locale, "生成类似练习", "Generate similar drill")}</button> : <button className="cl-primary" onClick={() => runAiAction("advisor_review")} disabled={!evaluation} type="button"><Icon name="coach" />{copy(locale, "AI 解释评分", "AI Explain Score")}</button>}
       />
       <div className="cl-review-grid">
         {quizOnly ? quizPanel : null}
         {!quizOnly ? (
           <>
+        {isReplay ? (
+          <section className="cl-panel cl-replay-review">
+            <div className="cl-panel-heading"><span>{copy(locale, "事件决策轨迹", "Event Decision Trail")}</span><strong>{copy(locale, `平均 ${replayAverage}/100`, `Average ${replayAverage}/100`)}</strong></div>
+            <div>
+              {replayHistory.map((item) => (
+                <article key={item.checkpoint?.index}>
+                  <i>{(item.checkpoint?.index ?? 0) + 1}</i>
+                  <div><small>{item.checkpoint?.date}</small><strong>{item.checkpoint?.label}</strong><p>{item.feedback}</p></div>
+                  <b>{item.evaluation?.baseline_score}</b>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
         <section className="cl-panel cl-score-summary">
-          <div className="cl-progress-ring large" style={{ "--score": `${(evaluation?.baseline_score ?? 0) * 3.6}deg` }}><strong>{evaluation?.baseline_score ?? "--"}</strong><span>/100</span></div>
-          <h3>{evaluation ? copy(locale, "本地评分已完成", "Local scoring complete") : copy(locale, "尚未提交策略", "No strategy submitted")}</h3>
-          <p>{copy(locale, "评分不等待 AI；AI 用于解释、追问和生成后续训练。", "Scoring does not wait for AI. AI explains, challenges, and generates follow-up drills.")}</p>
+          <div className="cl-progress-ring large" style={{ "--score": `${((isReplay ? replayAverage : evaluation?.baseline_score) ?? 0) * 3.6}deg` }}><strong>{isReplay ? replayAverage : evaluation?.baseline_score ?? "--"}</strong><span>/100</span></div>
+          <h3>{isReplay ? copy(locale, "历史复盘已完成", "Historical replay complete") : evaluation ? copy(locale, "本地评分已完成", "Local scoring complete") : copy(locale, "尚未提交策略", "No strategy submitted")}</h3>
+          <p>{isReplay ? copy(locale, "每个节点均按当时信息独立评分；后续事实只在提交后揭示。", "Each checkpoint was scored on information available at the time; later facts were revealed only after submission.") : copy(locale, "评分不等待 AI；AI 用于解释、追问和生成后续训练。", "Scoring does not wait for AI. AI explains, challenges, and generates follow-up drills.")}</p>
           <div className="cl-action-row">
             <button className="cl-secondary" onClick={() => onPageChange(pageIds.workbench)} type="button">{copy(locale, "回到工作台", "Back to Workbench")}</button>
-            <button className="cl-primary" onClick={onGenerateVariant} type="button">{copy(locale, "训练弱项变体", "Drill Weak Variant")}</button>
+            {!isReplay ? <button className="cl-primary" onClick={onGenerateVariant} type="button">{copy(locale, "训练弱项变体", "Drill Weak Variant")}</button> : null}
           </div>
         </section>
-        <section className="cl-panel cl-comparison-panel">
-          <div className="cl-panel-heading"><span>{copy(locale, "用户策略 vs 目标动作", "User Strategy vs Target Actions")}</span><strong>{formatNumber(strategyLegs.length)} / {formatNumber(target.length)}</strong></div>
-          <div className="cl-compare-table">
-            <div><strong>{copy(locale, "你的动作", "Your Legs")}</strong><strong>{copy(locale, "目标动作", "Target Legs")}</strong></div>
-            {Array.from({ length: Math.max(strategyLegs.length, target.length, 1) }).map((_, index) => (
-              <div key={index}>
-                <span>{strategyLegs[index] ? `${strategyLegs[index].leg_type} / ${strategyLegs[index].market} / ${strategyLegs[index].side}` : "--"}</span>
-                <span>{target[index] ? `${target[index].leg_type} / ${target[index].market} / ${target[index].side}` : "--"}</span>
+        {!isReplay ? (
+          <>
+            <section className="cl-panel cl-comparison-panel">
+              <div className="cl-panel-heading"><span>{copy(locale, "用户策略 vs 目标动作", "User Strategy vs Target Actions")}</span><strong>{formatNumber(strategyLegs.length)} / {formatNumber(target.length)}</strong></div>
+              <div className="cl-compare-table">
+                <div><strong>{copy(locale, "你的动作", "Your Legs")}</strong><strong>{copy(locale, "目标动作", "Target Legs")}</strong></div>
+                {Array.from({ length: Math.max(strategyLegs.length, target.length, 1) }).map((_, index) => (
+                  <div key={index}>
+                    <span>{strategyLegs[index] ? `${strategyLegs[index].leg_type} / ${strategyLegs[index].market} / ${strategyLegs[index].side}` : "--"}</span>
+                    <span>{target[index] ? `${target[index].leg_type} / ${target[index].market} / ${target[index].side}` : "--"}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
-        <section className="cl-panel">
-          <div className="cl-panel-heading"><span>{copy(locale, "常见错误", "Common Mistakes")}</span><strong>{copy(locale, "随案例生成", "Generated with case")}</strong></div>
-          {evaluation?.mistake_tags?.length ? (
-            <ul className="cl-mistake-list">
-              {evaluation.mistake_tags.map((tag) => <li key={tag}>{tag}</li>)}
-            </ul>
-          ) : <p className="empty-state">{copy(locale, "提交策略后显示真实错误标签。", "Submit a strategy to show real mistake tags.")}</p>}
-        </section>
+            </section>
+            <section className="cl-panel">
+              <div className="cl-panel-heading"><span>{copy(locale, "常见错误", "Common Mistakes")}</span><strong>{copy(locale, "随案例生成", "Generated with case")}</strong></div>
+              {evaluation?.mistake_tags?.length ? (
+                <ul className="cl-mistake-list">
+                  {evaluation.mistake_tags.map((tag) => <li key={tag}>{tag}</li>)}
+                </ul>
+              ) : <p className="empty-state">{copy(locale, "提交策略后显示真实错误标签。", "Submit a strategy to show real mistake tags.")}</p>}
+            </section>
+          </>
+        ) : null}
         {quizPanel}
           </>
         ) : null}
@@ -3204,19 +3587,38 @@ function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onP
   );
 }
 
-function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
-  const [selected, setSelected] = useState("basis");
+function KnowledgeMapPage({ locale, onPageChange, productScope, runAiAction }) {
+  const workspace = productWorkspace(productScope);
+  const productNodeIds = productScope === "crude_oil"
+    ? new Set(["physical", "basis", "fx", "risk", "crudeBench"])
+    : new Set(["physical", "basis", "fx", "risk", "hub", "lng", "capacity", "storage", "exchange"]);
+  const productLevels = knowledgeFlowLevels
+    .map((level) => ({ ...level, nodes: level.nodes.filter((nodeId) => productNodeIds.has(nodeId)) }))
+    .filter((level) => level.nodes.length);
+  const productCoverage = coverageForProduct(productScope);
+  const generalCoverage = productCoverage.filter((item) => generalCoverageIds.has(item.id));
+  const specificCoverage = productCoverage.filter((item) => !generalCoverageIds.has(item.id));
+  const productModels = modelsForProduct(productScope);
+  const [selected, setSelected] = useState(productScope === "crude_oil" ? "crudeBench" : "hub");
   const nodeById = useMemo(() => Object.fromEntries(knowledgeNodes.map((item) => [item.id, item])), []);
-  const node = knowledgeNodes.find((item) => item.id === selected) ?? knowledgeNodes[0];
-  const pathItems = [
-    ["敞口与目标", "Exposure and Objective"],
-    ["实货/纸货匹配", "Physical-Paper Matching"],
-    ["单边价格套保", "Outright Price Hedge"],
-    ["基差与价差", "Basis and Spreads"],
-    ["原油基准与月差", "Crude Benchmarks and Calendar"],
-    ["期权与可选性", "Options and Optionality"],
-    ["执行与风控", "Execution and Controls"]
+  const node = knowledgeNodes.find((item) => item.id === selected && productNodeIds.has(item.id)) ?? nodeById[productScope === "crude_oil" ? "crudeBench" : "hub"];
+  const pathItems = productScope === "crude_oil" ? [
+    ["通识：敞口与金融工具", "General: Exposure and Instruments"],
+    ["Brent / WTI / Dubai 基准", "Brent / WTI / Dubai Benchmarks"],
+    ["船货、品级与地点基差", "Cargo, Grade, and Location Basis"],
+    ["月差、库存与运费", "Calendar, Inventory, and Freight"],
+    ["组合执行与复盘", "Portfolio Execution and Review"]
+  ] : [
+    ["通识：敞口与金融工具", "General: Exposure and Instruments"],
+    ["枢纽定价与实货合同", "Hub Pricing and Physical Contracts"],
+    ["EFET / OCM / EEX 工具", "EFET / OCM / EEX Instruments"],
+    ["LNG、运力、储气与平衡", "LNG, Capacity, Storage, and Balancing"],
+    ["组合执行与复盘", "Portfolio Execution and Review"]
   ];
+
+  useEffect(() => {
+    setSelected(productScope === "crude_oil" ? "crudeBench" : "hub");
+  }, [productScope]);
   return (
     <section className="cl-page cl-knowledge-page">
       <PageTitle
@@ -3224,8 +3626,8 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
         locale={locale}
         titleZh="知识图谱"
         titleEn="Knowledge Map"
-        subtitleZh="围绕天然气与原油套保，把概念、业务场景和训练题连接起来。"
-        subtitleEn="Connect gas and crude hedging concepts, business scenarios, and practice cases."
+        subtitleZh={`先学跨品种通识，再按顺序进入${workspace.zh}市场、业务场景和训练题。`}
+        subtitleEn={`Learn inter-commodity fundamentals first, then progress through ${workspace.en.toLowerCase()} markets, business cases, and drills.`}
         action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="sparkles" />{copy(locale, "生成学习路径", "Generate Learning Path")}</button>}
       />
       <div className="cl-knowledge-grid">
@@ -3238,7 +3640,7 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
             </div>
           </div>
           <div className="cl-learning-flow-map">
-            {knowledgeFlowLevels.map((level, levelIndex) => (
+            {productLevels.map((level, levelIndex) => (
               <div className={`cl-learning-tier ${level.id}`} key={level.id}>
                 <div className="cl-tier-label">
                   <b>{levelIndex + 1}</b>
@@ -3275,13 +3677,13 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
         </aside>
       </div>
       <section className="cl-panel cl-path-panel">
-        <div className="cl-panel-heading"><span>{copy(locale, "推荐路径", "Recommended Path")}</span><strong>{copy(locale, "天然气 + 原油", "Gas + Crude")}</strong></div>
+        <div className="cl-panel-heading"><span>{copy(locale, "推荐路径", "Recommended Path")}</span><strong>{copy(locale, `通识 + ${workspace.zh}`, `General + ${workspace.en}`)}</strong></div>
         <div className="cl-path-row">{pathItems.map(([zh, en], index) => <span key={en}><b>{index + 1}</b>{copy(locale, zh, en)}</span>)}</div>
       </section>
       <section className="cl-panel cl-coverage-panel">
-        <div className="cl-panel-heading"><span>{copy(locale, "教材式套保知识覆盖", "Textbook-Style Hedging Coverage")}</span><strong>{copy(locale, "业务化", "Business-specific")}</strong></div>
+        <div className="cl-panel-heading"><span>{copy(locale, "通识金融工具", "General Hedging Tools")}</span><strong>{copy(locale, "跨品种共用", "Inter-commodity")}</strong></div>
         <div className="cl-coverage-grid">
-          {hedgingKnowledgeCoverage.map((item) => (
+          {generalCoverage.map((item) => (
             <article key={item.id}>
               <header>
                 <b>{labelFor(locale, item, "titleZh", "titleEn")}</b>
@@ -3294,11 +3696,23 @@ function KnowledgeMapPage({ locale, onPageChange, runAiAction }) {
             </article>
           ))}
         </div>
+        {specificCoverage.length ? <>
+          <div className="cl-panel-heading cl-coverage-subheading"><span>{labelFor(locale, workspace)}</span><strong>{copy(locale, "产品专属知识", "Product-specific knowledge")}</strong></div>
+          <div className="cl-coverage-grid">
+            {specificCoverage.map((item) => (
+              <article key={item.id}>
+                <header><b>{labelFor(locale, item, "titleZh", "titleEn")}</b><small>{copy(locale, item.conceptsZh, item.conceptsEn).slice(0, 2).join(" / ")}</small></header>
+                <p>{copy(locale, item.summaryZh, item.summaryEn)}</p>
+                <div className="cl-mini-chip-row">{copy(locale, item.conceptsZh, item.conceptsEn).slice(0, 4).map((concept) => <span key={concept}>{concept}</span>)}</div>
+              </article>
+            ))}
+          </div>
+        </> : null}
       </section>
       <section className="cl-panel cl-model-panel">
         <div className="cl-panel-heading"><span>{copy(locale, "商品交易模型", "Commodity Trading Models")}</span><strong>{copy(locale, "用于 AI 出题", "Used by AI")}</strong></div>
         <div className="cl-gas-model-grid">
-          {gasTradingModels.map((item) => (
+          {productModels.map((item) => (
             <article key={item.id}>
               <strong>{labelFor(locale, item, "titleZh", "titleEn")}</strong>
               <p>{copy(locale, item.summaryZh, item.summaryEn)}</p>
@@ -3583,7 +3997,10 @@ function StartupScreen({ locale, slow, stageKey }) {
 
 export default function App() {
   const initialLocale = normalizeLocale(savedValue("commodity-lab-locale", "zh"));
+  const savedProductScope = savedValue("commodity-lab-product-scope", "natural_gas");
+  const initialProductScope = productWorkspace(savedProductScope).enabled ? savedProductScope : "natural_gas";
   const [locale, setLocaleState] = useState(initialLocale);
+  const [productScope, setProductScopeState] = useState(initialProductScope);
   const [theme, setThemeState] = useState(() => normalizeThemeMode(savedValue("commodity-lab-theme", "system")));
   const [resolvedTheme, setResolvedTheme] = useState(() => getSystemThemePreference());
   const [backendReady, setBackendReady] = useState(false);
@@ -3596,6 +4013,7 @@ export default function App() {
   const [activePage, setActivePage] = useState(pageIds.home);
   const [caseData, setCaseData] = useState(() => defaultCase(initialLocale));
   const [generationStages, setGenerationStages] = useState([]);
+  const [generationStream, setGenerationStream] = useState(null);
   const [loadingTemplate, setLoadingTemplate] = useState("");
   const [fieldSelection, setFieldSelection] = useState(["close"]);
   const [strategyLegs, setStrategyLegs] = useState(() => defaultLegs(initialLocale));
@@ -3605,6 +4023,8 @@ export default function App() {
       : "Explain how the physical, paper, basis, FX, and capacity legs match the exposure."
   );
   const [evaluation, setEvaluation] = useState(null);
+  const [replayDecision, setReplayDecision] = useState(null);
+  const [replayHistory, setReplayHistory] = useState([]);
   const [advisorFeedback, setAdvisorFeedback] = useState("");
   const [exam, setExam] = useState("");
   const [aiOutput, setAiOutput] = useState(null);
@@ -3618,8 +4038,14 @@ export default function App() {
   const [aiLessonPlan, setAiLessonPlan] = useState(() => loadAiLessonPlan());
   const [guideIndex, setGuideIndex] = useState(() => savedValue("commodity-lab-guide-complete", "") ? -1 : 0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => savedValue("commodity-lab-sidebar-collapsed", "") === "1");
+  const generationRequestRef = useRef(0);
+  const assistantRequestRef = useRef(0);
   const aiReady = Boolean(providerStatus?.haineng?.ok);
-  const learningProgress = useMemo(() => summarizeLearningRecords(learningRecords), [learningRecords]);
+  const scopedLearningRecords = useMemo(() => learningRecords.filter((record) => {
+    const recordScope = record.product_scope ?? productScopeForTemplate(record.template_id);
+    return recordScope === "general" || recordScope === productScope;
+  }), [learningRecords, productScope]);
+  const learningProgress = useMemo(() => summarizeLearningRecords(scopedLearningRecords), [scopedLearningRecords]);
 
   function setLocale(nextLocale) {
     localStorage.setItem("commodity-lab-locale", nextLocale);
@@ -3657,6 +4083,33 @@ export default function App() {
   function recordAiIntervention(label, page = pageIds.workbench, kind = "software_action") {
     const item = { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, kind, label, page };
     setAiInterventions((current) => [item, ...current].slice(0, 5));
+  }
+  function switchProductScope(nextScope) {
+    const workspace = productWorkspace(nextScope);
+    if (!workspace.enabled || nextScope === productScope) return;
+    generationRequestRef.current += 1;
+    assistantRequestRef.current += 1;
+    localStorage.setItem("commodity-lab-product-scope", nextScope);
+    setProductScopeState(nextScope);
+    const availableTemplates = templatesForProduct(templates.templates ?? fallbackTemplates.templates, nextScope);
+    const nextTemplate = availableTemplates.find((item) => item.group === "foundation") ?? availableTemplates[0];
+    if (nextTemplate) {
+      setActiveTemplateId(nextTemplate.id);
+      setCaseData(defaultCaseForTemplate(nextTemplate.id, locale));
+    }
+    setStrategyLegs(defaultLegs(locale));
+    setEvaluation(null);
+    setReplayDecision(null);
+    setReplayHistory([]);
+    setAdvisorFeedback("");
+    setExam("");
+    setAiOutput(null);
+    setAssistantMessages([]);
+    setGenerationStages([]);
+    setGenerationStream(null);
+    setLoadingTemplate("");
+    setBusyAction((current) => ["case_generation", "assistant"].includes(current) ? "" : current);
+    setActivePage(pageIds.home);
   }
 
   useEffect(() => {
@@ -3763,6 +4216,13 @@ export default function App() {
   }, [backendReady, locale]);
 
   useEffect(() => {
+    const available = templatesForProduct(templates.templates ?? fallbackTemplates.templates, productScope);
+    if (available.length && !available.some((item) => item.id === activeTemplateId)) {
+      setActiveTemplateId(available[0].id);
+    }
+  }, [activeTemplateId, productScope, templates]);
+
+  useEffect(() => {
     if (!backendReady) return;
     backendRequest("GET", `/api/v1/market/capabilities?locale=${locale}`)
       .then(setMarketCapabilities)
@@ -3818,56 +4278,192 @@ export default function App() {
   }
 
   async function generateTrainingCase(templateId, userRequest = "", marketOptions = {}) {
-    setActiveTemplateId(templateId);
+    const requestProductScope = productScope;
+    const availableTemplates = templatesForProduct(templates.templates ?? fallbackTemplates.templates, requestProductScope);
+    const selectedTemplate = availableTemplates.find((item) => item.id === templateId)
+      ?? availableTemplates.find((item) => item.group !== "foundation")
+      ?? availableTemplates[0];
+    if (!selectedTemplate) {
+      setServiceMessage(copy(locale, "当前产品没有可用课程。", "No course is available for the current product."));
+      return;
+    }
+    const resolvedTemplateId = selectedTemplate.id;
+    setActiveTemplateId(resolvedTemplateId);
     if (!aiReady) {
       setServiceMessage(t("aiRequiredForCase", locale));
       setActivePage(pageIds.settings);
       return;
     }
-    const localTemplateCase = defaultCaseForTemplate(templateId, locale);
-    setLoadingTemplate(templateId);
+    const requestId = generationRequestRef.current + 1;
+    generationRequestRef.current = requestId;
+    const localTemplateCase = defaultCaseForTemplate(resolvedTemplateId, locale);
+    setLoadingTemplate(resolvedTemplateId);
     setBusyAction("case_generation");
     setActivePage(pageIds.workbench);
     setCaseData(localTemplateCase);
-    setStrategyLegs((localTemplateCase.target_actions ?? defaultLegs(locale)).map((leg, index) => ({ id: leg.id ?? `local-leg-${index}`, ...leg })));
-    setGenerationStages([{ id: "read_template", label: t("stageReadTemplate", locale) }]);
+    setStrategyLegs(defaultLegs(locale));
+    setReplayDecision(null);
+    setReplayHistory([]);
+    setEvaluation(null);
+    setAdvisorFeedback("");
+    setExam("");
+    setAiOutput(null);
+    setServiceMessage("");
+    setGenerationStages([{ id: "read_template", label: generationStageLabel("read_template", locale) }]);
+    setGenerationStream({ active: true, received: 0, title: "", summary: "", business_type: "" });
     try {
-      setGenerationStages((current) => [...current, { id: "generate_market", label: t("stageGenerateMarket", locale) }]);
-      const curriculum = curriculumReference(locale);
-      const payload = await backendRequest("POST", "/api/v1/ai/training-case", {
-        template_id: templateId,
+      const curriculum = trainingCurriculumReference(selectedTemplate, locale, requestProductScope);
+      let streamedCase = null;
+      let modelBuffer = "";
+      await backendStreamRequest("/api/v1/ai/training-case/stream", {
+        template_id: resolvedTemplateId,
+        product_scope: requestProductScope,
         locale,
         user_request: userRequest,
         market_mode: marketOptions.market_mode ?? "ai_simulated",
         market_regime: marketOptions.market_regime ?? "contango",
         replay_id: marketOptions.replay_id ?? null,
         ...curriculum
+      }, (event, data) => {
+        if (generationRequestRef.current !== requestId) return;
+        if (event === "stage") {
+          const stage = {
+            id: data.id,
+            label: generationStageLabel(data.id, locale, data.label)
+          };
+          setGenerationStages((current) => current.some((item) => item.id === stage.id) ? current : [...current, stage]);
+          return;
+        }
+        if (event === "market") {
+          setCaseData((current) => applyStreamedMarketContext(current, data, locale));
+          return;
+        }
+        if (event === "model_delta") {
+          modelBuffer += data.delta ?? "";
+          const preview = streamedCasePreview(modelBuffer);
+          setGenerationStream({
+            active: true,
+            received: data.received ?? modelBuffer.length,
+            ...preview
+          });
+          if (preview.title || preview.summary || preview.business_type) {
+            setCaseData((current) => ({
+              ...current,
+              scenario: {
+                ...current.scenario,
+                ...(preview.title ? { title: preview.title } : {}),
+                ...(preview.summary ? { summary: preview.summary } : {}),
+                ...(preview.business_type ? { business_type: preview.business_type } : {})
+              }
+            }));
+          }
+          return;
+        }
+        if (event === "case") {
+          streamedCase = data.case ?? localTemplateCase;
+          setCaseData(streamedCase);
+        }
       });
-      const nextCase = payload.case ?? localTemplateCase;
-      setGenerationStages((current) => [...current, { id: "build_case", label: t("stageBuildCase", locale) }]);
-      setCaseData(nextCase);
-      setStrategyLegs((nextCase.target_actions ?? defaultLegs()).map((leg, index) => ({ id: leg.id ?? `ai-leg-${index}`, ...leg })));
+      if (generationRequestRef.current !== requestId) return;
+      if (!streamedCase) throw new Error(copy(locale, "AI 未返回完整训练案例。", "AI did not return a complete training case."));
+      setStrategyLegs(defaultLegs(locale));
       setRationale(locale === "zh" ? "写下你的组合套保逻辑、风险覆盖和执行检查。" : "Write your hedge logic, covered risks, and execution checks.");
+    } catch (error) {
+      if (generationRequestRef.current === requestId) setServiceMessage(formatErrorMessage(error, locale));
+    } finally {
+      if (generationRequestRef.current === requestId) {
+        setGenerationStream((current) => current ? { ...current, active: false } : null);
+        setBusyAction("");
+        setLoadingTemplate("");
+      }
+    }
+  }
+
+  async function submitStrategy() {
+    setBusyAction("evaluate");
+    const replay = caseData.market?.replay;
+    if (replay?.event?.id) {
+      try {
+        const result = await backendRequest("POST", `/api/v1/replays/${replay.event.id}/decision`, {
+          checkpoint: replay.current_checkpoint?.index ?? 0,
+          locale,
+          strategy_legs: strategyLegs,
+          rationale
+        });
+        const nextEvaluation = result.evaluation;
+        setEvaluation(nextEvaluation);
+        setReplayDecision(result);
+        setReplayHistory((current) => [
+          ...current.filter((item) => item.checkpoint?.index !== result.checkpoint?.index),
+          result
+        ].sort((a, b) => (a.checkpoint?.index ?? 0) - (b.checkpoint?.index ?? 0)));
+        appendLearningRecord(recordLearningAttempt({ activeTemplateId, caseData, evaluation: nextEvaluation, productScope, rationale, strategyLegs }));
+        setAiOutput(null);
+        showAiGuidance(copy(locale, "本节点已即时评分，下一阶段市场现在可以揭示。", "This checkpoint was scored instantly; the next market phase can now be revealed."));
+      } catch (error) {
+        setServiceMessage(formatErrorMessage(error, locale));
+      } finally {
+        setBusyAction("");
+      }
+      return;
+    }
+    const nextEvaluation = evaluateStrategy(caseData, strategyLegs, rationale);
+    setEvaluation(nextEvaluation);
+    appendLearningRecord(recordLearningAttempt({ activeTemplateId, caseData, evaluation: nextEvaluation, productScope, rationale, strategyLegs }));
+    setAiOutput(null);
+    setBusyAction("");
+    setActivePage(pageIds.review);
+  }
+
+  async function advanceReplay() {
+    if (!replayDecision) return;
+    if (replayDecision.next_checkpoint == null) {
+      setActivePage(pageIds.review);
+      return;
+    }
+    const replay = caseData.market?.replay;
+    if (!replay?.event?.id) return;
+    setBusyAction("replay_advance");
+    setServiceMessage("");
+    try {
+      const session = await backendRequest("POST", `/api/v1/replays/${replay.event.id}/session`, {
+        checkpoint: replayDecision.next_checkpoint,
+        locale
+      });
+      const nextReplay = replayBundleFromSession(session);
+      setCaseData((current) => ({
+        ...current,
+        scenario: {
+          ...current.scenario,
+          title: session.event.title,
+          summary: session.event.summary,
+          knowledge_points: session.event.skills,
+          exposure: {
+            ...(current.scenario?.exposure ?? {}),
+            risk: session.current_checkpoint?.decision_required
+          }
+        },
+        market: {
+          ...session.market,
+          replay: nextReplay,
+          events: (session.visible_timeline ?? []).map((item) => ({ date: item.date, label: item.label }))
+        },
+        target_actions: [],
+        rubric: session.decision_rubric ?? current.rubric,
+        prompt: replayPrompt(session, locale)
+      }));
+      setStrategyLegs(defaultLegs(locale));
+      setRationale(copy(locale, "说明你的组合动作、风险覆盖、数量期限和执行风控。", "Explain your hedge legs, risk coverage, sizing, tenor, and execution controls."));
       setEvaluation(null);
-      setAdvisorFeedback("");
-      setExam("");
+      setReplayDecision(null);
       setAiOutput(null);
+      setGenerationStages((current) => [...current, { id: `replay_${session.current_checkpoint?.index}`, label: copy(locale, "市场阶段已揭示", "Market phase revealed") }]);
+      showAiGuidance(copy(locale, "新的市场信息已进入终端，请重新评估组合。", "New market information is now in the terminal. Reassess the hedge."));
     } catch (error) {
       setServiceMessage(formatErrorMessage(error, locale));
     } finally {
       setBusyAction("");
-      setLoadingTemplate("");
     }
-  }
-
-  function submitStrategy() {
-    setBusyAction("evaluate");
-    const nextEvaluation = evaluateStrategy(caseData, strategyLegs, rationale);
-    setEvaluation(nextEvaluation);
-    appendLearningRecord(recordLearningAttempt({ activeTemplateId, caseData, evaluation: nextEvaluation, rationale, strategyLegs }));
-    setAiOutput(null);
-    setBusyAction("");
-    setActivePage(pageIds.review);
   }
 
   function suggestTargetStrategy() {
@@ -3906,7 +4502,7 @@ export default function App() {
   }
 
   function buildAiPayload(capability) {
-    const curriculum = curriculumReference(locale);
+    const curriculum = curriculumReference(locale, productScope);
     return {
       capability,
       scenario_id: "europe_ttf_nbp_spread",
@@ -3914,13 +4510,13 @@ export default function App() {
       order: orderFromStrategy(strategyLegs),
       rationale,
       evaluation: evaluation ?? {},
-      attempt_history: learningRecords.map((record) => record.evaluation).filter(Boolean).slice(-12),
+      attempt_history: scopedLearningRecords.map((record) => record.evaluation).filter(Boolean).slice(-12),
       learning_progress: learningProgress,
       market_context: { case: caseData, strategy_legs: strategyLegs },
       curriculum_context: curriculum,
       user_request: rationale,
       concept: curriculum.knowledge_coverage.map((item) => item.title).join(", "),
-      commercial_goal: "Build a practical multi-leg hedge playbook for this generated gas business case."
+      commercial_goal: `Build a practical multi-leg hedge playbook for this generated ${productWorkspace(productScope).en.toLowerCase()} business case.`
     };
   }
 
@@ -3934,8 +4530,8 @@ export default function App() {
       const payload = await backendRequest("POST", path, capability === "exam" ? {
         scenario_id: "europe_ttf_nbp_spread",
         locale,
-        attempt_history: learningRecords.map((record) => record.evaluation).filter(Boolean).slice(-12),
-        curriculum_context: curriculumReference(locale)
+        attempt_history: scopedLearningRecords.map((record) => record.evaluation).filter(Boolean).slice(-12),
+        curriculum_context: curriculumReference(locale, productScope)
       } : buildAiPayload(capability));
       if (capability === "advisor_review") {
         setAdvisorFeedback(payload.answer);
@@ -3957,26 +4553,31 @@ export default function App() {
   }
 
   async function sendAssistant(message) {
+    const requestId = assistantRequestRef.current + 1;
+    assistantRequestRef.current = requestId;
     const userMessage = { role: "user", content: message };
     setAssistantMessages((current) => [...current, userMessage]);
     setBusyAction("assistant");
     try {
-      const curriculum = curriculumReference(locale);
+      const curriculum = curriculumReference(locale, productScope);
       const payload = await backendRequest("POST", "/api/v1/ai/live-assistant", {
         locale,
         message,
         workspace_state: {
           active_page: activePage,
           active_template_id: activeTemplateId,
+          product_scope: productScope,
           curriculum_context: curriculum,
           case: caseData,
           ai_lesson_plan: aiLessonPlan,
           evaluation,
           learning_progress: learningProgress,
-          recent_attempts: learningRecords.slice(-8),
+          recent_attempts: scopedLearningRecords.slice(-8),
+          replay_history: replayHistory,
           strategy_legs: strategyLegs
         }
       });
+      if (assistantRequestRef.current !== requestId) return;
       const actions = payload.actions ?? [];
       setAssistantMessages((current) => [...current, { role: "assistant", content: payload.answer, actions }]);
       const actionable = actions
@@ -3986,9 +4587,11 @@ export default function App() {
       const generationActions = actionable.filter((action) => !assistantLocalActionTypes.includes(action.type));
       (localActions.length ? localActions.slice(0, 8) : generationActions.slice(0, 1)).forEach(applyAssistantAction);
     } catch (error) {
-      setAssistantMessages((current) => [...current, { role: "assistant", content: formatErrorMessage(error, locale), actions: [] }]);
+      if (assistantRequestRef.current === requestId) {
+        setAssistantMessages((current) => [...current, { role: "assistant", content: formatErrorMessage(error, locale), actions: [] }]);
+      }
     } finally {
-      setBusyAction("");
+      if (assistantRequestRef.current === requestId) setBusyAction("");
     }
   }
 
@@ -4000,7 +4603,10 @@ export default function App() {
       showAiGuidance(copy(locale, "AI 正在按课程生成练习。", "AI is generating a course drill."));
     }
     if (action.type === "generate_case") {
-      const track = learningTracks.find((item) => item.id === payload.track_id) ?? learningTracks[0];
+      const availableTracks = tracksForProduct(productScope);
+      const track = availableTracks.find((item) => item.id === payload.track_id)
+        ?? availableTracks.find((item) => item.id !== "foundation")
+        ?? availableTracks[0];
       generateTrainingCase(payload.template_id ?? track.templateId, payload.user_request ?? copy(locale, track.requestZh, track.requestEn));
       recordAiIntervention(action.label ?? copy(locale, "生成新训练题", "Generated a new drill"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 正在生成新练习并打开工作台。", "AI is generating a new drill and opening the workbench."));
@@ -4077,7 +4683,7 @@ export default function App() {
       showAiGuidance(copy(locale, "AI 已触发本地评分并打开复盘页。", "AI triggered local scoring and opened Review."));
     }
     if (action.type === "set_learning_plan") {
-      const nextPlan = normalizeLearningPlan(payload, learningProgress);
+      const nextPlan = normalizeLearningPlan(payload, learningProgress, productScope);
       setAiLessonPlan(nextPlan);
       saveAiLessonPlan(nextPlan);
       setActivePage(pageIds.home);
@@ -4122,6 +4728,7 @@ export default function App() {
   const strategyProps = {
     busy: busyAction === "evaluate",
     evaluation,
+    locked: Boolean(replayDecision),
     locale,
     onSubmit: submitStrategy,
     rationale,
@@ -4134,8 +4741,10 @@ export default function App() {
     setActiveTemplateId(templateId);
     const nextCase = defaultCaseForTemplate(templateId, locale);
     setCaseData(nextCase);
-    setStrategyLegs((nextCase.target_actions ?? defaultLegs(locale)).map((leg, index) => ({ id: leg.id ?? `preview-leg-${index}`, ...leg })));
+    setStrategyLegs(defaultLegs(locale));
     setEvaluation(null);
+    setReplayDecision(null);
+    setReplayHistory([]);
     setAdvisorFeedback("");
     setExam("");
     setAiOutput(null);
@@ -4152,6 +4761,7 @@ export default function App() {
           loadingTemplate={loadingTemplate}
           marketCapabilities={marketCapabilities}
           onGenerate={generateTrainingCase}
+          productScope={productScope}
           setActiveTemplateId={selectTemplateForPractice}
         />
       );
@@ -4165,21 +4775,24 @@ export default function App() {
           caseData={caseData}
           fieldSelection={{ value: fieldSelection, set: setFieldSelection }}
           locale={locale}
+          onAdvanceReplay={advanceReplay}
           onCheckStrategy={checkStrategyBeforeSubmit}
           onGenerateVariant={generateVariant}
           onSuggestTarget={suggestTargetStrategy}
+          replayAdvancing={busyAction === "replay_advance"}
+          replayDecision={replayDecision}
           strategyProps={strategyProps}
         />
       );
     }
     if (activePage === pageIds.review) {
-      return <ReviewPage caseData={caseData} evaluation={evaluation} exam={exam} locale={locale} onGenerateVariant={generateVariant} onPageChange={setActivePage} runAiAction={runAiAction} strategyLegs={strategyLegs} />;
+      return <ReviewPage caseData={caseData} evaluation={evaluation} exam={exam} locale={locale} onGenerateVariant={generateVariant} onPageChange={setActivePage} replayHistory={replayHistory} runAiAction={runAiAction} strategyLegs={strategyLegs} />;
     }
     if (activePage === pageIds.library) {
-      return <ScenarioLibraryPage activeTemplateId={activeTemplateId} learningProgress={learningProgress} locale={locale} loadingTemplate={loadingTemplate} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
+      return <ScenarioLibraryPage activeTemplateId={activeTemplateId} learningProgress={learningProgress} locale={locale} loadingTemplate={loadingTemplate} onGenerate={generateTrainingCase} onPageChange={setActivePage} productScope={productScope} />;
     }
     if (activePage === pageIds.knowledge) {
-      return <KnowledgeMapPage locale={locale} onPageChange={setActivePage} runAiAction={runAiAction} />;
+      return <KnowledgeMapPage locale={locale} onPageChange={setActivePage} productScope={productScope} runAiAction={runAiAction} />;
     }
     if (activePage === pageIds.progress) {
       return <ProgressPage learningProgress={learningProgress} locale={locale} onPageChange={setActivePage} />;
@@ -4190,23 +4803,24 @@ export default function App() {
     if (activePage === pageIds.settings) {
       return <SettingsPage locale={locale} settingsPanel={settingsPanel} />;
     }
-    return <HomePage aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} loadingTemplate={loadingTemplate} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} />;
+    return <HomePage aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} loadingTemplate={loadingTemplate} locale={locale} onGenerate={generateTrainingCase} onPageChange={setActivePage} productScope={productScope} />;
   }
   const shellClassName = [
     "app-shell",
     "cl-app-shell",
     aiReady ? "ai-ready" : "",
+    busyAction === "case_generation" ? "ai-streaming" : "",
     sidebarCollapsed ? "sidebar-collapsed" : ""
   ].filter(Boolean).join(" ");
 
   return (
     <main className={shellClassName}>
-      <ProductTopbar activePage={activePage} aiReady={aiReady} locale={locale} />
+      <ProductTopbar activePage={activePage} aiReady={aiReady} locale={locale} onProductScopeChange={switchProductScope} productScope={productScope} />
 
       <div className="cl-app-layout">
         <ProductSidebar activePage={activePage} collapsed={sidebarCollapsed} locale={locale} onPageChange={setActivePage} onToggleCollapsed={toggleSidebarCollapsed} />
         <section className="cl-content-shell">
-          {generationStages.length && busyAction === "case_generation" ? <GenerationTimeline locale={locale} stages={generationStages} /> : null}
+          {generationStages.length && busyAction === "case_generation" ? <GenerationTimeline locale={locale} stages={generationStages} streamState={generationStream} /> : null}
           {aiGuidanceAction ? <p className="cl-ai-guidance"><Icon name="sparkles" />{aiGuidanceAction}</p> : null}
           <AiInterventionStrip interventions={aiInterventions} locale={locale} onNavigate={setActivePage} />
           {serviceMessage && activePage !== pageIds.settings ? <p className="cl-service-banner">{serviceMessage}</p> : null}
