@@ -221,6 +221,37 @@ const replayGeneratedCase = {
   prompt: "### Supply route disruption\n\n- Hormuz traffic is constrained\n\n**Decision:** Choose a hedge."
 };
 
+const structuredExam = {
+  id: "exam-basis-1",
+  title: "Basis and Execution Checkpoint",
+  questions: [
+    {
+      id: "q1",
+      prompt: "What basis risk remains?",
+      options: ["No basis risk", "The TTF/NBP location spread", "Only credit risk"],
+      correct_index: 1,
+      explanation: "The physical and paper references differ by hub, so the location spread remains material.",
+      skills: ["basis"]
+    },
+    {
+      id: "q2",
+      prompt: "Which leg covers FX exposure?",
+      options: ["Physical gas", "EUR/GBP forward", "Pipeline capacity"],
+      correct_index: 1,
+      explanation: "The forward locks the currency mismatch between EUR revenue and GBP-linked cost.",
+      skills: ["fx"]
+    },
+    {
+      id: "q3",
+      prompt: "Which control should be checked before execution?",
+      options: ["Ignore margin", "Liquidity and limits", "Increase volume automatically"],
+      correct_index: 1,
+      explanation: "Liquidity, limits, credit, and margin determine whether the hedge can be executed safely.",
+      skills: ["control"]
+    }
+  ]
+};
+
 function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCase = false, onCall, trainingCasePromise = null } = {}) {
   window.__COMMODITY_LAB_BACKEND__ = async (method, path, body) => {
     onCall?.({ method, path, body });
@@ -296,7 +327,7 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
     }
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.4.0",
+        current_version: "1.5.0",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -328,6 +359,22 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
         feedback: "The direction is broadly sound, but execution controls need work.",
         outcome: "Prompt prices continued higher after the disruption.",
         model_strategy: [{ leg_type: "future", market: "ICE Brent", side: "buy", quantity: 70000, tenor: "M+2" }],
+        alternative_strategies: [
+          {
+            id: "staged",
+            title: "Staged hedge",
+            rationale: "Execute 70% first and resize as the market develops.",
+            tradeoff: "Lower margin pressure but some price exposure remains.",
+            legs: [{ leg_type: "future", market: "ICE Brent", side: "buy", quantity: 49000, tenor: "M+2" }]
+          },
+          {
+            id: "option_weighted",
+            title: "Option-weighted hedge",
+            rationale: "Split the linear hedge with call protection.",
+            tradeoff: "Premium cost replaces some variation-margin risk.",
+            legs: [{ leg_type: "option", market: "ICE Brent call", side: "buy", quantity: 35000, tenor: "M+2" }]
+          }
+        ],
         next_checkpoint: 1,
         complete: false
       };
@@ -366,7 +413,7 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
               type: "set_exam",
               label: "Generated quiz",
               payload: {
-                exam: "1. What basis risk remains?\n2. Which leg covers FX exposure?"
+                exam: structuredExam
               }
             }
           ]
@@ -398,9 +445,9 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
       };
     }
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
-    if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
+    if (path === "/api/v1/exam/generate") return { exam: structuredExam };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.4.0", latest_version: "1.4.0", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.4.0", assets: [] };
+      return { current_version: "1.5.0", latest_version: "1.5.0", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.5.0", assets: [] };
     }
     return {};
   };
@@ -490,6 +537,9 @@ describe("Commodity Lab shell", () => {
     fireEvent.click((await screen.findAllByText("Submit strategy"))[0]);
     expect(await screen.findByText("72/100")).toBeInTheDocument();
     expect(screen.getByText("Prompt prices continued higher after the disruption.")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Compare viable alternatives"));
+    expect(screen.getByText("Staged hedge")).toBeInTheDocument();
+    expect(screen.getByText("Option-weighted hedge")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Reveal next market phase/i }));
 
     expect((await screen.findAllByText("Uncertainty peaks")).length).toBeGreaterThan(0);
@@ -500,7 +550,8 @@ describe("Commodity Lab shell", () => {
   it("streams the active replay review into the workbench and review page", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     let reviewRequest;
-    renderShell({ aiReady: true });
+    const calls = [];
+    renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
     fireEvent.change(await screen.findByLabelText("Course product"), { target: { value: "crude_oil" } });
     fireEvent.click(await screen.findByText("Practice Generator"));
@@ -509,7 +560,12 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("Event Replay")).toBeInTheDocument();
 
     window.__COMMODITY_LAB_BACKEND_STREAM__ = async (path, body, onEvent) => {
-      expect(path).toBe("/api/v1/ai/advisor-review/stream");
+      if (path !== "/api/v1/ai/advisor-review/stream") {
+        const payload = await window.__COMMODITY_LAB_BACKEND__("POST", path.replace(/\/stream$/, ""), body);
+        onEvent("case", payload);
+        onEvent("done", { ok: true });
+        return;
+      }
       reviewRequest = body;
       const answer = "### Verdict\n\n- Strong: protected the current Brent procurement exposure.\n- Gap: freight controls remain incomplete.\n- Next drill: resize the hedge at the next checkpoint.";
       onEvent("stage", { id: "review_attempt" });
@@ -530,6 +586,12 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("AI Checkpoint Review")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Verdict" })).toBeInTheDocument();
     expect(screen.getByText(/freight controls remain incomplete/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate counterfactual" }));
+    await waitFor(() => expect(calls.filter((call) => call.path === "/api/v1/ai/training-case").length).toBeGreaterThan(1));
+    const counterfactual = calls.filter((call) => call.path === "/api/v1/ai/training-case").at(-1).body;
+    expect(counterfactual.market_mode).toBe("ai_simulated");
+    expect(counterfactual.user_request).toContain("Change exactly one key condition");
   });
 
   it("lets the learner request a backwardated simulated market and shows provenance in the workbench", async () => {
@@ -550,7 +612,7 @@ describe("Commodity Lab shell", () => {
     expect(screen.getByText("As of 2026-07-17")).toBeInTheDocument();
   });
 
-  it("keeps the preview workbench aligned with a crude historical replay before generation", async () => {
+  it("keeps the workbench empty until a crude replay or case is opened", async () => {
     renderShell({ aiReady: false });
 
     fireEvent.change(await screen.findByLabelText("课程产品"), { target: { value: "crude_oil" } });
@@ -558,9 +620,12 @@ describe("Commodity Lab shell", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Historical replay" }));
     fireEvent.click(screen.getByRole("button", { name: "训练工作台" }));
 
-    expect(await screen.findByText("第一课：原油船货与基准风险")).toBeInTheDocument();
-    expect(screen.getByText("Backwardation")).toBeInTheDocument();
+    expect(await screen.findByText("尚未载入训练案例")).toBeInTheDocument();
+    expect(screen.getByText("让 AI 生成案例")).toBeInTheDocument();
+    expect(screen.getByText("打开场景库")).toBeInTheDocument();
+    expect(screen.queryByText("第一课：原油船货与基准风险")).not.toBeInTheDocument();
     expect(screen.queryByText("第一课：套保对象与风险敞口")).not.toBeInTheDocument();
+    expect(screen.queryByText("行情曲线")).not.toBeInTheDocument();
   });
 
   it("saves DeepSeek settings with a separate provider contract from Haineng", async () => {
@@ -739,6 +804,8 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("Streaming hedge case")).toBeInTheDocument();
     expect(screen.getByText(/structured characters received/)).toBeInTheDocument();
     expect(screen.getAllByText("TTF").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Waiting for AI to generate exposure/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Include a physical purchase/sale leg.")).not.toBeInTheDocument();
 
     releaseFinalCase();
     expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
@@ -823,23 +890,96 @@ describe("Commodity Lab shell", () => {
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
-    fireEvent.click(await screen.findByText("Training Workbench"));
+    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByText("AI Suggest Legs"));
+    fireEvent.change(screen.getByLabelText("Rationale"), { target: { value: "The hedge matches the delivery quantity and tenor, covers basis and price risk, and requires liquidity, credit limit, margin, and execution checks." } });
     const submitButtons = await screen.findAllByText("Submit strategy");
     fireEvent.click(submitButtons[0]);
 
-    expect(await screen.findByText("91")).toBeInTheDocument();
+    expect(await screen.findByText("100")).toBeInTheDocument();
     expect(calls.some((call) => call.path === "/api/v1/attempts/evaluate")).toBe(false);
   });
 
-  it("starts with an empty decision ticket instead of revealing target actions", async () => {
+  it("shows human-readable deductions when target legs are right but the rationale is missing", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
+    fireEvent.click(await screen.findByText("AI Suggest Legs"));
+    fireEvent.change(screen.getByLabelText("Rationale"), { target: { value: "" } });
+    fireEvent.click((await screen.findAllByText("Submit strategy"))[0]);
+
+    expect(await screen.findByText("Rationale is too short to explain the hedge")).toBeInTheDocument();
+    expect(screen.getByText("Residual price, basis, or optionality risk is not explained")).toBeInTheDocument();
+    expect(screen.getByText("Liquidity, credit, limits, or execution checks are missing")).toBeInTheDocument();
+  });
+
+  it("only enables scenario review when an actual scored snapshot exists", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    fireEvent.click(await screen.findByText("Scenario Library"));
+    expect(screen.getAllByRole("button", { name: "Review" })[0]).toBeDisabled();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
+    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("AI Suggest Legs"));
+    fireEvent.click((await screen.findAllByText("Submit strategy"))[0]);
+    expect(await screen.findByText("Review & Feedback")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Scenario Library"));
+    const review = screen.getAllByRole("button", { name: "Review" }).find((button) => !button.disabled);
+    expect(review).toBeDefined();
+    expect(review).toBeEnabled();
+    fireEvent.click(review);
+
+    expect(await screen.findByText("Review & Feedback")).toBeInTheDocument();
+    expect(screen.getByText("Local scoring complete")).toBeInTheDocument();
+  });
+
+  it("turns real weak-point records into a generated remediation drill and spaced review", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    localStorage.setItem("commodity-lab-learning-records-v2", JSON.stringify([{
+      id: "attempt-old",
+      created_at: "2026-01-01T00:00:00.000Z",
+      template_id: "foundation_hedging_basics",
+      scenario_id: "foundation_hedging_basics",
+      product_scope: "general",
+      evaluation: { baseline_score: 58, mistake_tags: ["missing_execution_controls"], metrics: {} },
+      rationale: "Short rationale.",
+      strategy_legs: [{ leg_type: "physical", market: "Physical cargo", side: "buy", quantity: 1000, tenor: "M+1" }],
+      case_snapshot: {
+        scenario: { id: "foundation_hedging_basics", title: "Saved foundation attempt" },
+        prompt: "Build a hedge.",
+        target_actions: [],
+        rubric: [],
+        market: { benchmark: "TTF", unit: "EUR/MWh", as_of: "2026-01-01" }
+      }
+    }]));
+    const calls = [];
+    renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
+
+    fireEvent.click(await screen.findByText("My Progress"));
+    expect(await screen.findByText("1 scenario(s) due")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Generate Weak-Point Drill" }));
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/training-case")).toBe(true));
+    const request = calls.find((call) => call.path === "/api/v1/ai/training-case")?.body;
+    expect(request.user_request).toContain("actual scored attempts");
+    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+  });
+
+  it("does not reveal a decision ticket before a case is opened", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
     fireEvent.click(await screen.findByText("Training Workbench"));
 
-    expect(await screen.findByLabelText("Leg type")).toHaveValue("");
-    expect(screen.getByLabelText("Market")).toHaveValue("");
+    expect(await screen.findByText("No training case loaded")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Leg type")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Market")).not.toBeInTheDocument();
     expect(screen.queryByText("Local scoring")).not.toBeInTheDocument();
   });
 
@@ -847,7 +987,8 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Training Workbench"));
+    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByText("AI Suggest Legs"));
 
     expect(await screen.findByText("Risk Coverage Map")).toBeInTheDocument();
@@ -876,7 +1017,8 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Training Workbench"));
+    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
     fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Show high low close and explain basis." } });
     fireEvent.click(screen.getByText("Send"));
@@ -920,7 +1062,8 @@ describe("Commodity Lab shell", () => {
     };
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Training Workbench"));
+    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
     fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Fill a correct procurement hedge." } });
     fireEvent.click(screen.getByText("Send"));
@@ -1069,7 +1212,8 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Training Workbench"));
+    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
 
     expect(screen.getByText("AI controls")).toBeInTheDocument();
@@ -1132,7 +1276,7 @@ describe("Commodity Lab shell", () => {
     expect(screen.getAllByText("Generate lesson with AI").length).toBeGreaterThan(0);
   });
 
-  it("renders AI-generated quiz content on the review page after quiz generation", async () => {
+  it("scores a structured AI exam locally and persists the real result", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
@@ -1140,10 +1284,20 @@ describe("Commodity Lab shell", () => {
     fireEvent.click(await screen.findByText("Course Map"));
     fireEvent.click(screen.getByText("Quiz Me"));
 
-    expect(await screen.findByText("AI Quiz Mode")).toBeInTheDocument();
+    expect(await screen.findByText("Basis and Execution Checkpoint")).toBeInTheDocument();
     expect(screen.getByText("Question 1")).toBeInTheDocument();
     expect(screen.getByText("What basis risk remains?")).toBeInTheDocument();
     expect(screen.queryByText("No strategy submitted")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("The TTF/NBP location spread"));
+    fireEvent.click(screen.getByLabelText("EUR/GBP forward"));
+    fireEvent.click(screen.getByLabelText("Ignore margin"));
+    fireEvent.click(screen.getByRole("button", { name: "Submit quiz" }));
+
+    expect(await screen.findByText("67/100")).toBeInTheDocument();
+    expect(screen.getByText("2/3 correct. This result is now part of your learning progress.")).toBeInTheDocument();
+    const records = JSON.parse(localStorage.getItem("commodity-lab-learning-records-v2"));
+    expect(records.at(-1).assessment_type).toBe("exam");
+    expect(records.at(-1).evaluation.skill_scores).toEqual({ basis: 100, fx: 100, control: 0 });
   });
 
   it("lets the floating assistant generate a quiz and open the review workflow", async () => {
@@ -1156,7 +1310,7 @@ describe("Commodity Lab shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Generate quiz" }));
 
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/live-assistant")).toBe(true));
-    expect(await screen.findByText("AI Quiz Mode")).toBeInTheDocument();
+    expect(await screen.findByText("Basis and Execution Checkpoint")).toBeInTheDocument();
     expect(screen.getByText("Question 1")).toBeInTheDocument();
     expect(screen.getByText("What basis risk remains?")).toBeInTheDocument();
     expect(screen.getByText("Question 2")).toBeInTheDocument();

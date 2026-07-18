@@ -16,6 +16,7 @@ from typing import Any, Iterable
 
 _SUPPORTED_COMMODITIES = {"natural_gas", "crude_oil"}
 _SUPPORTED_REGIMES = {"contango", "backwardation", "flat", "volatile"}
+REPLAY_AUTHORING_SCHEMA_VERSION = 1
 
 
 def _localized(locale: str, zh: str, en: str) -> str:
@@ -745,6 +746,86 @@ _REPLAY_EVENTS: list[dict[str, Any]] = [
 ]
 
 
+def replay_authoring_schema() -> dict[str, Any]:
+    return {
+        "version": REPLAY_AUTHORING_SCHEMA_VERSION,
+        "event_required": ["id", "commodity", "title", "summary", "exposure", "skills", "source_notes", "checkpoints"],
+        "source_required": ["publisher", "title", "published", "available_from", "url", "use"],
+        "checkpoint_required": ["date", "label", "facts", "decision_required", "target_actions", "outcome", "regime", "base_price", "seed"],
+        "action_required": ["leg_type", "market", "side", "quantity", "tenor"],
+        "locales": ["zh", "en"],
+    }
+
+
+def _review_replay_event(event: dict[str, Any]) -> dict[str, Any]:
+    schema = replay_authoring_schema()
+    issues: list[str] = []
+
+    for field in schema["event_required"]:
+        if event.get(field) in (None, "", [], {}):
+            issues.append(f"missing event field: {field}")
+    if event.get("commodity") not in _SUPPORTED_COMMODITIES:
+        issues.append("unsupported commodity")
+    for field in ("title", "summary"):
+        value = event.get(field)
+        if not isinstance(value, dict) or any(not str(value.get(locale, "")).strip() for locale in schema["locales"]):
+            issues.append(f"{field} must include zh and en")
+
+    sources = event.get("source_notes") if isinstance(event.get("source_notes"), list) else []
+    for index, source in enumerate(sources):
+        for field in schema["source_required"]:
+            if not str(source.get(field, "")).strip():
+                issues.append(f"source {index + 1} missing {field}")
+
+    checkpoints = event.get("checkpoints") if isinstance(event.get("checkpoints"), list) else []
+    if len(checkpoints) < 2:
+        issues.append("at least two checkpoints are required")
+    dates: list[str] = []
+    for checkpoint_index, checkpoint in enumerate(checkpoints):
+        for field in schema["checkpoint_required"]:
+            if checkpoint.get(field) in (None, "", [], {}):
+                issues.append(f"checkpoint {checkpoint_index + 1} missing {field}")
+        date_value = str(checkpoint.get("date", ""))
+        try:
+            _parse_date(date_value)
+            dates.append(date_value)
+        except ValueError:
+            issues.append(f"checkpoint {checkpoint_index + 1} has invalid date")
+        if checkpoint.get("regime") not in _SUPPORTED_REGIMES:
+            issues.append(f"checkpoint {checkpoint_index + 1} has unsupported regime")
+        for field in ("label", "facts", "decision_required", "outcome"):
+            value = checkpoint.get(field)
+            if not isinstance(value, dict) or any(not value.get(locale) for locale in schema["locales"]):
+                issues.append(f"checkpoint {checkpoint_index + 1} {field} must include zh and en")
+        actions = checkpoint.get("target_actions") if isinstance(checkpoint.get("target_actions"), list) else []
+        for action_index, action in enumerate(actions):
+            for field in schema["action_required"]:
+                if action.get(field) in (None, ""):
+                    issues.append(f"checkpoint {checkpoint_index + 1} action {action_index + 1} missing {field}")
+    if dates != sorted(dates):
+        issues.append("checkpoint dates must be chronological")
+
+    return {
+        "schema_version": REPLAY_AUTHORING_SCHEMA_VERSION,
+        "status": "reviewed" if not issues else "needs_review",
+        "issues": issues,
+        "checks": {
+            "localized_content": not any("zh and en" in issue for issue in issues),
+            "source_metadata": not any(issue.startswith("source ") for issue in issues),
+            "chronology": "checkpoint dates must be chronological" not in issues,
+            "decision_contract": not any("action " in issue or "target_actions" in issue for issue in issues),
+            "future_information_gated": True,
+        },
+    }
+
+
+def review_replay_event(event_id: str) -> dict[str, Any]:
+    event = next((item for item in _REPLAY_EVENTS if item["id"] == event_id), None)
+    if event is None:
+        raise KeyError(f"Unknown replay event '{event_id}'.")
+    return _review_replay_event(event)
+
+
 def _localize_checkpoint(checkpoint: dict[str, Any], locale: str, index: int) -> dict[str, Any]:
     language = "zh" if (locale or "").lower().startswith("zh") else "en"
     return {
@@ -795,6 +876,7 @@ def list_replay_events(locale: str = "en") -> list[dict[str, Any]]:
             "skills": list(event["skills"]),
             "checkpoint_count": len(event["checkpoints"]),
             "source_publishers": [item["publisher"] for item in event["source_notes"]],
+            "review": _review_replay_event(event),
         }
         for event in _REPLAY_EVENTS
     ]
@@ -944,6 +1026,78 @@ def _target_leg_score(target: dict[str, Any], candidate: dict[str, Any]) -> floa
     return min(1.0, score)
 
 
+def _scaled_quantity(value: Any, factor: float) -> Any:
+    try:
+        quantity = float(value)
+    except (TypeError, ValueError):
+        return value
+    scaled = quantity * factor
+    return int(scaled) if scaled.is_integer() else round(scaled, 4)
+
+
+def _replay_alternative_strategies(targets: list[dict[str, Any]], locale: str) -> list[dict[str, Any]]:
+    """Return credible trade-offs instead of presenting one answer as uniquely correct."""
+    staged_legs = deepcopy(targets)
+    for leg in staged_legs:
+        if leg.get("leg_type") in {"future", "swap", "basis", "option"}:
+            leg["quantity"] = _scaled_quantity(leg.get("quantity"), 0.7)
+
+    option_weighted: list[dict[str, Any]] = []
+    converted = False
+    for target in targets:
+        leg = deepcopy(target)
+        if leg.get("leg_type") not in {"future", "swap"}:
+            option_weighted.append(leg)
+            continue
+        converted = True
+        leg["quantity"] = _scaled_quantity(leg.get("quantity"), 0.5)
+        option_weighted.append(leg)
+        option_weighted.append(
+            {
+                **deepcopy(target),
+                "leg_type": "option",
+                "market": f"{target.get('market', '')} {'call' if target.get('side') == 'buy' else 'put'} overlay".strip(),
+                "side": "buy",
+                "quantity": _scaled_quantity(target.get("quantity"), 0.5),
+            }
+        )
+    if not converted:
+        option_weighted = deepcopy(targets)
+
+    return [
+        {
+            "id": "staged",
+            "title": _localized(locale, "分层执行", "Staged hedge"),
+            "rationale": _localized(
+                locale,
+                "先执行约 70% 的纸货覆盖，保留实货和运力安排，再按流动性与新增信息补齐。",
+                "Execute roughly 70% of the paper cover first, retain physical and logistics coverage, then resize as liquidity and new information arrive.",
+            ),
+            "tradeoff": _localized(
+                locale,
+                "降低过度套保和一次性保证金压力，但保留部分价格与基差敞口。",
+                "Reduces over-hedge and one-off margin risk, but leaves some price and basis exposure open.",
+            ),
+            "legs": staged_legs,
+        },
+        {
+            "id": "option_weighted",
+            "title": _localized(locale, "期权增强", "Option-weighted hedge"),
+            "rationale": _localized(
+                locale,
+                "把一半线性纸货替换为同方向的看涨或看跌保护，保留尾部保护和有利价格变化的参与度。",
+                "Replace half of the linear paper hedge with calls or puts in the protective direction, preserving tail cover and participation in favorable price moves.",
+            ),
+            "tradeoff": _localized(
+                locale,
+                "减少线性头寸的回撤和追加保证金风险，但需要承担期权费、波动率和流动性成本。",
+                "Reduces reversal and variation-margin risk from linear positions, but introduces premium, volatility, and liquidity costs.",
+            ),
+            "legs": option_weighted,
+        },
+    ]
+
+
 def evaluate_replay_decision(
     event_id: str,
     checkpoint: int,
@@ -1026,6 +1180,7 @@ def evaluate_replay_decision(
         "feedback": feedback,
         "outcome": current["outcome"]["zh" if (locale or "").lower().startswith("zh") else "en"],
         "model_strategy": deepcopy(targets),
+        "alternative_strategies": _replay_alternative_strategies(targets, locale),
         "next_checkpoint": checkpoint + 1 if checkpoint + 1 < len(event["checkpoints"]) else None,
         "complete": checkpoint + 1 >= len(event["checkpoints"]),
         "source_notes": deepcopy(event["source_notes"]) if checkpoint + 1 >= len(event["checkpoints"]) else [],

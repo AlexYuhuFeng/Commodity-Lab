@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import base64
 import json
 import os
 import re
@@ -62,6 +63,7 @@ class HainengSettings:
 _runtime_settings: HainengSettings | None = None
 LOCAL_SETTINGS_FILE_ENV = "COMMODITY_LAB_AI_SETTINGS_FILE"
 DISABLE_LOCAL_SETTINGS_ENV = "COMMODITY_LAB_DISABLE_LOCAL_AI_SETTINGS"
+LOCAL_SETTINGS_VERSION = 2
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -110,6 +112,80 @@ def local_settings_path() -> str:
     return os.path.join(_user_config_dir(), "Commodity Lab", "AI密钥.json")
 
 
+def _windows_dpapi(data: bytes, *, protect: bool) -> bytes:
+    import ctypes
+    from ctypes import wintypes
+
+    class DataBlob(ctypes.Structure):
+        _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_ubyte))]
+
+    buffer = (ctypes.c_ubyte * len(data)).from_buffer_copy(data)
+    input_blob = DataBlob(len(data), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ubyte)))
+    output_blob = DataBlob()
+    crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    flags = 0x1  # CRYPTPROTECT_UI_FORBIDDEN
+    if protect:
+        operation = crypt32.CryptProtectData
+        operation.argtypes = [
+            ctypes.POINTER(DataBlob),
+            wintypes.LPCWSTR,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.POINTER(DataBlob),
+        ]
+        succeeded = operation(ctypes.byref(input_blob), "Commodity Lab AI credential", None, None, None, flags, ctypes.byref(output_blob))
+    else:
+        operation = crypt32.CryptUnprotectData
+        operation.argtypes = [
+            ctypes.POINTER(DataBlob),
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.POINTER(DataBlob),
+        ]
+        succeeded = operation(ctypes.byref(input_blob), None, None, None, None, flags, ctypes.byref(output_blob))
+    operation.restype = wintypes.BOOL
+    if not succeeded:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return ctypes.string_at(output_blob.pbData, output_blob.cbData)
+    finally:
+        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+        kernel32.LocalFree.restype = ctypes.c_void_p
+        kernel32.LocalFree(ctypes.cast(output_blob.pbData, ctypes.c_void_p))
+
+
+def _credential_payload(api_key: str) -> dict[str, str]:
+    secret = api_key.strip()
+    if os.name == "nt":
+        protected = _windows_dpapi(secret.encode("utf-8"), protect=True)
+        return {"scheme": "windows_dpapi", "ciphertext": base64.b64encode(protected).decode("ascii")}
+    return {"scheme": "restricted_file", "secret": secret}
+
+
+def _credential_from_payload(payload: dict[str, Any]) -> str:
+    credential = payload.get("credential")
+    if not isinstance(credential, dict):
+        return str(payload.get("api_key", "")).strip()
+    scheme = str(credential.get("scheme", "")).strip().lower()
+    if scheme == "windows_dpapi":
+        if os.name != "nt":
+            return ""
+        try:
+            protected = base64.b64decode(str(credential.get("ciphertext", "")), validate=True)
+            return _windows_dpapi(protected, protect=False).decode("utf-8").strip()
+        except (OSError, ValueError, UnicodeDecodeError):
+            return ""
+    if scheme == "restricted_file":
+        return str(credential.get("secret", "")).strip()
+    return ""
+
+
 def load_persisted_settings() -> HainengSettings | None:
     if _env_bool(DISABLE_LOCAL_SETTINGS_ENV, False):
         return None
@@ -121,12 +197,12 @@ def load_persisted_settings() -> HainengSettings | None:
         return None
     if not isinstance(payload, dict):
         return None
-    api_key = str(payload.get("api_key", "")).strip()
+    api_key = _credential_from_payload(payload)
     if not api_key:
         return None
     provider = normalize_provider(str(payload.get("provider", "")), str(payload.get("base_url", "")))
     provider_config = _PROVIDER_MODEL_CATALOG[provider]
-    return HainengSettings(
+    settings = HainengSettings(
         api_key=api_key,
         base_url="",
         model=provider_config["default_model"],
@@ -134,6 +210,12 @@ def load_persisted_settings() -> HainengSettings | None:
         streaming=bool(payload.get("streaming", False)),
         function_calling=bool(payload.get("function_calling", True)),
     )
+    if "api_key" in payload and os.name == "nt":
+        try:
+            save_persisted_settings(settings)
+        except OSError:
+            pass
+    return settings
 
 
 def save_persisted_settings(settings: HainengSettings) -> str:
@@ -145,8 +227,9 @@ def save_persisted_settings(settings: HainengSettings) -> str:
         os.makedirs(directory, exist_ok=True)
     provider = _provider_name(settings)
     payload = {
+        "version": LOCAL_SETTINGS_VERSION,
         "provider": provider,
-        "api_key": settings.api_key.strip(),
+        "credential": _credential_payload(settings.api_key),
         "streaming": bool(settings.streaming),
         "function_calling": bool(settings.function_calling),
     }
@@ -442,13 +525,20 @@ def build_exam_messages(
 ) -> list[dict[str, str]]:
     system = _base_system(locale)
     user = (
-        "Write 3 to 5 assessment questions for the learner. "
+        "Create 3 to 5 single-choice assessment questions for the learner. "
         "Mix conceptual, calculation-aware, and decision-focused questions. "
-        "Questions must be grounded in the provided scenario, attempt history, and Commodity Lab curriculum.\n\n"
+        "Questions must be grounded in the provided scenario, attempt history, and Commodity Lab curriculum. "
+        "Return only compact strict JSON, with no Markdown fence or prose outside the object.\n\n"
         f"Scenario:\n{_to_json_text(scenario)}\n\n"
         f"Attempt history:\n{_to_json_text(attempt_history)}\n\n"
         f"Curriculum context:\n{_to_json_text(curriculum_context or {})}\n\n"
-        "Include an answer key and explain why each question matters for energy trading practice."
+        "Required JSON shape:\n"
+        '{"title":"Short exam title","questions":[{"id":"q1","prompt":"Question text",'
+        '"options":["A","B","C","D"],"correct_index":0,"explanation":"One concise reason",'
+        '"skills":["exposure"]}]}\n'
+        "Use 2 to 4 mutually exclusive options per question. correct_index is zero-based. "
+        "Use only these skill ids: exposure, instrument, basis, fx, capacity, timing, control, rationale. "
+        "Keep each explanation under 45 words and do not reveal the correct answer inside the question or options."
     )
     return [
         {"role": "system", "content": system},

@@ -63,7 +63,7 @@ Exit checks:
 Goal: add entitled live-market learning without coupling the curriculum to a single feed.
 
 - Confirm the customer's Platts product, API/stream/sFTP access, symbols, units, and redistribution rights. *(customer validation pending)*
-- Implement secure Windows credential storage. *(pending)*
+- Implement secure Windows credential storage. *(implemented with per-user Windows DPAPI encryption and automatic migration from legacy plaintext settings)*
 - Build provider adapter, cache, rate-limit, and stale-data behavior. *(implemented)*
 - Add external natural-gas and crude symbol mapping plus unit normalization. *(implemented; customer codes pending)*
 - Snapshot the exact evidence used by each training session. *(implemented in the generated case contract)*
@@ -76,11 +76,11 @@ The repository must not contain customer credentials or licensed market payloads
 
 Goal: train decisions under uncertainty, not hindsight.
 
-- Add replay authoring schema and source review checklist.
-- Add event packs for supply disruption, storage shock, infrastructure outage, price collapse, and demand surge.
-- Reveal evidence checkpoint by checkpoint. The first gated decision loop is implemented for the Hormuz replay; additional reviewed event packs remain pending.
-- Compare the learner's decision with plausible alternatives, not one perfect trade.
-- Generate counterfactual drills by changing hedge timing, basis, optionality, or physical constraints.
+- Add replay authoring schema and source review checklist. *(implemented with executable pack review and bilingual authoring guidance)*
+- Add event packs for supply disruption, storage/refill shock, infrastructure constraints, price collapse, and demand competition. *(implemented across two reviewed gas and two reviewed crude replays; more packs can use the same schema)*
+- Reveal evidence checkpoint by checkpoint. *(implemented across all reviewed replay packs)*
+- Compare the learner's decision with plausible alternatives, not one perfect trade. *(implemented with staged and option-weighted alternatives)*
+- Generate counterfactual drills by changing hedge timing, basis, optionality, or physical constraints. *(implemented from completed replay reviews)*
 
 ## Phase 4: Adaptive Tutor
 

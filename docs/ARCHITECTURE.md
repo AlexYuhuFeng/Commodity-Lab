@@ -37,7 +37,7 @@ Every market context uses the same contract and carries `mode`, `source_tier`, `
 
 The adapter caches only the normalized Commodity Lab evidence contract. Fresh cache, stale cache, and provider failure are separate states. A live request with no usable entitled snapshot falls back to a labelled simulation and never presents simulated data as live. When the subscription provides current forward assessments but not chart history, the terminal labels the forward curve as entitled and the OHLC history as a locally calibrated training path.
 
-Production readiness still requires validation against the customer's actual subscription, entitlements, approved symbols, units, and redistribution terms. Credentials remain a local deployment responsibility until the Windows credential-store flow is completed.
+Production readiness still requires validation against the customer's actual subscription, entitlements, approved symbols, units, and redistribution terms. AI credentials saved by the Windows client are encrypted for the current Windows user with DPAPI; imported key files remain user-owned and are never modified. Platts credentials remain a local deployment responsibility.
 
 ### Historical replay
 
@@ -111,6 +111,7 @@ Generated cases pass through deterministic consistency guards before they reach 
 ## Data and Security Rules
 
 - AI and market credentials must never enter Git, release notes, screenshots, or logs.
+- AI credentials persisted by the Windows client use per-user DPAPI encryption; legacy plaintext settings are migrated on first successful read.
 - Live data must preserve provider attribution, entitlement boundaries, symbol, and as-of time.
 - Historical replay must prevent future-information leakage.
 - Simulated values must remain labelled as simulated at every API boundary.

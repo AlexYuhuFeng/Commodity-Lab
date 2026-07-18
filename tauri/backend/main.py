@@ -241,7 +241,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.4.0",
+        "current_version": "1.5.0",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -250,7 +250,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.4.0"
+    current_version = "1.5.0"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -1495,7 +1495,7 @@ def _live_assistant_action_schema() -> dict[str, Any]:
         "set_chart_fields": {"fields": ["high", "low", "close"]},
         "set_strategy_legs": {"legs": [{"leg_type": "physical|swap|future|basis|fx|capacity|option", "market": "TTF", "side": "sell", "quantity": 10000}]},
         "fill_rationale": {"text": "string"},
-        "set_exam": {"exam": "Markdown quiz content"},
+        "set_exam": {"exam": {"id": "exam-1", "title": "Short quiz", "questions": [{"id": "q1", "prompt": "Question", "options": ["A", "B"], "correct_index": 0, "explanation": "Reason", "skills": ["instrument"]}]}},
         "submit_strategy": {},
         "run_ai_capability": {"capability": "concept_tutor|exam|trade_playbook|advisor_review"},
     }
@@ -1603,7 +1603,40 @@ def v1_generate_exam(payload: ExamRequest):
             curriculum_context=payload.curriculum_context,
         )
     )
-    return {"exam": result["answer"]}
+    try:
+        parsed = _parse_json_response(result["answer"])
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=502, detail="AI exam response was not valid structured JSON.") from exc
+
+    allowed_skills = {"exposure", "instrument", "basis", "fx", "capacity", "timing", "control", "rationale"}
+    questions: list[dict[str, Any]] = []
+    for index, item in enumerate(parsed.get("questions", [])):
+        if not isinstance(item, dict):
+            continue
+        prompt = str(item.get("prompt", "")).strip()
+        options = [str(option).strip() for option in item.get("options", []) if str(option).strip()][:4]
+        try:
+            correct_index = int(item.get("correct_index"))
+        except (TypeError, ValueError):
+            continue
+        if not prompt or len(options) < 2 or not 0 <= correct_index < len(options):
+            continue
+        skills = [str(skill) for skill in item.get("skills", []) if str(skill) in allowed_skills][:3]
+        questions.append(
+            {
+                "id": str(item.get("id") or f"q{index + 1}"),
+                "type": "single_choice",
+                "prompt": prompt,
+                "options": options,
+                "correct_index": correct_index,
+                "explanation": str(item.get("explanation", "")).strip(),
+                "skills": skills or ["instrument"],
+            }
+        )
+    if not 3 <= len(questions) <= 5:
+        raise HTTPException(status_code=502, detail="AI exam response must contain 3 to 5 valid questions.")
+    title = str(parsed.get("title") or ("课程测验" if payload.locale.lower().startswith("zh") else "Course Checkpoint")).strip()
+    return {"exam": {"id": f"exam-{uuid4().hex[:12]}", "title": title, "questions": questions}}
 
 
 if __name__ == "__main__":

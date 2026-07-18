@@ -1,6 +1,6 @@
 # Commodity Lab build and runtime guide
 
-This guide records the operational path for local validation, Windows packaging, and GitHub Actions artifact delivery.
+This guide records the operational path for local validation, Windows packaging, and GitHub Actions artifact delivery for Windows x86_64, Linux x86_64, and Linux ARM64.
 
 ## Local validation
 
@@ -82,13 +82,15 @@ The workflow is:
 Manual build path:
 
 ```text
-GitHub repo → Actions → Tauri Windows Build → Run workflow → main
+GitHub repo → Actions → Tauri Cross-Platform Build → Run workflow → main
 ```
 
-The downloadable artifact is named:
+The downloadable artifacts are named:
 
 ```text
-commodity-lab-windows
+commodity-lab-windows-x86_64
+commodity-lab-linux-x86_64
+commodity-lab-linux-arm64
 ```
 
 Tag release path:
@@ -98,7 +100,7 @@ git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 ```
 
-Tag pushes build the Windows bundle and publish the resulting files into a GitHub Release.
+Tag pushes build Windows and both Linux architectures, then publish the resulting installers into one GitHub Release.
 
 ## Current hardening decisions
 
@@ -106,6 +108,7 @@ Tag pushes build the Windows bundle and publish the resulting files into a GitHu
 - The backend port is configurable to reduce local port conflicts.
 - Tauri now waits briefly for backend readiness instead of immediately sending UI requests to a possibly unready service.
 - The GitHub Actions workflow fails if no Windows bundle files are generated.
+- Linux x86_64 and ARM64 jobs verify native binary architecture, start the bundled backend and check `/api/health`, then keep the AppImage alive under Xvfb for a 20-second launch smoke test.
 - The workflow caches pip, npm, and Cargo dependencies to reduce repeated build time.
 - The workflow runs Python tests plus frontend tests/build before packaging.
 
