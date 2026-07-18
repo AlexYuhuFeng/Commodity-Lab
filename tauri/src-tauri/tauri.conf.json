@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "package": {
     "productName": "Commodity Lab",
-    "version": "1.2.1"
+    "version": "1.3.0"
   },
   "build": {
     "distDir": "../tauri-frontend/dist",
@@ -32,9 +32,10 @@
       "copyright": "Copyright © 2026 天然气中心. Repository: https://github.com/AlexYuhuFeng/Commodity-Lab",
       "category": "Education",
       "shortDescription": "AI-guided commodity hedging training terminal.",
-      "longDescription": "Commodity Lab is a Windows desktop learning terminal with a shared hedging curriculum and product workspaces for natural gas and crude oil, using AI-generated cases, progressive market data, deterministic local scoring, and Haineng- or DeepSeek-compatible coaching.",
+      "longDescription": "Commodity Lab is a desktop learning terminal with a shared hedging curriculum and product workspaces for European natural gas and crude oil, using AI-generated cases, progressive market evidence, deterministic local scoring, and Haineng- or DeepSeek-compatible coaching.",
       "icon": [
-        "icons/icon.ico"
+        "icons/icon.ico",
+        "icons/icon.png"
       ],
       "resources": [
         "../bundled/backend/*"

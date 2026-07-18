@@ -112,7 +112,12 @@ export async function backendStreamRequest(path, body, onEvent) {
 
   if (typeof window !== "undefined" && typeof window.__COMMODITY_LAB_BACKEND__ === "function") {
     const payload = await backendRequest("POST", normalizePath(path).replace(/\/stream$/, ""), body);
-    onEvent("case", payload);
+    const resultEvent = path.includes("live-assistant")
+      ? "result"
+      : path.includes("advisor-review")
+        ? "review"
+        : "case";
+    onEvent(resultEvent, payload);
     onEvent("done", { ok: true });
     return;
   }

@@ -4,7 +4,8 @@ param(
     [switch]$DryRun,
     [switch]$AllowDirty,
     [switch]$SkipInstall,
-    [switch]$SkipGithubRelease
+    [Alias("SkipGithubRelease")]
+    [switch]$SkipReleaseTag
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,7 +51,7 @@ if (-not $Version) {
 
 Write-Host "Repository: $RepoRoot"
 Write-Host "Release version: $Version"
-$GuardrailSummary = "git status --porcelain | npm.cmd test -- --run | npm.cmd audit | gh release create"
+$GuardrailSummary = "git status --porcelain | npm.cmd test -- --run | npm.cmd audit | package_tauri.ps1 | git push origin v$Version"
 Write-Host "Guardrails: $GuardrailSummary"
 
 if (-not $AllowDirty) {
@@ -96,44 +97,33 @@ if (-not $DryRun -and (-not $NsisAsset -or -not $MsiAsset)) {
     throw "Release assets for $Version were not found under $BundleRoot."
 }
 
-$NotesPath = Join-Path $RepoRoot "build\release-notes-v$Version.md"
-$Notes = @"
-# Commodity Lab v$Version
-
-## 中文
-- 强化 AI 对训练工作台的可见控制：AI 修改图表、题目或策略后会留下动作日志。
-- 新增策略腿与风险覆盖映射，帮助学员看清实货、纸货、基差、汇率和运力风险是否匹配。
-- 增加 Windows 发布护栏：测试、审计、后端打包 freshness、安装包和 GitHub release notes 检查。
-
-## English
-- Adds a visible AI control log when the assistant changes charts, cases, or strategy legs.
-- Adds a strategy-leg-to-risk coverage map for physical, paper, basis, FX, and capacity matching.
-- Adds Windows release guardrails for tests, audits, backend freshness, installers, and GitHub release notes.
-"@
-
-if (-not $DryRun) {
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $NotesPath) | Out-Null
-    $Notes | Out-File -Encoding utf8 -FilePath $NotesPath
-}
-
 if (-not $SkipInstall -and -not $DryRun) {
     Invoke-ReleaseStep "Install NSIS package locally" $NsisAsset.FullName @("/S")
 }
 
-if (-not $SkipGithubRelease) {
+if (-not $SkipReleaseTag) {
     $TagName = "v$Version"
     if ($DryRun) {
-        Write-Host "==> GitHub release"
-        Write-Host ("    gh release create {0} <assets> --title ""Commodity Lab v{1}"" --notes-file {2} --latest" -f $TagName, $Version, $NotesPath)
+        Write-Host "==> Trigger cross-platform release"
+        Write-Host "    git tag -a $TagName -m 'Commodity Lab $TagName'"
+        Write-Host "    git push origin $TagName"
     }
     else {
-        Invoke-ReleaseStep "Create GitHub release" "gh" @(
-            "release", "create", $TagName,
-            $NsisAsset.FullName,
-            $MsiAsset.FullName,
-            "--title", "Commodity Lab v$Version",
-            "--notes-file", $NotesPath,
-            "--latest"
-        ) $RepoRoot
+        Push-Location $RepoRoot
+        try {
+            $CurrentBranch = (& git branch --show-current).Trim()
+            if ($CurrentBranch -ne "main") {
+                throw "Formal cross-platform tags must be created from main; current branch is '$CurrentBranch'."
+            }
+            & git rev-parse --verify --quiet "refs/tags/$TagName" | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                throw "Tag $TagName already exists locally."
+            }
+        }
+        finally {
+            Pop-Location
+        }
+        Invoke-ReleaseStep "Create annotated release tag" "git" @("tag", "-a", $TagName, "-m", "Commodity Lab $TagName") $RepoRoot
+        Invoke-ReleaseStep "Push tag for cross-platform CI" "git" @("push", "origin", $TagName) $RepoRoot
     }
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest, backendStreamRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.2.1";
+const currentVersion = "1.3.0";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -57,7 +57,7 @@ function fallbackMarketCapabilities(locale = "en") {
         id: "platts",
         label: "S&P Global Commodity Insights (Platts)",
         status: "not_configured",
-        integration_state: "adapter_contract_ready",
+        integration_state: "rest_adapter_ready",
         requires_subscription: true
       }
     ],
@@ -68,6 +68,13 @@ function fallbackMarketCapabilities(locale = "en") {
         commodity: "crude_oil",
         title: copy(locale, "2026 霍尔木兹海峡供应冲击复盘", "2026 Strait of Hormuz supply-shock replay"),
         summary: copy(locale, "从炼厂采购和原油贸易视角管理实货、Brent 纸货、月差、运费和可选性。", "Manage physical cargo, Brent paper, calendar spread, freight, and optionality as information is revealed."),
+        checkpoint_count: 3
+      },
+      {
+        id: "european_gas_crisis_2022",
+        commodity: "natural_gas",
+        title: copy(locale, "2022 欧洲天然气危机与 LNG 拥堵复盘", "2022 European gas crisis and LNG-congestion replay"),
+        summary: copy(locale, "经历供应收紧、TTF 极端上涨和高库存/LNG 拥堵，连续调整实货与纸货。", "Move through supply tightening, the TTF spike, and high-storage/LNG congestion while adjusting physical and paper coverage."),
         checkpoint_count: 3
       }
     ]
@@ -200,11 +207,12 @@ const learningTracks = [
 ];
 
 const productWorkspaces = [
-  { id: "natural_gas", zh: "天然气", en: "Natural Gas", icon: "flame", trackIds: ["foundation", "procurement", "sales", "integrated"], groups: ["foundation", "procurement", "sales", "integrated"], enabled: true },
-  { id: "crude_oil", zh: "原油", en: "Crude Oil", icon: "chart", trackIds: ["foundation", "crude"], groups: ["foundation", "crude"], enabled: true },
-  { id: "refined_products", zh: "成品油（建设中）", en: "Refined Products (Constructing)", icon: "library", trackIds: ["foundation"], groups: ["foundation"], enabled: false },
-  { id: "power", zh: "电力（建设中）", en: "Power (Constructing)", icon: "pulse", trackIds: ["foundation"], groups: ["foundation"], enabled: false },
-  { id: "carbon", zh: "碳（建设中）", en: "Carbon (Constructing)", icon: "grid", trackIds: ["foundation"], groups: ["foundation"], enabled: false }
+  { id: "natural_gas", zh: "欧洲天然气", en: "European Natural Gas", icon: "flame", trackIds: ["foundation", "procurement", "sales", "integrated"], groups: ["foundation", "procurement", "sales", "integrated"], enabled: true, coursesReady: true },
+  { id: "crude_oil", zh: "原油", en: "Crude Oil", icon: "chart", trackIds: ["foundation", "crude"], groups: ["foundation", "crude"], enabled: true, coursesReady: true },
+  { id: "north_american_gas", zh: "北美天然气", en: "North American Gas", icon: "flame", trackIds: ["foundation"], groups: ["foundation"], enabled: true, coursesReady: false, scopeZh: "Henry Hub、区域基差、储气、管输和电力燃料需求", scopeEn: "Henry Hub, regional basis, storage, pipelines, and power-burn demand" },
+  { id: "refined_products", zh: "成品油", en: "Refined Products", icon: "library", trackIds: ["foundation"], groups: ["foundation"], enabled: true, coursesReady: false, scopeZh: "裂解价差、库存、炼厂产率、船货和质量基差", scopeEn: "Crack spreads, inventory, refinery yields, cargoes, and quality basis" },
+  { id: "power", zh: "电力", en: "Power", icon: "pulse", trackIds: ["foundation"], groups: ["foundation"], enabled: true, coursesReady: false, scopeZh: "负荷、节点电价、燃料成本、峰谷和可再生波动", scopeEn: "Load, nodal prices, fuel cost, peak/off-peak, and renewable intermittency" },
+  { id: "carbon", zh: "碳", en: "Carbon", icon: "grid", trackIds: ["foundation"], groups: ["foundation"], enabled: true, coursesReady: false, scopeZh: "配额、履约周期、能源价差、政策与跨期风险", scopeEn: "Allowances, compliance cycles, energy spreads, policy, and calendar risk" }
 ];
 
 const generalCoverageIds = new Set([
@@ -247,12 +255,26 @@ function modelsForProduct(productScope) {
 }
 
 function scenarioCommodityForProduct(productScope) {
-  return productScope === "crude_oil" ? "crude-oil" : "natural-gas";
+  if (productScope === "crude_oil") return "crude-oil";
+  if (["natural_gas", "north_american_gas"].includes(productScope)) return "natural-gas";
+  return productScope.replaceAll("_", "-");
 }
 
 function productScopeForTemplate(templateId) {
   if (templateId === "foundation_hedging_basics") return "general";
   return String(templateId ?? "").includes("crude") ? "crude_oil" : "natural_gas";
+}
+
+function exposureDirectionLabel(direction, locale) {
+  const labels = {
+    long: { zh: "采购成本上涨", en: "Procurement cost upside" },
+    short: { zh: "销售价格下跌", en: "Sales price downside" },
+    buy: { zh: "采购成本上涨", en: "Procurement cost upside" },
+    sell: { zh: "销售价格下跌", en: "Sales price downside" },
+    spread: { zh: "价差波动", en: "Spread movement" }
+  };
+  const item = labels[String(direction ?? "").toLowerCase()];
+  return item ? labelFor(locale, item) : direction || "--";
 }
 
 const courseSyllabus = [
@@ -1245,9 +1267,15 @@ function applyStreamedMarketContext(current, context, locale) {
       ...current.scenario,
       title: replay.event.title,
       summary: replay.event.summary,
-      business_type: copy(locale, "原油历史复盘", "Crude Historical Replay"),
+      business_type: replay.event.commodity === "natural_gas"
+        ? copy(locale, "天然气历史复盘", "Natural Gas Historical Replay")
+        : copy(locale, "原油历史复盘", "Crude Oil Historical Replay"),
       knowledge_points: replay.event.skills,
-      exposure: { ...(current.scenario?.exposure ?? {}), risk: checkpoint.decision_required }
+      exposure: {
+        ...(current.scenario?.exposure ?? {}),
+        ...(replay.event.exposure ?? {}),
+        risk: checkpoint.decision_required
+      }
     },
     market,
     target_actions: [],
@@ -2155,6 +2183,34 @@ function marketStructureLabel(structure, locale) {
   return copy(locale, "平坦", "Flat");
 }
 
+function marketQualityLabel(provenance, locale) {
+  const quality = String(provenance?.quality ?? provenance?.mode ?? "ai_simulated").toLowerCase();
+  if (quality === "entitled_current" || quality === "live") return copy(locale, "授权实盘", "Entitled live");
+  if (quality === "cached_current" || quality === "live_cached") return copy(locale, "当前缓存", "Current cache");
+  if (quality === "stale" || quality === "live_stale_cache") return copy(locale, "过期缓存", "Stale cache");
+  if (quality === "historical_replay" || quality.includes("historically")) return copy(locale, "历史校准", "Historical calibration");
+  if (quality === "explicit_simulation_fallback") return copy(locale, "模拟回退", "Simulated fallback");
+  return copy(locale, "AI 模拟", "AI simulation");
+}
+
+function providerStatusCopy(status, locale) {
+  const normalized = String(status ?? "not_configured");
+  if (normalized === "ready" || normalized === "connected") {
+    return {
+      label: copy(locale, "已就绪", "Ready"),
+      detail: copy(locale, "订阅凭证和品种映射已就绪；生成时读取授权远期评估。", "Subscription credentials and symbol mappings are ready for entitled forward assessments."),
+      connected: true
+    };
+  }
+  if (normalized === "credentials_present_missing_symbol_map") {
+    return { label: copy(locale, "缺少映射", "Mapping required"), detail: copy(locale, "订阅凭证已识别，但还需配置各品种远期代码映射。", "Credentials are present; commodity forward-symbol mappings are still required."), connected: false };
+  }
+  if (normalized === "symbol_map_present_missing_credentials") {
+    return { label: copy(locale, "缺少凭证", "Credentials required"), detail: copy(locale, "品种映射已识别，但还未配置订阅凭证。", "Symbol mappings are present; subscription credentials are still required."), connected: false };
+  }
+  return { label: copy(locale, "未配置", "Not configured"), detail: copy(locale, "未配置订阅；生成时会明确回退到 AI 模拟市场。", "No subscription is configured; generation will clearly fall back to AI simulation."), connected: false };
+}
+
 function ForwardCurveStrip({ locale, market }) {
   const points = market.forward_curve ?? [];
   if (points.length < 2) return null;
@@ -2260,13 +2316,25 @@ function MarketChart({ caseData, fieldSelection, locale, setFieldSelection, stra
     <section className="panel market-panel" data-guide="market-chart">
       <div className="panel-title">
         <span>{t("marketContext", locale)}</span>
-        <strong>{market.provenance?.label ?? t("aiGeneratedData", locale)}</strong>
+        <strong className={`market-quality quality-${market.provenance?.quality ?? market.provenance?.mode ?? "simulated"}`}>{marketQualityLabel(market.provenance, locale)}</strong>
       </div>
       <div className="market-evidence-strip">
+        <span>{copy(locale, "数据证据", "Evidence quality")}<strong>{market.provenance?.label ?? t("aiGeneratedData", locale)}</strong></span>
         <span>{copy(locale, "远期结构", "Forward curve structure")}<strong>{marketStructureLabel(market.curve_metrics?.structure, locale)}</strong></span>
         <span>{copy(locale, "数据时点", "As of")}<strong>{copy(locale, `截至 ${market.as_of ?? market.provenance?.as_of ?? "--"}`, `As of ${market.as_of ?? market.provenance?.as_of ?? "--"}`)}</strong></span>
         <span>{copy(locale, "基准", "Benchmark")}<strong>{market.benchmark ?? curves[0]?.label ?? "--"}</strong></span>
       </div>
+      {market.provenance?.evidence_components?.length ? (
+        <div className="market-evidence-components" aria-label={copy(locale, "证据组成", "Evidence components")}>
+          {market.provenance.evidence_components.map((component) => (
+            <span className={`evidence-${component.mode}`} key={component.id}>
+              <Icon name={component.id === "forward_curve" ? "pulse" : "history"} />
+              <b>{component.id === "forward_curve" ? copy(locale, "远期曲线", "Forward curve") : copy(locale, "历史路径", "History path")}</b>
+              <small>{component.label}</small>
+            </span>
+          ))}
+        </div>
+      ) : null}
       <ForwardCurveStrip locale={locale} market={market} />
       <div className="chart-toolbar">
         <div className="segmented compact">
@@ -2483,12 +2551,20 @@ function RubricPanel({ caseData, locale }) {
   );
 }
 
-function AiThinkingPanel({ locale, titleKey = "aiThinkingTitle" }) {
+function AiThinkingPanel({ activeStage = "", locale, titleKey = "aiThinkingTitle" }) {
+  const stages = ["thinkingReadContext", "thinkingMatchKnowledge", "thinkingGenerateActions", "thinkingAssemble"];
+  const stageIndexes = {
+    read_workspace: 0,
+    plan_workspace_actions: 1,
+    stream_answer: 2,
+    apply_workspace_actions: 3
+  };
+  const activeIndex = activeStage ? (stageIndexes[activeStage] ?? 0) : stages.length - 1;
   return (
     <section className="thinking-panel active" aria-live="polite">
       <div className="panel-title compact-title"><span>{t(titleKey, locale)}</span><strong>{t("working", locale)}</strong></div>
       <ol className="thinking-steps">
-        {["thinkingReadContext", "thinkingMatchKnowledge", "thinkingGenerateActions", "thinkingAssemble"].map((key) => <li className="active" key={key}><i /><span>{t(key, locale)}</span></li>)}
+        {stages.map((key, index) => <li className={index < activeIndex ? "complete" : index === activeIndex ? "active" : ""} key={key}><i /><span>{t(key, locale)}</span></li>)}
       </ol>
     </section>
   );
@@ -2666,7 +2742,9 @@ function ProductTopbar({ activePage, aiReady, locale, onProductScopeChange, prod
           <span>{copy(locale, "通识 +", "General +")}</span>
           <select aria-label={copy(locale, "课程产品", "Course product")} onChange={(event) => onProductScopeChange(event.target.value)} value={productScope}>
             {productWorkspaces.map((item) => (
-              <option disabled={!item.enabled} key={item.id} value={item.id}>{labelFor(locale, item)}</option>
+              <option key={item.id} value={item.id}>
+                {labelFor(locale, item)}{item.coursesReady ? "" : copy(locale, "（课程建设中）", " (course scaffold)")}
+              </option>
             ))}
           </select>
         </label>
@@ -2890,6 +2968,51 @@ function AiTeachingPlanPanel({ aiLessonPlan, aiReady, learningProgress, locale, 
   );
 }
 
+function ProductScaffoldPage({ locale, workspace }) {
+  return (
+    <section className="cl-page cl-product-scaffold-page">
+      <PageTitle
+        icon={workspace.icon}
+        locale={locale}
+        titleZh={`${workspace.zh}工作区`}
+        titleEn={`${workspace.en} Workspace`}
+        subtitleZh="产品框架已经接入统一课程、训练和 AI 控制体系；产品专属课程尚未开放。"
+        subtitleEn="This product is wired into the shared curriculum, training, and AI-control framework; product-specific courses are not open yet."
+      />
+      <section className="cl-panel cl-product-scaffold">
+        <div className="cl-scaffold-status">
+          <span>{copy(locale, "课程状态", "Course status")}</span>
+          <strong>{copy(locale, "建设中", "Scaffold ready")}</strong>
+        </div>
+        <div className="cl-scaffold-grid">
+          <article>
+            <Icon name="library" />
+            <div>
+              <strong>{copy(locale, "共享通识层", "Shared general layer")}</strong>
+              <p>{copy(locale, "敞口、远期结构、期货/掉期、基差、期权、套保比率和风控沿用统一能力模型。", "Exposure, forward structure, futures/swaps, basis, options, hedge ratios, and controls use the shared competency model.")}</p>
+            </div>
+          </article>
+          <article>
+            <Icon name={workspace.icon} />
+            <div>
+              <strong>{copy(locale, "计划覆盖", "Planned scope")}</strong>
+              <p>{copy(locale, workspace.scopeZh, workspace.scopeEn)}</p>
+            </div>
+          </article>
+          <article>
+            <Icon name="sparkles" />
+            <div>
+              <strong>{copy(locale, "后续接入方式", "Future integration")}</strong>
+              <p>{copy(locale, "课程、实时/复盘行情、AI 生成案例和本地评分将复用现有工作台，不另建孤立功能。", "Courses, live/replay markets, AI-generated cases, and local scoring will reuse the existing workbench instead of creating isolated tools.")}</p>
+            </div>
+          </article>
+        </div>
+        <p className="cl-scaffold-note">{copy(locale, "当前正式课程仅开放欧洲天然气与原油；这里不显示占位题目或虚假进度。", "Only European Natural Gas and Crude Oil courses are currently open. This workspace does not show placeholder drills or fake progress.")}</p>
+      </section>
+    </section>
+  );
+}
+
 function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, locale, onGenerate, onPageChange, productScope }) {
   const workspace = productWorkspace(productScope);
   const visibleTracks = tracksForProduct(productScope);
@@ -3008,6 +3131,7 @@ function MarketEvidenceSelector({ capabilities, locale, marketMode, marketRegime
   const replayCommodity = productScope === "crude_oil" ? "crude_oil" : "natural_gas";
   const replays = allReplays.filter((item) => item.commodity === replayCommodity);
   const platts = capabilities?.providers?.find((provider) => provider.id === "platts") ?? fallbackMarketCapabilities(locale).providers[0];
+  const plattsState = providerStatusCopy(platts.status, locale);
   const activeReplay = replays.find((item) => item.id === replayId) ?? replays[0];
   const orderedModes = ["ai_simulated", "historical_replay", "live"]
     .map((id) => modes.find((mode) => mode.id === id))
@@ -3067,11 +3191,9 @@ function MarketEvidenceSelector({ capabilities, locale, marketMode, marketRegime
         <div className="cl-market-mode-detail live">
           <div>
             <strong>{platts.label}</strong>
-            <p>{platts.status === "connected"
-              ? copy(locale, "使用已授权行情并锁定数据时点。", "Use entitled prices and lock the data as-of time.")
-              : copy(locale, "未连接订阅；生成时会明确回退到 AI 模拟市场。", "No subscription; generation will clearly fall back to AI simulation.")}</p>
+            <p>{plattsState.detail}</p>
           </div>
-          <span className={platts.status === "connected" ? "cl-source-status connected" : "cl-source-status"}>{platts.status === "connected" ? copy(locale, "已连接", "Connected") : copy(locale, "未配置", "Not configured")}</span>
+          <span className={plattsState.connected ? "cl-source-status connected" : "cl-source-status"}>{plattsState.label}</span>
         </div>
       ) : null}
     </div>
@@ -3370,7 +3492,7 @@ function DecisionTaskPanel({ caseData, locale }) {
       <div className="cl-panel-heading"><span>1 {copy(locale, "决策任务", "Decision Task")}</span><strong>{caseData.scenario?.business_type}</strong></div>
       <MarkdownText text={caseData.prompt} />
       <div className="cl-exposure-strip">
-        <span>{copy(locale, "方向", "Exposure")}<strong>{caseData.scenario?.exposure?.direction ?? "--"}</strong></span>
+        <span>{copy(locale, "方向", "Exposure")}<strong>{exposureDirectionLabel(caseData.scenario?.exposure?.direction, locale)}</strong></span>
         <span>{copy(locale, "数量", "Volume")}<strong>{formatNumber(caseData.scenario?.exposure?.volume_mmbtu)} {volumeUnit}</strong></span>
         <span>{copy(locale, "风险", "Risk")}<strong>{caseData.scenario?.exposure?.risk ?? "--"}</strong></span>
       </div>
@@ -3392,7 +3514,7 @@ function CaseHero({ activeTemplate, caseData, locale }) {
         </div>
       </div>
       <dl>
-        <div><dt>{copy(locale, "敞口方向", "Exposure Direction")}</dt><dd>{caseData.scenario?.exposure?.direction ?? "--"}</dd></div>
+        <div><dt>{copy(locale, "敞口方向", "Exposure Direction")}</dt><dd>{exposureDirectionLabel(caseData.scenario?.exposure?.direction, locale)}</dd></div>
         <div><dt>{copy(locale, "期限", "Tenor")}</dt><dd>1-3M</dd></div>
         <div><dt>{copy(locale, "业务类型", "Business Type")}</dt><dd>{caseData.scenario?.business_type ?? "--"}</dd></div>
       </dl>
@@ -3493,7 +3615,7 @@ function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData
   );
 }
 
-function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onPageChange, replayHistory = [], runAiAction, strategyLegs }) {
+function ReviewPage({ advisorFeedback, caseData, evaluation, exam, locale, onGenerateVariant, onPageChange, replayHistory = [], runAiAction, strategyLegs }) {
   const target = caseData.target_actions ?? [];
   const quizQuestions = quizQuestionsFromText(exam);
   const quizOnly = quizQuestions.length > 0 && !evaluation;
@@ -3544,6 +3666,12 @@ function ReviewPage({ caseData, evaluation, exam, locale, onGenerateVariant, onP
                 </article>
               ))}
             </div>
+          </section>
+        ) : null}
+        {advisorFeedback ? (
+          <section className="cl-panel cl-review-advisor" aria-live="polite">
+            <div className="cl-panel-heading"><span>{copy(locale, "AI 节点复盘", "AI Checkpoint Review")}</span><strong>{copy(locale, "基于当前案例", "Current case")}</strong></div>
+            <MarkdownText text={advisorFeedback} />
           </section>
         ) : null}
         <section className="cl-panel cl-score-summary">
@@ -3848,7 +3976,7 @@ function SettingsPage({ locale, settingsPanel }) {
   );
 }
 
-function FloatingAssistant({ activePage, aiReady, applyAction, interventions, locale, messages, onOpen, onSend, thinking }) {
+function FloatingAssistant({ activePage, aiReady, applyAction, assistantStage, interventions, locale, messages, onOpen, onSend, thinking }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const currentPage = navItems.find((item) => item.id === activePage);
@@ -3931,7 +4059,7 @@ function FloatingAssistant({ activePage, aiReady, applyAction, interventions, lo
                 </div>
               </div>
             )}
-            {thinking ? <AiThinkingPanel locale={locale} titleKey="assistantWorking" /> : null}
+            {thinking ? <AiThinkingPanel activeStage={assistantStage} locale={locale} titleKey="assistantWorking" /> : null}
           </div>
           <form onSubmit={submit}><textarea disabled={!aiReady || thinking} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={t("assistantPlaceholder", locale)} /><button className="primary" disabled={!aiReady || thinking || !draft.trim()} type="submit">{thinking ? t("loading", locale) : t("send", locale)}</button></form>
         </section>
@@ -4032,6 +4160,7 @@ export default function App() {
   const [serviceMessage, setServiceMessage] = useState("");
   const [updateInfo, setUpdateInfo] = useState({ current_version: currentVersion });
   const [assistantMessages, setAssistantMessages] = useState([]);
+  const [assistantStage, setAssistantStage] = useState("");
   const [learningRecords, setLearningRecords] = useState(() => loadLearningRecords());
   const [aiGuidanceAction, setAiGuidanceAction] = useState("");
   const [aiInterventions, setAiInterventions] = useState([]);
@@ -4040,6 +4169,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => savedValue("commodity-lab-sidebar-collapsed", "") === "1");
   const generationRequestRef = useRef(0);
   const assistantRequestRef = useRef(0);
+  const replayCoachRequestRef = useRef(0);
   const aiReady = Boolean(providerStatus?.haineng?.ok);
   const scopedLearningRecords = useMemo(() => learningRecords.filter((record) => {
     const recordScope = record.product_scope ?? productScopeForTemplate(record.template_id);
@@ -4089,6 +4219,7 @@ export default function App() {
     if (!workspace.enabled || nextScope === productScope) return;
     generationRequestRef.current += 1;
     assistantRequestRef.current += 1;
+    replayCoachRequestRef.current += 1;
     localStorage.setItem("commodity-lab-product-scope", nextScope);
     setProductScopeState(nextScope);
     const availableTemplates = templatesForProduct(templates.templates ?? fallbackTemplates.templates, nextScope);
@@ -4105,6 +4236,7 @@ export default function App() {
     setExam("");
     setAiOutput(null);
     setAssistantMessages([]);
+    setAssistantStage("");
     setGenerationStages([]);
     setGenerationStream(null);
     setLoadingTemplate("");
@@ -4400,10 +4532,13 @@ export default function App() {
         appendLearningRecord(recordLearningAttempt({ activeTemplateId, caseData, evaluation: nextEvaluation, productScope, rationale, strategyLegs }));
         setAiOutput(null);
         showAiGuidance(copy(locale, "本节点已即时评分，下一阶段市场现在可以揭示。", "This checkpoint was scored instantly; the next market phase can now be revealed."));
+        setBusyAction("");
+        if (aiReady) void requestReplayCoach(result);
       } catch (error) {
         setServiceMessage(formatErrorMessage(error, locale));
-      } finally {
         setBusyAction("");
+      } finally {
+        if (!aiReady) setBusyAction("");
       }
       return;
     }
@@ -4415,6 +4550,42 @@ export default function App() {
     setActivePage(pageIds.review);
   }
 
+  async function requestReplayCoach(result) {
+    const requestId = replayCoachRequestRef.current + 1;
+    replayCoachRequestRef.current = requestId;
+    let answer = "";
+    setAdvisorFeedback("");
+    setBusyAction("advisor_review");
+    try {
+      await backendStreamRequest("/api/v1/ai/advisor-review/stream", {
+        ...buildAiPayload("advisor_review"),
+        evaluation: result.evaluation,
+        market_context: {
+          case: caseData,
+          strategy_legs: strategyLegs,
+          replay_decision: result
+        }
+      }, (event, data) => {
+        if (replayCoachRequestRef.current !== requestId) return;
+        if (event === "model_delta") {
+          answer += data.delta ?? "";
+          setAdvisorFeedback(answer);
+        }
+        if (event === "review" && data.answer) {
+          answer = data.answer;
+          setAdvisorFeedback(answer);
+        }
+      });
+      if (replayCoachRequestRef.current === requestId) {
+        showAiGuidance(copy(locale, "AI 已结合本节点评分给出下一步观察重点。", "AI reviewed this checkpoint and highlighted what to watch next."));
+      }
+    } catch (error) {
+      if (replayCoachRequestRef.current === requestId) setServiceMessage(formatErrorMessage(error, locale));
+    } finally {
+      if (replayCoachRequestRef.current === requestId) setBusyAction("");
+    }
+  }
+
   async function advanceReplay() {
     if (!replayDecision) return;
     if (replayDecision.next_checkpoint == null) {
@@ -4423,6 +4594,7 @@ export default function App() {
     }
     const replay = caseData.market?.replay;
     if (!replay?.event?.id) return;
+    replayCoachRequestRef.current += 1;
     setBusyAction("replay_advance");
     setServiceMessage("");
     try {
@@ -4556,42 +4728,111 @@ export default function App() {
     const requestId = assistantRequestRef.current + 1;
     assistantRequestRef.current = requestId;
     const userMessage = { role: "user", content: message };
-    setAssistantMessages((current) => [...current, userMessage]);
+    const workspace = productWorkspace(productScope);
+    if (!workspace.coursesReady) {
+      setAssistantMessages((current) => [...current, userMessage, {
+        role: "assistant",
+        content: copy(locale, "该产品工作区的框架已经建立，但专属课程尚未开放。当前可训练欧洲天然气或原油。", "This product workspace is scaffolded, but its product-specific courses are not open yet. European Natural Gas and Crude Oil are currently trainable."),
+        actions: []
+      }]);
+      return;
+    }
+    setAssistantMessages((current) => [...current, userMessage, { role: "assistant", content: "", actions: [], streaming: true }]);
     setBusyAction("assistant");
+    setAssistantStage("read_workspace");
     try {
-      const curriculum = curriculumReference(locale, productScope);
-      const payload = await backendRequest("POST", "/api/v1/ai/live-assistant", {
+      const activeTrack = learningTracks.find((track) => track.templateId === activeTemplateId)
+        ?? tracksForProduct(productScope)[0];
+      const market = caseData.market ?? {};
+      const compactCurves = (market.curves ?? []).slice(0, 3).map((curve) => ({
+        id: curve.id,
+        label: curve.label,
+        points: Array.isArray(curve.points) && curve.points.length ? [curve.points.at(-1)] : []
+      }));
+      let modelBuffer = "";
+      let payload = null;
+      await backendStreamRequest("/api/v1/ai/live-assistant/stream", {
         locale,
         message,
         workspace_state: {
           active_page: activePage,
           active_template_id: activeTemplateId,
           product_scope: productScope,
-          curriculum_context: curriculum,
-          case: caseData,
+          curriculum_context: activeTrack ? {
+            track_id: activeTrack.id,
+            track_title: labelFor(locale, activeTrack),
+            learning_objective: copy(locale, activeTrack.detailZh, activeTrack.detailEn)
+          } : {},
+          case: {
+            scenario: caseData.scenario,
+            prompt: caseData.prompt,
+            rubric: caseData.rubric,
+            market: {
+              benchmark: market.benchmark,
+              unit: market.unit,
+              as_of: market.as_of,
+              curve_metrics: market.curve_metrics,
+              forward_curve: (market.forward_curve ?? []).slice(0, 6),
+              curves: compactCurves,
+              replay: market.replay
+            }
+          },
           ai_lesson_plan: aiLessonPlan,
           evaluation,
           learning_progress: learningProgress,
-          recent_attempts: scopedLearningRecords.slice(-8),
-          replay_history: replayHistory,
-          strategy_legs: strategyLegs
+          recent_attempts: scopedLearningRecords.slice(-3),
+          strategy_legs: strategyLegs,
+          rationale
+        }
+      }, (event, data) => {
+        if (assistantRequestRef.current !== requestId) return;
+        if (event === "stage") {
+          setAssistantStage(data.id ?? "read_workspace");
+          return;
+        }
+        if (event === "model_delta") {
+          modelBuffer += data.delta ?? "";
+          setAssistantStage("stream_answer");
+          const preview = partialJsonString(modelBuffer, "answer");
+          if (preview) {
+            setAssistantMessages((current) => current.map((item, index) => index === current.length - 1
+              ? { ...item, content: preview, streaming: true }
+              : item));
+          }
+          return;
+        }
+        if (event === "result") {
+          payload = data;
+          setAssistantMessages((current) => current.map((item, index) => index === current.length - 1
+            ? { role: "assistant", content: data.answer ?? "", actions: data.actions ?? [], streaming: false }
+            : item));
         }
       });
       if (assistantRequestRef.current !== requestId) return;
+      if (!payload) throw new Error(copy(locale, "AI 未返回可用结果。", "AI returned no usable result."));
       const actions = payload.actions ?? [];
-      setAssistantMessages((current) => [...current, { role: "assistant", content: payload.answer, actions }]);
       const actionable = actions
         .filter((action) => assistantAutoActionTypes.includes(action.type))
         .sort((a, b) => assistantAutoActionTypes.indexOf(a.type) - assistantAutoActionTypes.indexOf(b.type));
       const localActions = actionable.filter((action) => assistantLocalActionTypes.includes(action.type));
       const generationActions = actionable.filter((action) => !assistantLocalActionTypes.includes(action.type));
-      (localActions.length ? localActions.slice(0, 8) : generationActions.slice(0, 1)).forEach(applyAssistantAction);
+      const actionsToApply = localActions.length ? localActions.slice(0, 8) : generationActions.slice(0, 1);
+      setAssistantStage("apply_workspace_actions");
+      for (const action of actionsToApply) {
+        applyAssistantAction(action);
+        await new Promise((resolve) => window.setTimeout(resolve, 220));
+      }
     } catch (error) {
       if (assistantRequestRef.current === requestId) {
-        setAssistantMessages((current) => [...current, { role: "assistant", content: formatErrorMessage(error, locale), actions: [] }]);
+        setAssistantMessages((current) => current.map((item, index) => index === current.length - 1
+          ? { role: "assistant", content: formatErrorMessage(error, locale), actions: [], streaming: false }
+          : item));
       }
     } finally {
-      if (assistantRequestRef.current === requestId) setBusyAction("");
+      if (assistantRequestRef.current === requestId) {
+        setAssistantStage("");
+        setBusyAction("");
+      }
     }
   }
 
@@ -4751,6 +4992,10 @@ export default function App() {
   }
 
   function renderActivePage() {
+    const workspace = productWorkspace(productScope);
+    if (!workspace.coursesReady && activePage !== pageIds.settings) {
+      return <ProductScaffoldPage locale={locale} workspace={workspace} />;
+    }
     if (activePage === pageIds.caseLab) {
       return (
         <AiCaseLabPage
@@ -4786,7 +5031,7 @@ export default function App() {
       );
     }
     if (activePage === pageIds.review) {
-      return <ReviewPage caseData={caseData} evaluation={evaluation} exam={exam} locale={locale} onGenerateVariant={generateVariant} onPageChange={setActivePage} replayHistory={replayHistory} runAiAction={runAiAction} strategyLegs={strategyLegs} />;
+      return <ReviewPage advisorFeedback={advisorFeedback} caseData={caseData} evaluation={evaluation} exam={exam} locale={locale} onGenerateVariant={generateVariant} onPageChange={setActivePage} replayHistory={replayHistory} runAiAction={runAiAction} strategyLegs={strategyLegs} />;
     }
     if (activePage === pageIds.library) {
       return <ScenarioLibraryPage activeTemplateId={activeTemplateId} learningProgress={learningProgress} locale={locale} loadingTemplate={loadingTemplate} onGenerate={generateTrainingCase} onPageChange={setActivePage} productScope={productScope} />;
@@ -4828,7 +5073,7 @@ export default function App() {
         </section>
       </div>
 
-      <FloatingAssistant activePage={activePage} aiReady={aiReady} applyAction={applyAssistantAction} interventions={aiInterventions} locale={locale} messages={assistantMessages} onOpen={completeGuide} onSend={sendAssistant} thinking={busyAction === "assistant"} />
+      <FloatingAssistant activePage={activePage} aiReady={aiReady} applyAction={applyAssistantAction} assistantStage={assistantStage} interventions={aiInterventions} locale={locale} messages={assistantMessages} onOpen={completeGuide} onSend={sendAssistant} thinking={busyAction === "assistant"} />
 
       {guideIndex >= 0 ? (
         <GuidedOverlay

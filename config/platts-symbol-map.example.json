@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "natural_gas": {
+    "benchmark": "TTF",
+    "unit": "EUR/MWh",
+    "label_en": "TTF forward assessments",
+    "label_zh": "TTF 远期评估",
+    "forward_symbols": [
+      {
+        "tenor": "M+1",
+        "symbol": "CUSTOMER_ENTITLED_TTF_M1_SYMBOL"
+      },
+      {
+        "tenor": "M+2",
+        "symbol": "CUSTOMER_ENTITLED_TTF_M2_SYMBOL"
+      }
+    ]
+  },
+  "crude_oil": {
+    "benchmark": "Brent",
+    "unit": "USD/bbl",
+    "label_en": "Brent forward assessments",
+    "label_zh": "Brent 远期评估",
+    "forward_symbols": [
+      {
+        "tenor": "M+1",
+        "symbol": "CUSTOMER_ENTITLED_BRENT_M1_SYMBOL"
+      },
+      {
+        "tenor": "M+2",
+        "symbol": "CUSTOMER_ENTITLED_BRENT_M2_SYMBOL"
+      }
+    ]
+  }
+}

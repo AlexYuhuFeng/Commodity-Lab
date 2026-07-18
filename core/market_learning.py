@@ -9,7 +9,6 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 import math
-import os
 import random
 import re
 from typing import Any, Iterable
@@ -270,6 +269,7 @@ _REPLAY_EVENTS: list[dict[str, Any]] = [
                 "publisher": "U.S. Energy Information Administration",
                 "title": "Petroleum markets responded to disruptions in the Middle East in the second quarter",
                 "published": "2026-07-15",
+                "available_from": "2026-07-15",
                 "url": "https://www.eia.gov/todayinenergy/detail.php?id=67865",
                 "use": "Event chronology and reported Brent range; training curves are simulated rather than copied from the licensed source cited by EIA.",
             }
@@ -351,7 +351,140 @@ _REPLAY_EVENTS: list[dict[str, Any]] = [
                 "seed": 260617,
             },
         ],
-    }
+    },
+    {
+        "id": "european_gas_crisis_2022",
+        "commodity": "natural_gas",
+        "title": {
+            "zh": "2022 欧洲天然气危机与 LNG 拥堵复盘",
+            "en": "2022 European gas crisis and LNG-congestion replay",
+        },
+        "summary": {
+            "zh": "从欧洲公用事业采购视角，经历管道供应收紧、TTF 极端上涨和高库存/LNG 拥堵，连续管理实货、TTF 纸货、储气、气化窗口与期权。",
+            "en": "Manage physical supply, TTF paper, storage, regas slots, and options through pipeline cuts, the TTF price spike, and the later high-storage/LNG-congestion phase.",
+        },
+        "exposure": {
+            "direction": "long",
+            "volume": 100000,
+            "unit": "MWh",
+            "risk": {
+                "zh": "冬季客户交付义务面临 TTF 采购成本、供应来源、储气注采和气化能力风险",
+                "en": "Winter customer delivery obligation exposed to TTF procurement cost, supply source, storage deliverability, and regas capacity",
+            },
+        },
+        "skills": ["flat_price", "physical_paper_matching", "storage", "lng_regas", "options", "risk_controls"],
+        "source_notes": [
+            {
+                "publisher": "U.S. Energy Information Administration",
+                "title": "Europe imported record amounts of liquefied natural gas in 2022",
+                "published": "2022-06-14",
+                "available_from": "2022-06-14",
+                "url": "https://www.eia.gov/todayinenergy/detail.php?id=52758",
+                "use": "Contemporaneous context for low storage, record LNG inflows, and high European hub prices.",
+            },
+            {
+                "publisher": "European Commission",
+                "title": "New reports highlight third-quarter impact of gas supply cuts",
+                "published": "2023-01-13",
+                "available_from": "2023-01-13",
+                "url": "https://energy.ec.europa.eu/news/new-reports-highlight-3rd-quarter-impact-gas-supply-cuts-2023-01-13_en",
+                "use": "Retrospective calibration for Nord Stream supply reductions and the late-August wholesale price peak above EUR 300/MWh.",
+            },
+            {
+                "publisher": "European Commission",
+                "title": "Quarterly reports confirm stabilising gas and electricity markets at the end of 2022",
+                "published": "2023-05-17",
+                "available_from": "2023-05-17",
+                "url": "https://energy.ec.europa.eu/news/quarterly-reports-confirm-stabilising-gas-and-electricity-markets-end-2022-2023-05-17_en",
+                "use": "Retrospective calibration for high storage, LNG unloading constraints, grid congestion, and the October spot-price dip.",
+            },
+            {
+                "publisher": "International Energy Agency",
+                "title": "Securing natural gas supply in times of crisis",
+                "published": "2022-10-03",
+                "available_from": "2022-10-03",
+                "url": "https://www.iea.org/reports/gas-market-report-q4-2022/securing-natural-gas-supply-in-times-of-crisis",
+                "use": "Contemporaneous context for LNG rerouting, storage targets, demand reduction, and supply-diversification measures.",
+            },
+        ],
+        "checkpoints": [
+            {
+                "date": "2022-06-14",
+                "label": {"zh": "供应收紧与补库竞争", "en": "Supply tightening and refill competition"},
+                "facts": {
+                    "zh": ["欧洲储气从偏低水平进入补库季", "欧洲 LNG 进口创纪录，现货船货竞争增强", "传统管道供应不足，欧洲枢纽价格相对其他地区维持溢价"],
+                    "en": ["Europe enters the refill season from relatively low storage", "European LNG imports set records and competition for flexible cargoes intensifies", "Traditional pipeline supply is insufficient and European hubs retain a premium to other regions"],
+                },
+                "decision_required": {
+                    "zh": "你负责 10-12 月 100,000 MWh 客户交付。确定实货来源、TTF 套保比例、储气和气化窗口安排。",
+                    "en": "You manage a 100,000 MWh October-December customer obligation. Set physical sourcing, TTF hedge ratio, storage, and regas-slot coverage.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Flexible LNG / pipeline supply", "side": "buy", "quantity": 100000, "tenor": "Q4"},
+                    {"leg_type": "swap", "market": "TTF Q4 swap", "side": "buy", "quantity": 70000, "tenor": "Q4"},
+                    {"leg_type": "option", "market": "TTF call", "side": "buy", "quantity": 30000, "tenor": "Q4"},
+                    {"leg_type": "capacity", "market": "Storage injection / regas slot", "side": "buy", "quantity": 1, "tenor": "Summer-Q4"},
+                ],
+                "outcome": {
+                    "zh": "随后供应压力和补库竞争推动 TTF 与波动率继续上升。分层锁价与保留上行期权，比一次性锁满更能兼顾流动性和数量不确定性。",
+                    "en": "Supply pressure and refill competition subsequently lifted TTF and volatility. Layered fixed-price cover plus upside options balanced liquidity and volume uncertainty better than locking everything at once.",
+                },
+                "regime": "backwardation",
+                "base_price": 120.0,
+                "seed": 220614,
+            },
+            {
+                "date": "2022-08-26",
+                "label": {"zh": "TTF 极端上涨", "en": "Extreme TTF price spike"},
+                "facts": {
+                    "zh": ["俄罗斯管道供应进一步下降", "TTF 批发价格升至历史极端区间", "高波动抬升保证金、流动性和信用占用"],
+                    "en": ["Russian pipeline supply falls further", "TTF wholesale prices enter an extreme historical range", "Volatility raises margin, liquidity, and credit usage"],
+                },
+                "decision_required": {
+                    "zh": "检查原套保的覆盖率和保证金承受力，决定是否用价差或期权替代继续追涨期货，并确保实货可交付。",
+                    "en": "Check hedge coverage and margin capacity, decide whether spreads or options should replace additional futures, and secure deliverable physical supply.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Delivered European gas / LNG", "side": "buy", "quantity": 100000, "tenor": "Q4"},
+                    {"leg_type": "swap", "market": "TTF Q4 swap", "side": "buy", "quantity": 50000, "tenor": "Q4"},
+                    {"leg_type": "option", "market": "TTF call spread", "side": "buy", "quantity": 50000, "tenor": "Q4"},
+                    {"leg_type": "capacity", "market": "Firm storage withdrawal / regas", "side": "buy", "quantity": 1, "tenor": "Q4"},
+                ],
+                "outcome": {
+                    "zh": "在极端价格区间继续等比例追加掉期会放大保证金和回撤风险；价差期权、分层执行和已确认实货交付降低了尾部暴露。",
+                    "en": "Adding swaps one-for-one in an extreme price range amplified margin and reversal risk. Call spreads, staged execution, and confirmed physical deliverability reduced tail exposure.",
+                },
+                "regime": "volatile",
+                "base_price": 305.0,
+                "seed": 220826,
+            },
+            {
+                "date": "2022-10-24",
+                "label": {"zh": "高库存与 LNG 拥堵", "en": "High storage and LNG congestion"},
+                "facts": {
+                    "zh": ["储气水平显著提高且需求下降", "西北欧出现 LNG 卸货与管网拥堵", "TTF 现货和近端价格从高位大幅回落"],
+                    "en": ["Storage is materially higher while demand falls", "Northwest Europe faces LNG unloading and grid congestion", "TTF spot and prompt prices fall sharply from the peak"],
+                },
+                "decision_required": {
+                    "zh": "重新评估库存和未到船货的下行风险，平掉不再需要的上行保护，并管理近端拥堵与冬季交付之间的期限错配。",
+                    "en": "Reassess downside risk on inventory and incoming cargoes, unwind unneeded upside protection, and manage the tenor mismatch between prompt congestion and winter delivery.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Stored gas / incoming LNG", "side": "buy", "quantity": 100000, "tenor": "Winter"},
+                    {"leg_type": "swap", "market": "TTF inventory hedge", "side": "sell", "quantity": 70000, "tenor": "M+1"},
+                    {"leg_type": "option", "market": "TTF call", "side": "sell", "quantity": 30000, "tenor": "M+1"},
+                    {"leg_type": "basis", "market": "TTF prompt / winter spread", "side": "sell", "quantity": 50000, "tenor": "M+1/Winter"},
+                ],
+                "outcome": {
+                    "zh": "近端供给过剩和拥堵压低现货，但冬季风险并未消失。库存下行保护、期限价差和有序平掉看涨保护可避免把短缺阶段头寸带入供给宽松阶段。",
+                    "en": "Prompt oversupply and congestion weakened spot prices without eliminating winter risk. Inventory downside cover, tenor spreads, and orderly call unwinds avoided carrying scarcity positioning into a looser phase.",
+                },
+                "regime": "contango",
+                "base_price": 100.0,
+                "seed": 221024,
+            },
+        ],
+    },
 ]
 
 
@@ -366,7 +499,12 @@ def _localize_checkpoint(checkpoint: dict[str, Any], locale: str, index: int) ->
     }
 
 
-def _replay_rubric(locale: str) -> list[dict[str, Any]]:
+def _replay_rubric(locale: str, commodity: str = "crude_oil") -> list[dict[str, Any]]:
+    risk_rule = (
+        _localized(locale, "解释价格、基差、储气/运力、期权与交付风险。", "Explain price, basis, storage/capacity, options, and delivery risk.")
+        if commodity == "natural_gas"
+        else _localized(locale, "解释价格、月差/基差、期权和运费风险。", "Explain price, calendar/basis, option, and freight risk.")
+    )
     return [
         {
             "id": "decision_structure",
@@ -378,7 +516,7 @@ def _replay_rubric(locale: str) -> list[dict[str, Any]]:
             "id": "risk_reasoning",
             "label": _localized(locale, "风险推理", "Risk reasoning"),
             "points": 25,
-            "rule": _localized(locale, "解释价格、月差/基差、期权和运费风险。", "Explain price, calendar/basis, option, and freight risk."),
+            "rule": risk_rule,
         },
         {
             "id": "controls",
@@ -450,9 +588,13 @@ def build_replay_session(event_id: str, checkpoint: int = 0, locale: str = "en")
             for index, item in enumerate(event["checkpoints"][: checkpoint + 1])
         ],
         "next_checkpoint": checkpoint + 1 if checkpoint + 1 < len(event["checkpoints"]) else None,
-        "decision_rubric": _replay_rubric(locale),
+        "decision_rubric": _replay_rubric(locale, event["commodity"]),
         "market": market,
-        "source_notes": deepcopy(event["source_notes"]),
+        "source_notes": [
+            deepcopy(note)
+            for note in event["source_notes"]
+            if str(note.get("available_from") or note.get("published") or "9999-12-31") <= current["date"]
+        ],
         "information_policy": _localized(
             locale,
             "只显示该决策时点已经发生的信息；后续市场结果在提交决策后才揭示。",
@@ -477,7 +619,10 @@ def _absolute_number(value: Any) -> float:
 
 
 def _target_leg_score(target: dict[str, Any], candidate: dict[str, Any]) -> float:
-    if str(target.get("leg_type", "")).lower() != str(candidate.get("leg_type", "")).lower():
+    target_type = str(target.get("leg_type", "")).lower()
+    candidate_type = str(candidate.get("leg_type", "")).lower()
+    equivalent_paper_types = {"future", "swap"}
+    if target_type != candidate_type and not {target_type, candidate_type}.issubset(equivalent_paper_types):
         return 0.0
     score = 0.5
     if str(target.get("side", "")).lower() == str(candidate.get("side", "")).lower():
@@ -525,7 +670,7 @@ def evaluate_replay_decision(
         ("price", "flat price", "价格", "上涨", "下跌", "波动"),
         ("basis", "spread", "calendar", "基差", "价差", "月差"),
         ("option", "call", "put", "期权", "可选性"),
-        ("freight", "capacity", "shipping", "运费", "运力", "船期"),
+        ("freight", "capacity", "shipping", "storage", "inventory", "regas", "运费", "运力", "船期", "储气", "库存", "气化"),
     ]
     control_terms = ("margin", "liquidity", "credit", "limit", "execution", "保证金", "流动性", "信用", "限额", "执行")
     risk_covered = sum(any(term in reasoning_text for term in group) for group in risk_groups)
@@ -549,6 +694,8 @@ def evaluate_replay_decision(
         feedback = _localized(locale, "组合结构完整，可以推进到下一市场节点。", "The hedge is coherent enough to advance to the next market checkpoint.")
     elif baseline_score >= 60:
         feedback = _localized(locale, "方向基本正确，但仍需补足数量、期限或执行风控。", "The direction is broadly sound, but sizing, tenor, or execution controls still need work.")
+    elif has_physical and has_paper:
+        feedback = _localized(locale, "组合已包含实货和纸货，但与本节点要求的工具、数量、期限或执行条件仍有偏差。", "The portfolio contains physical and paper legs, but instrument, sizing, tenor, or execution details still differ from this checkpoint's requirements.")
     else:
         feedback = _localized(locale, "先补齐实货与纸货的对应关系，再检查风险解释和执行条件。", "First connect the physical and paper legs, then strengthen the risk rationale and execution controls.")
 
@@ -558,7 +705,7 @@ def evaluate_replay_decision(
         "evaluation": {
             "valid": True,
             "baseline_score": baseline_score,
-            "rubric": _replay_rubric(locale),
+            "rubric": _replay_rubric(locale, event["commodity"]),
             "mistake_tags": mistake_tags,
             "dimensions": [
                 {"id": "decision_structure", "score": decision_score, "points": 55},
@@ -577,14 +724,14 @@ def evaluate_replay_decision(
         "model_strategy": deepcopy(targets),
         "next_checkpoint": checkpoint + 1 if checkpoint + 1 < len(event["checkpoints"]) else None,
         "complete": checkpoint + 1 >= len(event["checkpoints"]),
+        "source_notes": deepcopy(event["source_notes"]) if checkpoint + 1 >= len(event["checkpoints"]) else [],
     }
 
 
 def market_capability_catalog(locale: str = "en") -> dict[str, Any]:
-    platts_credentials_present = bool(
-        os.getenv("COMMODITY_LAB_PLATTS_CLIENT_ID", "").strip()
-        and os.getenv("COMMODITY_LAB_PLATTS_CLIENT_SECRET", "").strip()
-    )
+    from core.platts_market import capability_status
+
+    platts_status = capability_status()
     return {
         "modes": [
             {
@@ -607,10 +754,8 @@ def market_capability_catalog(locale: str = "en") -> dict[str, Any]:
             {
                 "id": "platts",
                 "label": "S&P Global Commodity Insights (Platts)",
-                "status": "credentials_present" if platts_credentials_present else "not_configured",
-                "integration_state": "adapter_contract_ready",
+                **platts_status,
                 "delivery_options": ["REST API", "streaming", "sFTP"],
-                "requires_subscription": True,
             }
         ],
         "fallback_mode": "ai_simulated",

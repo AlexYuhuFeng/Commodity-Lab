@@ -239,7 +239,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.2.1",
+        "current_version": "1.3.0",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -248,7 +248,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.2.1"
+    current_version = "1.3.0"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -305,6 +305,23 @@ def v1_market_simulate(payload: SimulatedMarketRequest):
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/market/live-preview")
+def v1_market_live_preview(commodity: str = "natural_gas", locale: str = "en", force_refresh: bool = False):
+    from core.platts_market import PlattsError, PlattsMarketClient
+
+    try:
+        return PlattsMarketClient().fetch_market_context(
+            commodity,
+            locale=locale,
+            force_refresh=force_refresh,
+        )
+    except PlattsError as exc:
+        raise HTTPException(
+            status_code=424,
+            detail={"code": exc.code, "message": "Entitled Platts market data is unavailable."},
+        ) from exc
 
 
 @app.get("/api/v1/replays")
@@ -511,6 +528,125 @@ def _parse_json_response(text: str) -> dict[str, Any]:
     raise ValueError("AI response did not include a JSON object.")
 
 
+def _positive_quantity(*values: Any) -> int | float | None:
+    for value in values:
+        try:
+            quantity = float(value)
+        except (TypeError, ValueError):
+            continue
+        if quantity <= 0:
+            continue
+        return int(quantity) if quantity.is_integer() else quantity
+    return None
+
+
+def _stated_case_quantity(case: dict[str, Any]) -> tuple[int | float | None, str]:
+    scenario = case.get("scenario", {})
+    text = "\n".join(
+        str(value or "")
+        for value in (case.get("prompt"), scenario.get("summary"), scenario.get("title"))
+    )
+    pattern = re.compile(
+        r"(?<![\d.])(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*"
+        r"(\u4e07|\u5343|million|thousand)?\s*(bbl|barrels?|\u6876|MWh|MMBtu)(?![A-Za-z])",
+        flags=re.IGNORECASE,
+    )
+    match = pattern.search(text)
+    if not match:
+        return None, ""
+    quantity = float(match.group(1).replace(",", ""))
+    multiplier = (match.group(2) or "").lower()
+    if multiplier in {"\u4e07", "million"}:
+        quantity *= 10_000 if multiplier == "\u4e07" else 1_000_000
+    elif multiplier in {"\u5343", "thousand"}:
+        quantity *= 1_000
+    raw_unit = match.group(3).lower()
+    unit = "bbl" if raw_unit in {"bbl", "barrel", "barrels", "\u6876"} else "MWh" if raw_unit == "mwh" else "MMBtu"
+    return (int(quantity) if quantity.is_integer() else quantity), unit
+
+
+def _normalize_exposure_risk(exposure: dict[str, Any]) -> None:
+    direction = str(exposure.get("direction") or "").strip().lower()
+    risk = str(exposure.get("risk") or "").strip()
+    if direction in {"long", "buy"}:
+        replacements = {
+            "flat price \u4e0b\u8dcc": "flat price \u4e0a\u6da8",
+            "\u4ef7\u683c\u4e0b\u8dcc": "\u4ef7\u683c\u4e0a\u6da8",
+            "price downside": "price upside",
+            "price decline": "price increase",
+            "falling price": "rising price",
+        }
+    elif direction in {"short", "sell"}:
+        replacements = {
+            "flat price \u4e0a\u6da8": "flat price \u4e0b\u8dcc",
+            "\u4ef7\u683c\u4e0a\u6da8": "\u4ef7\u683c\u4e0b\u8dcc",
+            "price upside": "price downside",
+            "price increase": "price decline",
+            "rising price": "falling price",
+        }
+    else:
+        return
+    for source, target in replacements.items():
+        risk = re.sub(re.escape(source), target, risk, flags=re.IGNORECASE)
+    exposure["risk"] = risk
+
+
+def _normalize_training_case(case: dict[str, Any]) -> dict[str, Any]:
+    scenario = case.setdefault("scenario", {})
+    exposure = scenario.setdefault("exposure", {})
+    target_actions = [item for item in case.get("target_actions", []) if isinstance(item, dict)]
+    physical_quantities = [item.get("quantity") for item in target_actions if item.get("leg_type") == "physical"]
+    target_quantities = [item.get("quantity") for item in target_actions]
+    stated_volume, stated_unit = _stated_case_quantity(case)
+    volume = _positive_quantity(
+        stated_volume,
+        exposure.get("volume_mmbtu"),
+        exposure.get("volume"),
+        exposure.get("quantity"),
+        exposure.get("volume_bbl"),
+        *physical_quantities,
+        *target_quantities,
+    )
+    if volume is not None:
+        exposure["volume_mmbtu"] = volume
+        strict_match = bool(re.search(r"strict(?:ly)? match|match (?:the )?quantity|\u4e25\u683c\u5339\u914d|\u4e00\u4e00\u5339\u914d", str(case.get("prompt") or ""), flags=re.IGNORECASE))
+        for action in target_actions:
+            leg_type = str(action.get("leg_type") or "").lower()
+            if (
+                _positive_quantity(action.get("quantity")) is None
+                or (stated_volume is not None and leg_type == "physical")
+                or (stated_volume is not None and strict_match and leg_type in {"future", "swap", "basis"})
+            ):
+                action["quantity"] = volume
+
+    volume_unit = str(stated_unit or exposure.get("volume_unit") or exposure.get("unit") or "").strip()
+    if not volume_unit:
+        market_unit = str(case.get("market", {}).get("unit") or "")
+        if "bbl" in market_unit.lower():
+            volume_unit = "bbl"
+        elif "mwh" in market_unit.lower():
+            volume_unit = "MWh"
+        elif "mmbtu" in market_unit.lower():
+            volume_unit = "MMBtu"
+    if volume_unit:
+        exposure["volume_unit"] = volume_unit
+    _normalize_exposure_risk(exposure)
+
+    direction = str(exposure.get("direction") or "").strip().lower()
+    expected_side = "buy" if direction in {"long", "buy"} else "sell" if direction in {"short", "sell"} else ""
+    if expected_side:
+        for action in target_actions:
+            leg_type = str(action.get("leg_type") or "").lower()
+            market_name = str(action.get("market") or "").lower()
+            side = str(action.get("side") or "").lower()
+            is_spread = leg_type == "basis" or any(token in market_name for token in ("basis", "spread", "\u57fa\u5dee", "\u4ef7\u5dee"))
+            if leg_type in {"physical", "future"} and side in {"", "buy", "sell"}:
+                action["side"] = expected_side
+            elif leg_type == "swap" and not is_spread and side in {"", "buy", "sell"}:
+                action["side"] = expected_side
+    return case
+
+
 def _extract_first_json_object(text: str) -> str:
     start = text.find("{")
     if start < 0:
@@ -607,7 +743,6 @@ def _resolve_training_market(payload: TrainingCaseGenerateRequest, template: dic
         build_replay_session,
         build_simulated_market_context,
         list_replay_events,
-        market_capability_catalog,
     )
 
     commodity = "crude_oil" if payload.product_scope == "crude_oil" or template.get("group") == "crude" else "natural_gas"
@@ -630,6 +765,16 @@ def _resolve_training_market(payload: TrainingCaseGenerateRequest, template: dic
     if mode not in {"ai_simulated", "live"}:
         raise HTTPException(status_code=400, detail=f"Unsupported market mode: {payload.market_mode}")
 
+    if mode == "live":
+        from core.platts_market import PlattsError, PlattsMarketClient
+
+        try:
+            return PlattsMarketClient().fetch_market_context(commodity, locale=payload.locale)
+        except PlattsError as exc:
+            fallback_reason = exc.code
+    else:
+        fallback_reason = None
+
     context = build_simulated_market_context(
         commodity=commodity,
         regime=payload.market_regime,
@@ -637,21 +782,28 @@ def _resolve_training_market(payload: TrainingCaseGenerateRequest, template: dic
         as_of=payload.market_as_of,
         locale=payload.locale,
     )
-    if mode == "live":
-        platts = next(
-            provider
-            for provider in market_capability_catalog(locale=payload.locale)["providers"]
-            if provider["id"] == "platts"
-        )
+    if fallback_reason:
+        fallback_label = "AI 模拟回退" if payload.locale.lower().startswith("zh") else "AI simulated fallback"
         context["provenance"].update(
             {
                 "requested_mode": "live",
                 "requested_provider": "platts",
-                "fallback_reason": (
-                    "platts_not_configured"
-                    if platts["status"] == "not_configured"
-                    else "platts_symbol_mapping_pending"
-                ),
+                "fallback_reason": fallback_reason,
+                "quality": "explicit_simulation_fallback",
+                "evidence_components": [
+                    {
+                        "id": "forward_curve",
+                        "mode": "ai_simulated",
+                        "label": fallback_label,
+                        "as_of": context["as_of"],
+                    },
+                    {
+                        "id": "history",
+                        "mode": "ai_simulated",
+                        "label": fallback_label,
+                        "as_of": context["as_of"],
+                    },
+                ],
             }
         )
     return context
@@ -676,6 +828,137 @@ def _market_prompt_context(context: dict[str, Any]) -> dict[str, Any]:
     return compact
 
 
+def _advisor_workspace_context(default_scenario: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """Keep advisor prompts grounded in the active workspace without full chart payloads."""
+    if not isinstance(context.get("case"), dict) and isinstance(context.get("market"), dict):
+        nested = context["market"]
+        if isinstance(nested.get("case"), dict):
+            context = nested
+    case = context.get("case") if isinstance(context.get("case"), dict) else {}
+    market = case.get("market") if isinstance(case.get("market"), dict) else {}
+    replay = market.get("replay") if isinstance(market.get("replay"), dict) else {}
+    return {
+        "scenario": deepcopy(case.get("scenario") or default_scenario),
+        "market": {
+            key: deepcopy(market.get(key))
+            for key in ("benchmark", "unit", "as_of", "curve_metrics", "provenance")
+            if market.get(key) is not None
+        },
+        "forward_curve": [
+            {key: point.get(key) for key in ("tenor", "delivery_month", "price", "bid", "ask") if point.get(key) is not None}
+            for point in market.get("forward_curve", [])[:6]
+            if isinstance(point, dict)
+        ],
+        "replay": {
+            key: deepcopy(replay.get(key))
+            for key in ("event", "current_checkpoint", "information_policy")
+            if replay.get(key) is not None
+        },
+        "strategy_legs": deepcopy(context.get("strategy_legs", []))[:8],
+        "replay_decision": deepcopy(context.get("replay_decision", {})),
+    }
+
+
+def _compact_live_workspace_context(context: dict[str, Any]) -> dict[str, Any]:
+    """Reduce assistant latency without removing the evidence needed for safe UI actions."""
+    case = context.get("case") if isinstance(context.get("case"), dict) else {}
+    scenario = case.get("scenario") if isinstance(case.get("scenario"), dict) else {}
+    market = case.get("market") if isinstance(case.get("market"), dict) else {}
+    replay = market.get("replay") if isinstance(market.get("replay"), dict) else {}
+    curriculum = context.get("curriculum_context") if isinstance(context.get("curriculum_context"), dict) else {}
+    lesson_plan = context.get("ai_lesson_plan") if isinstance(context.get("ai_lesson_plan"), dict) else {}
+    evaluation = context.get("evaluation") if isinstance(context.get("evaluation"), dict) else {}
+    progress = context.get("learning_progress") if isinstance(context.get("learning_progress"), dict) else {}
+
+    curves = []
+    for curve in market.get("curves", [])[:3]:
+        if not isinstance(curve, dict):
+            continue
+        points = curve.get("points", [])
+        latest = points[-1] if isinstance(points, list) and points and isinstance(points[-1], dict) else {}
+        curves.append(
+            {
+                "id": curve.get("id"),
+                "label": curve.get("label"),
+                "latest": {
+                    key: latest.get(key)
+                    for key in ("date", "open", "high", "low", "close")
+                    if latest.get(key) is not None
+                },
+            }
+        )
+
+    attempts = []
+    for attempt in context.get("recent_attempts", [])[-3:]:
+        if not isinstance(attempt, dict):
+            continue
+        attempt_evaluation = attempt.get("evaluation") if isinstance(attempt.get("evaluation"), dict) else {}
+        attempts.append(
+            {
+                "template_id": attempt.get("template_id"),
+                "score": attempt_evaluation.get("baseline_score"),
+                "mistake_tags": deepcopy(attempt_evaluation.get("mistake_tags", []))[:5],
+            }
+        )
+
+    return {
+        "active_page": context.get("active_page"),
+        "active_template_id": context.get("active_template_id"),
+        "product_scope": context.get("product_scope"),
+        "course": {
+            key: deepcopy(curriculum.get(key))
+            for key in ("track_id", "track_title", "lesson_id", "lesson_title", "learning_objective")
+            if curriculum.get(key) is not None
+        },
+        "lesson_plan": {
+            key: deepcopy(lesson_plan.get(key))
+            for key in ("track_id", "lesson_id", "title", "objective", "steps", "practice_prompt")
+            if lesson_plan.get(key) is not None
+        },
+        "scenario": {
+            key: deepcopy(scenario.get(key))
+            for key in ("title", "summary", "business_type", "knowledge_points", "exposure")
+            if scenario.get(key) is not None
+        },
+        "task": str(case.get("prompt") or "")[:2000],
+        "rubric": deepcopy(case.get("rubric", []))[:8],
+        "market": {
+            "benchmark": market.get("benchmark"),
+            "unit": market.get("unit"),
+            "as_of": market.get("as_of"),
+            "curve_metrics": deepcopy(market.get("curve_metrics", {})),
+            "forward_curve": [
+                {
+                    key: point.get(key)
+                    for key in ("tenor", "delivery_month", "price", "bid", "ask")
+                    if point.get(key) is not None
+                }
+                for point in market.get("forward_curve", [])[:6]
+                if isinstance(point, dict)
+            ],
+            "latest_curves": curves,
+            "replay": {
+                key: deepcopy(replay.get(key))
+                for key in ("event", "current_checkpoint", "information_policy")
+                if replay.get(key) is not None
+            },
+        },
+        "strategy_legs": deepcopy(context.get("strategy_legs", []))[:8],
+        "rationale": str(context.get("rationale") or "")[:1600],
+        "evaluation": {
+            "baseline_score": evaluation.get("baseline_score"),
+            "mistake_tags": deepcopy(evaluation.get("mistake_tags", []))[:8],
+            "dimensions": deepcopy(evaluation.get("dimensions", []))[:8],
+        },
+        "learning_progress": {
+            key: deepcopy(progress.get(key))
+            for key in ("total_attempts", "average_score", "last_score", "recommended_track_id", "weak_topics")
+            if progress.get(key) is not None
+        },
+        "recent_attempts": attempts,
+    }
+
+
 def _attach_market_context(case: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     market = case.setdefault("market", {})
     benchmark = context.get("benchmark", "MARKET")
@@ -697,6 +980,18 @@ def _attach_market_context(case: dict[str, Any], context: dict[str, Any]) -> dic
                 break
         if not matched:
             curves.insert(0, benchmark_curve)
+        reference_dates = [point.get("date") for point in benchmark_curve["points"] if point.get("date")]
+        for curve in curves:
+            if str(curve.get("id", "")).upper() == str(benchmark).upper():
+                continue
+            points = curve.get("points", []) if isinstance(curve, dict) else []
+            if not isinstance(points, list) or not points or not reference_dates:
+                continue
+            for point_index, point in enumerate(points):
+                if not isinstance(point, dict):
+                    continue
+                date_index = round(point_index * (len(reference_dates) - 1) / max(len(points) - 1, 1))
+                point["date"] = reference_dates[date_index]
     market.update(
         {
             "unit": context.get("unit", market.get("unit", "training index")),
@@ -723,6 +1018,15 @@ def _attach_market_context(case: dict[str, Any], context: dict[str, Any]) -> dic
             {
                 "title": event.get("title", scenario.get("title", "Historical replay")),
                 "summary": event.get("summary", scenario.get("summary", "")),
+                "business_type": (
+                    "天然气历史复盘"
+                    if replay.get("locale", "").lower().startswith("zh") and event.get("commodity") == "natural_gas"
+                    else "原油历史复盘"
+                    if replay.get("locale", "").lower().startswith("zh")
+                    else "Natural Gas Historical Replay"
+                    if event.get("commodity") == "natural_gas"
+                    else "Crude Oil Historical Replay"
+                ),
                 "knowledge_points": deepcopy(event.get("skills", scenario.get("knowledge_points", []))),
             }
         )
@@ -914,7 +1218,8 @@ def v1_ai_generate(payload: AITrainingRequest):
     capability = payload.capability.strip().lower()
 
     if capability == "advisor_review":
-        messages = build_advisor_messages(payload.locale, scenario, payload.evaluation or {}, payload.rationale)
+        review_scenario = _advisor_workspace_context(scenario, context)
+        messages = build_advisor_messages(payload.locale, review_scenario, payload.evaluation or {}, payload.rationale)
     elif capability == "exam":
         messages = build_exam_messages(payload.locale, scenario, payload.attempt_history, payload.curriculum_context)
     elif capability == "case_generation":
@@ -944,6 +1249,41 @@ def v1_ai_generate(payload: AITrainingRequest):
     return {"capability": capability, "scenario": scenario, "answer": answer}
 
 
+@app.post("/api/v1/ai/advisor-review/stream")
+def v1_ai_advisor_review_stream(payload: AITrainingRequest):
+    def stream():
+        try:
+            from core.haineng_client import build_advisor_messages
+
+            client = _require_haineng_client()
+            scenario, context = _scenario_bundle(payload.scenario_id, payload.locale, payload.source, payload.market_context)
+            review_scenario = _advisor_workspace_context(scenario, context)
+            messages = build_advisor_messages(payload.locale, review_scenario, payload.evaluation or {}, payload.rationale)
+            yield _sse_event("stage", {"id": "review_decision", "label": "Reviewing the scored decision"})
+            chunks: list[str] = []
+            received = 0
+            stream_complete = getattr(client, "stream_complete", None)
+            if callable(stream_complete):
+                for delta in stream_complete(messages):
+                    if not delta:
+                        continue
+                    chunks.append(delta)
+                    received += len(delta)
+                    yield _sse_event("model_delta", {"delta": delta, "received": received})
+            if not chunks:
+                answer = client.complete(messages)
+                chunks.append(answer)
+                yield _sse_event("model_delta", {"delta": answer, "received": len(answer)})
+            yield _sse_event("review", {"answer": "".join(chunks)})
+            yield _sse_event("done", {"ok": True})
+        except Exception as exc:
+            failure = _haineng_failure(exc)
+            detail = failure.detail if isinstance(failure.detail, dict) else {}
+            yield _sse_event("error", {"message": detail.get("message", "AI advisor review failed.")})
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
 @app.post("/api/v1/ai/training-case")
 def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
     from core.haineng_client import build_training_case_messages
@@ -965,7 +1305,7 @@ def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
     )
     try:
         answer = client.complete(messages)
-        case = _attach_market_context(_parse_json_response(answer), market_context)
+        case = _attach_market_context(_normalize_training_case(_parse_json_response(answer)), market_context)
     except Exception as exc:
         raise _haineng_failure(exc) from exc
     return {"template": template, "case": case, "market_context": market_context}
@@ -1018,7 +1358,7 @@ def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
             else:
                 answer = client.complete(messages)
             yield _sse_event("stage", {"id": "parse_case", "label": "Building scenario, target actions, and rubric"})
-            case = _attach_market_context(_parse_json_response(answer), market_context)
+            case = _attach_market_context(_normalize_training_case(_parse_json_response(answer)), market_context)
             yield _sse_event("case", {"template": template, "case": case})
             yield _sse_event("done", {"ok": True})
         except Exception as exc:
@@ -1027,12 +1367,8 @@ def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
-@app.post("/api/v1/ai/live-assistant")
-def v1_ai_live_assistant(payload: LiveAssistantRequest):
-    from core.haineng_client import build_live_assistant_messages
-
-    client = _require_haineng_client()
-    available_actions = {
+def _live_assistant_action_schema() -> dict[str, Any]:
+    return {
         "navigate_page": {"page": "home|caseLab|workbench|library|review|knowledge|progress|settings"},
         "generate_case": {"track_id": "foundation|crude|procurement|sales|integrated", "template_id": "foundation_hedging_basics", "user_request": "short training goal"},
         "select_template": {"template_id": "foundation_hedging_basics", "user_request": "optional training goal"},
@@ -1063,14 +1399,41 @@ def v1_ai_live_assistant(payload: LiveAssistantRequest):
         "set_strategy_legs": {"legs": [{"leg_type": "physical|swap|future|basis|fx|capacity|option", "market": "TTF", "side": "sell", "quantity": 10000}]},
         "fill_rationale": {"text": "string"},
         "set_exam": {"exam": "Markdown quiz content"},
+        "submit_strategy": {},
         "run_ai_capability": {"capability": "concept_tutor|exam|trade_playbook|advisor_review"},
     }
-    messages = build_live_assistant_messages(
+
+
+def _live_assistant_messages(payload: LiveAssistantRequest) -> list[dict[str, str]]:
+    from core.haineng_client import build_live_assistant_messages
+
+    return build_live_assistant_messages(
         payload.locale,
         payload.message,
-        payload.workspace_state,
-        available_actions,
+        _compact_live_workspace_context(payload.workspace_state),
+        _live_assistant_action_schema(),
     )
+
+
+def _normalize_live_assistant_result(parsed: dict[str, Any]) -> dict[str, Any]:
+    allowed = set(_live_assistant_action_schema())
+    actions = [
+        action
+        for action in parsed.get("actions", [])[:8]
+        if isinstance(action, dict)
+        and action.get("type") in allowed
+        and isinstance(action.get("payload", {}), dict)
+    ]
+    return {
+        "answer": str(parsed.get("answer", ""))[:6000],
+        "actions": actions,
+    }
+
+
+@app.post("/api/v1/ai/live-assistant")
+def v1_ai_live_assistant(payload: LiveAssistantRequest):
+    client = _require_haineng_client()
+    messages = _live_assistant_messages(payload)
     try:
         answer = client.complete(messages)
         try:
@@ -1079,10 +1442,43 @@ def v1_ai_live_assistant(payload: LiveAssistantRequest):
             parsed = {"answer": answer, "actions": []}
     except Exception as exc:
         raise _haineng_failure(exc) from exc
-    return {
-        "answer": parsed.get("answer", ""),
-        "actions": parsed.get("actions", []),
-    }
+    return _normalize_live_assistant_result(parsed)
+
+
+@app.post("/api/v1/ai/live-assistant/stream")
+def v1_ai_live_assistant_stream(payload: LiveAssistantRequest):
+    client = _require_haineng_client()
+    messages = _live_assistant_messages(payload)
+
+    def stream():
+        yield _sse_event("stage", {"id": "read_workspace", "label": "Reading the current lesson and market state"})
+        try:
+            chunks: list[str] = []
+            received = 0
+            if hasattr(client, "stream_complete"):
+                yield _sse_event("stage", {"id": "plan_workspace_actions", "label": "Planning concise teaching and workspace actions"})
+                for chunk in client.stream_complete(messages):
+                    if not chunk:
+                        continue
+                    chunks.append(chunk)
+                    received += len(chunk)
+                    yield _sse_event("model_delta", {"delta": chunk, "received": received})
+                answer = "".join(chunks)
+            else:
+                answer = client.complete(messages)
+                received = len(answer)
+                yield _sse_event("model_delta", {"delta": answer, "received": received})
+            yield _sse_event("stage", {"id": "apply_workspace_actions", "label": "Validating the proposed workspace changes"})
+            try:
+                parsed = _parse_json_response(answer)
+            except Exception:
+                parsed = {"answer": answer, "actions": []}
+            yield _sse_event("result", _normalize_live_assistant_result(parsed))
+            yield _sse_event("done", {"ok": True})
+        except Exception as exc:
+            yield _sse_event("error", {"message": str(_haineng_failure(exc).detail)})
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
 
 
 @app.post("/api/v1/advisor/review")

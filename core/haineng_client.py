@@ -392,7 +392,9 @@ def build_advisor_messages(
         "Required output:\n"
         "Use the heading '结论' or 'Verdict' first. "
         "Then provide exactly three bullets: strongest decision, biggest gap, next drill. "
-        "Keep the full answer under 180 words unless the learner asks for details."
+        "Discuss only the scenario, markets, exposure, and checkpoint present above. "
+        "Do not reuse benchmarks, hubs, or facts from another example or an earlier attempt. "
+        "Keep the full answer under 120 words unless the learner asks for details."
     )
     return [
         {"role": "system", "content": system},
@@ -572,7 +574,7 @@ def build_live_assistant_messages(
         "Return concise Markdown for the learner and a small list of optional actions when useful. "
         "The answer must be actionable and short: one direct answer plus at most 3 bullets. "
         "If the user asks a broad question, offer a short answer and one suggested next action instead of writing a full lecture. "
-        "Allowed action types only: navigate_page, generate_case, select_template, patch_case, set_market_curves, set_learning_plan, set_learning_goal, set_chart_fields, set_strategy_legs, fill_rationale, set_exam, run_ai_capability. "
+        "Allowed action types only: navigate_page, generate_case, select_template, patch_case, set_market_curves, set_learning_plan, set_learning_goal, set_chart_fields, set_strategy_legs, fill_rationale, set_exam, submit_strategy, run_ai_capability. "
         "Each action must be directly useful for the user's current learning goal."
     )
     user = (
@@ -595,9 +597,13 @@ def build_live_assistant_messages(
         "When returning patch_case, include only fields that should change; do not repeat the entire workspace unless needed. "
         "When returning set_market_curves, also return set_chart_fields with close/high/low if price inspection is part of the request. "
         "When suggesting a strategy, include set_strategy_legs and fill_rationale so the workbench changes directly. "
+        "Derive every paper-hedge side from the economic price exposure. A future procurement or fixed-price customer delivery obligation exposed to rising input cost normally needs a buy/long paper hedge or upside option; inventory, production, or a future sale exposed to falling price normally needs a sell/short paper hedge or downside protection. "
+        "Do not pair a physical purchase with a paper sale merely because the two transaction verbs look opposite. State the covered exposure, quantity, and tenor in the rationale. "
+        "If the current decision explicitly mentions storage, regas, pipeline, freight, FX, or another delivery constraint, include the corresponding operational or basis leg instead of omitting it from the UI action. "
+        "For historical replay, use only facts in the current checkpoint and never infer later outcomes from event metadata. "
         "For 'learn natural gas hedging from zero' or similar requests, prefer track_id=foundation. "
         "For crude oil, Brent, WTI, Dubai, cargo, inventory, or calendar spread hedging requests, prefer track_id=crude or template_id=crude_oil_hedging_basics. "
-        "Keep answer under 140 words unless the learner explicitly requests a detailed explanation."
+        "Keep answer under 90 words unless the learner explicitly requests a detailed explanation."
     )
     return [
         {"role": "system", "content": system},
@@ -638,13 +644,14 @@ def build_training_case_messages(
         f"Additional learner request:\n{_scrub_text(user_request)}\n\n"
         "Required JSON shape:\n"
         "{\n"
-        '  "scenario": {"id": "string", "title": "string", "summary": "string", "business_type": "string", "knowledge_points": ["string"], "exposure": {"direction": "long|short|spread", "volume_mmbtu": 0, "volume_unit": "MMBtu|bbl|MWh", "risk": "string"}},\n'
+        '  "scenario": {"id": "string", "title": "string", "summary": "string", "business_type": "string", "knowledge_points": ["string"], "exposure": {"direction": "long|short|spread", "volume_mmbtu": 100000, "volume_unit": "MMBtu|bbl|MWh", "risk": "string"}},\n'
         '  "market": {"unit": "string", "curves": [{"id": "TTF", "label": "TTF", "color": "#2563eb", "points": [{"date": "YYYY-MM-DD", "open": 0, "high": 0, "low": 0, "close": 0}]}], "events": [{"date": "YYYY-MM-DD", "label": "string"}]},\n'
         '  "target_actions": [{"leg_type": "physical|swap|future|basis|fx|capacity|option", "market": "string", "side": "buy|sell|pay|receive", "quantity": 0, "price": 0, "tenor": "string", "rationale": "string"}],\n'
         '  "rubric": [{"id": "string", "label": "string", "points": 0, "rule": "string"}],\n'
         '  "prompt": "Decision task shown to the learner in Markdown"\n'
         "}\n"
         "Use scenario.knowledge_points from the template coverage where possible. "
+        "Exposure volume and every target-action quantity must be positive and must match the quantity stated in the learner task. "
         "Use the supplied forward-curve structure, as-of date, and provenance in the learner task. "
         "If the supplied context is incomplete, state the missing field instead of inventing a live value. "
         "The rubric must contain exactly 4 rows totaling 100 points: exposure identification, instrument choice, physical-paper matching, and risk-control explanation. "

@@ -57,6 +57,14 @@ if (-not $SkipFrontend) {
 }
 
 if (-not $SkipTauriBuild) {
+    $BundleDir = Join-Path $RepoRoot "tauri\src-tauri\target\release\bundle"
+    if ($DryRun) {
+        Write-Host "==> Remove stale desktop bundles"
+        Write-Host "    Remove-Item -Recurse -Force $BundleDir"
+    }
+    elseif (Test-Path -LiteralPath $BundleDir) {
+        Remove-Item -LiteralPath $BundleDir -Recurse -Force
+    }
     Invoke-Step "Install Tauri dependencies" "npm" @("ci") (Join-Path $RepoRoot "tauri")
     Invoke-Step "Build desktop bundle" "npm" @("run", "tauri:build") (Join-Path $RepoRoot "tauri")
 }
