@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest, backendStreamRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.3.0";
+const currentVersion = "1.4.0";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -75,6 +75,20 @@ function fallbackMarketCapabilities(locale = "en") {
         commodity: "natural_gas",
         title: copy(locale, "2022 欧洲天然气危机与 LNG 拥堵复盘", "2022 European gas crisis and LNG-congestion replay"),
         summary: copy(locale, "经历供应收紧、TTF 极端上涨和高库存/LNG 拥堵，连续调整实货与纸货。", "Move through supply tightening, the TTF spike, and high-storage/LNG congestion while adjusting physical and paper coverage."),
+        checkpoint_count: 3
+      },
+      {
+        id: "european_gas_refill_squeeze_2021",
+        commodity: "natural_gas",
+        title: copy(locale, "2021 欧洲储气补库与全球 LNG 竞争复盘", "2021 European storage-refill and global LNG competition replay"),
+        summary: copy(locale, "经历低库存、补库竞争和高价入冬，管理 TTF、区域基差、LNG 与储气。", "Manage TTF, regional basis, LNG, and storage through low inventories, refill competition, and a high-price winter entry."),
+        checkpoint_count: 3
+      },
+      {
+        id: "wti_storage_squeeze_2020",
+        commodity: "crude_oil",
+        title: copy(locale, "2020 WTI 库容与交割挤压复盘", "2020 WTI storage and delivery squeeze replay"),
+        summary: copy(locale, "经历需求骤降、Cushing 库容紧张和近月负价，管理实货、纸货、月差与交割。", "Manage physical flows, paper, calendar spreads, and delivery through demand collapse, tight Cushing storage, and negative prompt prices."),
         checkpoint_count: 3
       }
     ]
@@ -268,6 +282,7 @@ function productScopeForTemplate(templateId) {
 function exposureDirectionLabel(direction, locale) {
   const labels = {
     long: { zh: "采购成本上涨", en: "Procurement cost upside" },
+    inventory_long: { zh: "库存价格下跌", en: "Inventory price downside" },
     short: { zh: "销售价格下跌", en: "Sales price downside" },
     buy: { zh: "采购成本上涨", en: "Procurement cost upside" },
     sell: { zh: "销售价格下跌", en: "Sales price downside" },
@@ -1227,6 +1242,55 @@ function replayBundleFromSession(session) {
   };
 }
 
+function provisionalTrainingSession({ marketMode = "ai_simulated", marketRegime = "contango", productScope, replayId = null, templateId, userRequest = "" }) {
+  return {
+    id: `pending-${Date.now()}`,
+    schema_version: "1.0",
+    created_at: new Date().toISOString(),
+    product_scope: productScope,
+    template_id: templateId,
+    learning_objective: userRequest,
+    market: {
+      requested_mode: marketMode,
+      effective_mode: marketMode,
+      regime: marketRegime,
+      fallback_applied: false
+    },
+    replay: replayId ? { event_id: replayId, checkpoint: 0 } : null,
+    scoring: { mode: "local_deterministic", rubric_version: "case-rubric-v1" },
+    ai: { case_generated: true, workspace_control_enabled: true }
+  };
+}
+
+function marketOptionsFromCase(caseData) {
+  const session = caseData?.training_session ?? {};
+  const market = session.market ?? {};
+  return {
+    market_mode: market.requested_mode ?? market.effective_mode ?? caseData?.market?.provenance?.mode ?? "ai_simulated",
+    market_regime: market.regime ?? caseData?.market?.curve_metrics?.structure ?? "contango",
+    replay_id: session.replay?.event_id ?? caseData?.market?.replay?.event?.id ?? null
+  };
+}
+
+function trainingSessionForReplayCheckpoint(trainingSession, session) {
+  if (!trainingSession) return trainingSession;
+  return {
+    ...trainingSession,
+    market: {
+      ...(trainingSession.market ?? {}),
+      effective_mode: "historical_replay",
+      benchmark: session.market?.benchmark,
+      as_of: session.market?.as_of,
+      source_tier: session.market?.provenance?.source_tier
+    },
+    replay: {
+      event_id: session.event?.id,
+      checkpoint: session.current_checkpoint?.index ?? 0,
+      checkpoint_count: session.event?.checkpoint_count
+    }
+  };
+}
+
 function replayPrompt(session, locale) {
   const checkpoint = session.current_checkpoint ?? {};
   const facts = (checkpoint.facts ?? []).map((fact) => `- ${fact}`).join("\n");
@@ -1342,6 +1406,7 @@ const assistantAutoActionTypes = [
   "set_learning_plan",
   "set_learning_goal",
   "navigate_page",
+  "configure_market_session",
   "generate_case",
   "select_template",
   "run_ai_capability"
@@ -1688,7 +1753,10 @@ function saveAiLessonPlan(plan) {
   localStorage.setItem(aiLessonPlanKey, JSON.stringify(plan));
 }
 
-function recordLearningAttempt({ activeTemplateId, caseData, evaluation, productScope, rationale, strategyLegs }) {
+function recordLearningAttempt({ activeTemplateId, aiInterventions = [], caseData, evaluation, productScope, rationale, strategyLegs }) {
+  const trainingSession = caseData?.training_session ?? null;
+  const market = trainingSession?.market ?? {};
+  const replay = trainingSession?.replay ?? null;
   return {
     id: `attempt-${Date.now()}`,
     created_at: new Date().toISOString(),
@@ -1696,6 +1764,17 @@ function recordLearningAttempt({ activeTemplateId, caseData, evaluation, product
     scenario_id: caseData?.scenario?.id ?? activeTemplateId,
     scenario_title: caseData?.scenario?.title ?? "",
     product_scope: productScopeForTemplate(activeTemplateId) === "general" ? "general" : productScope,
+    session_id: trainingSession?.id ?? null,
+    training_session: trainingSession,
+    market_mode: market.requested_mode ?? market.effective_mode ?? caseData?.market?.provenance?.mode ?? "ai_simulated",
+    evidence_snapshot: {
+      benchmark: market.benchmark ?? caseData?.market?.benchmark ?? null,
+      as_of: market.as_of ?? caseData?.market?.as_of ?? null,
+      source_tier: market.source_tier ?? caseData?.market?.provenance?.source_tier ?? null,
+      fallback_applied: Boolean(market.fallback_applied)
+    },
+    replay_checkpoint: replay ? { ...replay } : null,
+    ai_actions: aiInterventions.slice(0, 8).map(({ kind, label, page }) => ({ kind, label, page })),
     evaluation,
     rationale,
     strategy_legs: strategyLegs
@@ -1830,12 +1909,22 @@ function summarizeLearningRecords(records) {
     };
   });
   const weakest = dimensions.filter((dimension) => dimension.score != null).sort((a, b) => a.score - b.score).slice(0, 3);
+  const sessionIds = new Set(valid.map((record) => record.session_id).filter(Boolean));
+  const marketModes = valid.reduce((counts, record) => {
+    const mode = record.market_mode ?? record.training_session?.market?.requested_mode ?? "ai_simulated";
+    counts[mode] = (counts[mode] ?? 0) + 1;
+    return counts;
+  }, {});
   return {
     hasRecords: valid.length > 0,
     attempts: valid.length,
     latest,
     latestScore: clampScore(latest?.evaluation?.baseline_score),
     averageScore: averageScore(valid.map((record) => record.evaluation.baseline_score)),
+    sessions: sessionIds.size || valid.length,
+    marketModes,
+    replayCheckpoints: valid.filter((record) => record.replay_checkpoint).length,
+    aiCustomizedAttempts: valid.filter((record) => record.ai_actions?.length).length,
     dimensions,
     scenarioStats,
     weakest
@@ -2003,6 +2092,19 @@ function SettingsMenu({ aiReady, importing, locale, onCheckUpdate, onImportLocal
   const [form, setForm] = useState(() => formForProvider(savedValue("commodity-lab-ai-provider", "haineng")));
   const [fileImportError, setFileImportError] = useState("");
   const provider = catalog[form.provider] ? form.provider : "haineng";
+  const configuredProvider = ["haineng", "deepseek"].includes(providerStatus?.haineng?.provider)
+    ? providerStatus.haineng.provider
+    : "";
+
+  useEffect(() => {
+    if (!configuredProvider) return;
+    localStorage.setItem("commodity-lab-ai-provider", configuredProvider);
+    setForm((current) => (
+      current.provider === configuredProvider
+        ? current
+        : formForProvider(configuredProvider, providerCatalog(providerStatus), current.api_key)
+    ));
+  }, [configuredProvider, providerStatus?.ai_providers]);
 
   function changeProvider(nextProvider) {
     setForm(formForProvider(nextProvider, catalog, form.api_key));
@@ -2191,6 +2293,34 @@ function marketQualityLabel(provenance, locale) {
   if (quality === "historical_replay" || quality.includes("historically")) return copy(locale, "历史校准", "Historical calibration");
   if (quality === "explicit_simulation_fallback") return copy(locale, "模拟回退", "Simulated fallback");
   return copy(locale, "AI 模拟", "AI simulation");
+}
+
+function trainingMarketModeLabel(caseData, locale) {
+  const sessionMarket = caseData?.training_session?.market ?? {};
+  const requestedMode = sessionMarket.requested_mode ?? caseData?.market?.provenance?.mode ?? "ai_simulated";
+  if (requestedMode === "historical_replay") return copy(locale, "历史复盘", "Historical replay");
+  if (requestedMode === "live") {
+    return sessionMarket.fallback_applied
+      ? copy(locale, "实盘请求 · 模拟回退", "Live requested · simulated fallback")
+      : copy(locale, "授权实盘", "Entitled live");
+  }
+  return copy(locale, "AI 模拟市场", "AI-simulated market");
+}
+
+function trainingSessionStatusLabel(caseData, locale) {
+  const sessionReplay = caseData?.training_session?.replay;
+  const marketReplay = caseData?.market?.replay;
+  const replay = sessionReplay?.event_id ? sessionReplay : marketReplay?.event?.id ? {
+    event_id: marketReplay.event.id,
+    checkpoint: marketReplay.current_checkpoint?.index,
+    checkpoint_count: marketReplay.event?.checkpoint_count
+  } : null;
+  if (replay?.event_id) {
+    const current = Number(replay.checkpoint ?? 0) + 1;
+    const total = replay.checkpoint_count ?? "--";
+    return copy(locale, `复盘节点 ${current}/${total}`, `Replay checkpoint ${current}/${total}`);
+  }
+  return copy(locale, "本地即时评分", "Immediate local scoring");
 }
 
 function providerStatusCopy(status, locale) {
@@ -3510,13 +3640,12 @@ function CaseHero({ activeTemplate, caseData, locale }) {
         <p>{caseData.scenario?.summary}</p>
         <div className="cl-chip-row">
           {(caseData.scenario?.knowledge_points ?? []).map((point) => <span key={point}>{point}</span>)}
-          <span>{t("aiGeneratedData", locale)}</span>
         </div>
       </div>
       <dl>
         <div><dt>{copy(locale, "敞口方向", "Exposure Direction")}</dt><dd>{exposureDirectionLabel(caseData.scenario?.exposure?.direction, locale)}</dd></div>
-        <div><dt>{copy(locale, "期限", "Tenor")}</dt><dd>1-3M</dd></div>
-        <div><dt>{copy(locale, "业务类型", "Business Type")}</dt><dd>{caseData.scenario?.business_type ?? "--"}</dd></div>
+        <div><dt>{copy(locale, "市场模式", "Market Mode")}</dt><dd>{trainingMarketModeLabel(caseData, locale)}</dd></div>
+        <div><dt>{copy(locale, "会话状态", "Session Status")}</dt><dd>{trainingSessionStatusLabel(caseData, locale)}</dd></div>
       </dl>
     </section>
   );
@@ -3878,9 +4007,11 @@ function ProgressPage({ learningProgress, locale, onPageChange }) {
           {hasProgress ? (
             <>
               <div className="cl-progress-facts">
+                <span>{copy(locale, "训练会话", "Training sessions")}<strong>{learningProgress.sessions}</strong></span>
                 <span>{copy(locale, "正式提交", "Scored attempts")}<strong>{learningProgress.attempts}</strong></span>
                 <span>{copy(locale, "最近得分", "Latest score")}<strong>{learningProgress.latestScore ?? "--"}</strong></span>
                 <span>{copy(locale, "平均得分", "Average score")}<strong>{learningProgress.averageScore ?? "--"}</strong></span>
+                {learningProgress.replayCheckpoints ? <span>{copy(locale, "复盘节点", "Replay checkpoints")}<strong>{learningProgress.replayCheckpoints}</strong></span> : null}
               </div>
               <div className="cl-skill-bars">
                 {learningProgress.dimensions.map((item) => (
@@ -4213,6 +4344,7 @@ export default function App() {
   function recordAiIntervention(label, page = pageIds.workbench, kind = "software_action") {
     const item = { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, kind, label, page };
     setAiInterventions((current) => [item, ...current].slice(0, 5));
+    return item;
   }
   function switchProductScope(nextScope) {
     const workspace = productWorkspace(nextScope);
@@ -4237,6 +4369,8 @@ export default function App() {
     setAiOutput(null);
     setAssistantMessages([]);
     setAssistantStage("");
+    setAiInterventions([]);
+    setAiGuidanceAction("");
     setGenerationStages([]);
     setGenerationStream(null);
     setLoadingTemplate("");
@@ -4429,10 +4563,18 @@ export default function App() {
     const requestId = generationRequestRef.current + 1;
     generationRequestRef.current = requestId;
     const localTemplateCase = defaultCaseForTemplate(resolvedTemplateId, locale);
+    const provisionalSession = provisionalTrainingSession({
+      marketMode: marketOptions.market_mode ?? "ai_simulated",
+      marketRegime: marketOptions.market_regime ?? "contango",
+      productScope: requestProductScope,
+      replayId: marketOptions.replay_id ?? null,
+      templateId: resolvedTemplateId,
+      userRequest
+    });
     setLoadingTemplate(resolvedTemplateId);
     setBusyAction("case_generation");
     setActivePage(pageIds.workbench);
-    setCaseData(localTemplateCase);
+    setCaseData({ ...localTemplateCase, training_session: provisionalSession });
     setStrategyLegs(defaultLegs(locale));
     setReplayDecision(null);
     setReplayHistory([]);
@@ -4470,6 +4612,10 @@ export default function App() {
           setCaseData((current) => applyStreamedMarketContext(current, data, locale));
           return;
         }
+        if (event === "session") {
+          setCaseData((current) => ({ ...current, training_session: data }));
+          return;
+        }
         if (event === "model_delta") {
           modelBuffer += data.delta ?? "";
           const preview = streamedCasePreview(modelBuffer);
@@ -4493,7 +4639,10 @@ export default function App() {
         }
         if (event === "case") {
           streamedCase = data.case ?? localTemplateCase;
-          setCaseData(streamedCase);
+          setCaseData((current) => ({
+            ...streamedCase,
+            training_session: streamedCase.training_session ?? data.training_session ?? current.training_session
+          }));
         }
       });
       if (generationRequestRef.current !== requestId) return;
@@ -4511,7 +4660,8 @@ export default function App() {
     }
   }
 
-  async function submitStrategy() {
+  async function submitStrategy(options = {}) {
+    const recordedInterventions = options?.aiAction ? [options.aiAction, ...aiInterventions] : aiInterventions;
     setBusyAction("evaluate");
     const replay = caseData.market?.replay;
     if (replay?.event?.id) {
@@ -4529,7 +4679,7 @@ export default function App() {
           ...current.filter((item) => item.checkpoint?.index !== result.checkpoint?.index),
           result
         ].sort((a, b) => (a.checkpoint?.index ?? 0) - (b.checkpoint?.index ?? 0)));
-        appendLearningRecord(recordLearningAttempt({ activeTemplateId, caseData, evaluation: nextEvaluation, productScope, rationale, strategyLegs }));
+        appendLearningRecord(recordLearningAttempt({ activeTemplateId, aiInterventions: recordedInterventions, caseData, evaluation: nextEvaluation, productScope, rationale, strategyLegs }));
         setAiOutput(null);
         showAiGuidance(copy(locale, "本节点已即时评分，下一阶段市场现在可以揭示。", "This checkpoint was scored instantly; the next market phase can now be revealed."));
         setBusyAction("");
@@ -4544,7 +4694,7 @@ export default function App() {
     }
     const nextEvaluation = evaluateStrategy(caseData, strategyLegs, rationale);
     setEvaluation(nextEvaluation);
-    appendLearningRecord(recordLearningAttempt({ activeTemplateId, caseData, evaluation: nextEvaluation, productScope, rationale, strategyLegs }));
+    appendLearningRecord(recordLearningAttempt({ activeTemplateId, aiInterventions: recordedInterventions, caseData, evaluation: nextEvaluation, productScope, rationale, strategyLegs }));
     setAiOutput(null);
     setBusyAction("");
     setActivePage(pageIds.review);
@@ -4605,6 +4755,7 @@ export default function App() {
       const nextReplay = replayBundleFromSession(session);
       setCaseData((current) => ({
         ...current,
+        training_session: trainingSessionForReplayCheckpoint(current.training_session, session),
         scenario: {
           ...current.scenario,
           title: session.event.title,
@@ -4665,12 +4816,13 @@ export default function App() {
   }
 
   function generateVariant() {
+    const weakTags = evaluation?.mistake_tags?.slice(0, 3) ?? [];
     const prompt = copy(
       locale,
-      "基于当前案例生成一个更贴近真实业务的变体，重点放在市场剧烈波动、基差错配、汇率和运力约束。",
-      "Generate a realistic variant of the current case focused on sharp market moves, basis mismatch, FX, and capacity constraints."
+      `基于当前案例生成一个更贴近真实业务的后续练习，重点训练${weakTags.length ? weakTags.join("、") : "市场剧烈波动、基差错配、汇率和运力约束"}。保留当前市场证据模式。`,
+      `Generate a realistic follow-up drill focused on ${weakTags.length ? weakTags.join(", ") : "sharp market moves, basis mismatch, FX, and capacity constraints"}. Keep the current market-evidence mode.`
     );
-    generateTrainingCase(activeTemplateId, prompt);
+    generateTrainingCase(activeTemplateId, prompt, marketOptionsFromCase(caseData));
   }
 
   function buildAiPayload(capability) {
@@ -4767,6 +4919,7 @@ export default function App() {
             scenario: caseData.scenario,
             prompt: caseData.prompt,
             rubric: caseData.rubric,
+            training_session: caseData.training_session,
             market: {
               benchmark: market.benchmark,
               unit: market.unit,
@@ -4781,6 +4934,16 @@ export default function App() {
           evaluation,
           learning_progress: learningProgress,
           recent_attempts: scopedLearningRecords.slice(-3),
+          replay_catalog: (marketCapabilities?.replays ?? [])
+            .filter((item) => item.commodity === productScope)
+            .slice(0, 8)
+            .map((item) => ({
+              id: item.id,
+              commodity: item.commodity,
+              title: item.title,
+              summary: item.summary,
+              checkpoint_count: item.checkpoint_count
+            })),
           strategy_legs: strategyLegs,
           rationale
         }
@@ -4816,7 +4979,7 @@ export default function App() {
         .sort((a, b) => assistantAutoActionTypes.indexOf(a.type) - assistantAutoActionTypes.indexOf(b.type));
       const localActions = actionable.filter((action) => assistantLocalActionTypes.includes(action.type));
       const generationActions = actionable.filter((action) => !assistantLocalActionTypes.includes(action.type));
-      const actionsToApply = localActions.length ? localActions.slice(0, 8) : generationActions.slice(0, 1);
+      const actionsToApply = [...generationActions.slice(0, 1), ...localActions].slice(0, 8);
       setAssistantStage("apply_workspace_actions");
       for (const action of actionsToApply) {
         applyAssistantAction(action);
@@ -4836,10 +4999,40 @@ export default function App() {
     }
   }
 
+  function replayIdForAssistantAction(action, payload) {
+    const available = (marketCapabilities?.replays ?? []).filter((item) => item.commodity === productScope);
+    if (!available.length) return null;
+    const requestText = [payload.user_request, action.label]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    const titleMatch = available.find((item) => {
+      const title = String(item.title ?? "").toLowerCase();
+      return requestText.includes(item.id.toLowerCase()) || (title && requestText.includes(title));
+    });
+    if (titleMatch) return titleMatch.id;
+
+    const requestedYears = new Set(requestText.match(/\b20\d{2}\b/g) ?? []);
+    const yearMatches = available.filter((item) => {
+      const eventText = `${item.id} ${item.title ?? ""}`;
+      return [...requestedYears].some((year) => eventText.includes(year));
+    });
+    if (yearMatches.length === 1) return yearMatches[0].id;
+
+    const explicit = String(payload.replay_id ?? "").trim().toLowerCase();
+    const explicitMatch = available.find((item) => item.id.toLowerCase() === explicit);
+    return explicitMatch?.id ?? null;
+  }
+
   function applyAssistantAction(action) {
     const payload = action.payload ?? {};
+    const requestedReplayId = replayIdForAssistantAction(action, payload);
     if (action.type === "select_template" && payload.template_id) {
-      generateTrainingCase(payload.template_id, payload.user_request ?? "");
+      generateTrainingCase(payload.template_id, payload.user_request ?? "", {
+        market_mode: requestedReplayId ? "historical_replay" : payload.market_mode,
+        market_regime: payload.market_regime,
+        replay_id: requestedReplayId ?? payload.replay_id
+      });
       recordAiIntervention(action.label ?? copy(locale, "生成课程练习", "Generated a course drill"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 正在按课程生成练习。", "AI is generating a course drill."));
     }
@@ -4848,9 +5041,28 @@ export default function App() {
       const track = availableTracks.find((item) => item.id === payload.track_id)
         ?? availableTracks.find((item) => item.id !== "foundation")
         ?? availableTracks[0];
-      generateTrainingCase(payload.template_id ?? track.templateId, payload.user_request ?? copy(locale, track.requestZh, track.requestEn));
+      generateTrainingCase(payload.template_id ?? track.templateId, payload.user_request ?? copy(locale, track.requestZh, track.requestEn), {
+        market_mode: requestedReplayId ? "historical_replay" : payload.market_mode,
+        market_regime: payload.market_regime,
+        replay_id: requestedReplayId ?? payload.replay_id
+      });
       recordAiIntervention(action.label ?? copy(locale, "生成新训练题", "Generated a new drill"), pageIds.workbench, action.type);
       showAiGuidance(copy(locale, "AI 正在生成新练习并打开工作台。", "AI is generating a new drill and opening the workbench."));
+    }
+    if (action.type === "configure_market_session") {
+      const currentOptions = marketOptionsFromCase(caseData);
+      const nextMode = requestedReplayId
+        ? "historical_replay"
+        : ["ai_simulated", "historical_replay", "live"].includes(payload.market_mode)
+        ? payload.market_mode
+        : currentOptions.market_mode;
+      generateTrainingCase(activeTemplateId, payload.user_request ?? caseData.training_session?.learning_objective ?? "", {
+        market_mode: nextMode,
+        market_regime: payload.market_regime ?? currentOptions.market_regime,
+        replay_id: nextMode === "historical_replay" ? (requestedReplayId ?? payload.replay_id ?? currentOptions.replay_id) : null
+      });
+      recordAiIntervention(action.label ?? copy(locale, "切换市场证据并重建练习", "Changed market evidence and rebuilt the drill"), pageIds.workbench, action.type);
+      showAiGuidance(copy(locale, "AI 正在切换市场模式，并用新证据重建当前练习。", "AI is changing the market mode and rebuilding the current drill with new evidence."));
     }
     if (action.type === "patch_case") {
       setCaseData((current) => mergeCasePatch(current, payload));
@@ -4919,8 +5131,8 @@ export default function App() {
       showAiGuidance(copy(locale, "AI 已创建测验并打开复盘页。", "AI created a quiz and opened Review."));
     }
     if (action.type === "submit_strategy") {
-      submitStrategy();
-      recordAiIntervention(action.label ?? copy(locale, "提交并本地评分", "Scored strategy"), pageIds.review, action.type);
+      const intervention = recordAiIntervention(action.label ?? copy(locale, "提交并本地评分", "Scored strategy"), pageIds.review, action.type);
+      submitStrategy({ aiAction: intervention });
       showAiGuidance(copy(locale, "AI 已触发本地评分并打开复盘页。", "AI triggered local scoring and opened Review."));
     }
     if (action.type === "set_learning_plan") {

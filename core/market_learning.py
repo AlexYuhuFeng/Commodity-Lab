@@ -485,6 +485,263 @@ _REPLAY_EVENTS: list[dict[str, Any]] = [
             },
         ],
     },
+    {
+        "id": "european_gas_refill_squeeze_2021",
+        "commodity": "natural_gas",
+        "title": {
+            "zh": "2021 欧洲储气补库与全球 LNG 竞争复盘",
+            "en": "2021 European storage-refill and global LNG competition replay",
+        },
+        "summary": {
+            "zh": "从欧洲公用事业采购视角，经历低库存、夏季补库竞争和入冬前现货价格冲高，管理 TTF/区域基差、LNG、储气与分层套保。",
+            "en": "Manage TTF and regional basis, LNG sourcing, storage, and layered hedging through low inventories, refill competition, and record spot prices entering winter.",
+        },
+        "exposure": {
+            "direction": "long",
+            "volume": 120000,
+            "unit": "MWh",
+            "risk": {
+                "zh": "冬季售气义务面临补库成本、TTF/区域基差、LNG 到港和储气注采风险",
+                "en": "Winter sales obligations exposed to refill cost, TTF/regional basis, LNG arrival, and storage deliverability risk",
+            },
+        },
+        "skills": ["flat_price", "basis_spread", "physical_paper_matching", "storage", "lng_regas", "risk_controls"],
+        "source_notes": [
+            {
+                "publisher": "International Energy Agency",
+                "title": "Gas market update and short-term forecast - Gas Market Report, Q2 2021",
+                "published": "2021-04-20",
+                "available_from": "2021-04-20",
+                "url": "https://www.iea.org/reports/gas-market-report-q2-2021/gas-market-update-and-short-term-forecast",
+                "use": "Contemporaneous calibration for the low European storage position after winter and higher 2021 refill requirements.",
+            },
+            {
+                "publisher": "International Energy Agency",
+                "title": "Statement on recent developments in natural gas and electricity markets",
+                "published": "2021-09-21",
+                "available_from": "2021-09-21",
+                "url": "https://www.iea.org/news/statement-on-recent-developments-in-natural-gas-and-electricity-markets",
+                "use": "Contemporaneous context for strong demand recovery, tight supply, low storage, LNG outages, and weak wind generation.",
+            },
+            {
+                "publisher": "International Energy Agency",
+                "title": "Main findings - Gas Market Report, Q4 2021",
+                "published": "2021-10-15",
+                "available_from": "2021-10-15",
+                "url": "https://www.iea.org/reports/gas-market-report-q4-2021/main-findings",
+                "use": "Retrospective calibration for record-high European and Asian spot gas prices as the 2021/22 gas year opened.",
+            },
+        ],
+        "checkpoints": [
+            {
+                "date": "2021-03-31",
+                "label": {"zh": "低库存进入补库季", "en": "Low inventories enter refill season"},
+                "facts": {
+                    "zh": ["欧洲经历较冷且较长的供暖季", "储气库存低于五年平均水平", "夏季需要增加注气并争夺管道气与 LNG"],
+                    "en": ["Europe exits a colder and longer heating season", "Storage inventories are below the five-year average", "Summer injection needs raise competition for pipeline gas and LNG"],
+                },
+                "decision_required": {
+                    "zh": "你负责 120,000 MWh 冬季客户交付。制定分层采购、TTF 套保、储气注入和区域基差方案。",
+                    "en": "You manage a 120,000 MWh winter customer obligation. Set layered procurement, TTF hedging, storage injection, and regional-basis cover.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Pipeline gas / flexible LNG", "side": "buy", "quantity": 120000, "tenor": "Summer-Winter"},
+                    {"leg_type": "swap", "market": "TTF Winter swap", "side": "buy", "quantity": 60000, "tenor": "Winter"},
+                    {"leg_type": "basis", "market": "Regional hub / TTF basis", "side": "buy", "quantity": 30000, "tenor": "Winter"},
+                    {"leg_type": "capacity", "market": "Storage injection capacity", "side": "buy", "quantity": 1, "tenor": "Summer"},
+                ],
+                "outcome": {
+                    "zh": "补库需求与全球 LNG 竞争随后增强。分层锁价和提前落实储气能力降低了集中执行与区域错配风险。",
+                    "en": "Refill demand and global LNG competition subsequently strengthened. Layered price cover and early storage capacity reduced concentrated execution and regional-basis risk.",
+                },
+                "regime": "contango",
+                "base_price": 22.0,
+                "seed": 210331,
+            },
+            {
+                "date": "2021-09-21",
+                "label": {"zh": "供应偏紧与价格加速", "en": "Tight supply and accelerating prices"},
+                "facts": {
+                    "zh": ["欧洲需求恢复而供应低于预期", "全球 LNG 生产中断限制灵活船货", "储气偏低且低风电增加燃气发电需求"],
+                    "en": ["European demand recovers while supply is tighter than expected", "Global LNG production outages constrain flexible cargoes", "Low storage and weak wind output lift gas-fired generation demand"],
+                },
+                "decision_required": {
+                    "zh": "检查未锁冬季敞口、保证金和 LNG 到港不确定性，决定继续买掉期还是用看涨价差保留灵活性。",
+                    "en": "Review unhedged winter exposure, margin capacity, and LNG arrival uncertainty; choose between more swaps and call spreads that retain flexibility.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Delivered European gas / LNG", "side": "buy", "quantity": 120000, "tenor": "Winter"},
+                    {"leg_type": "swap", "market": "TTF Winter swap", "side": "buy", "quantity": 70000, "tenor": "Winter"},
+                    {"leg_type": "option", "market": "TTF Winter call spread", "side": "buy", "quantity": 50000, "tenor": "Winter"},
+                    {"leg_type": "capacity", "market": "Firm regas / storage withdrawal", "side": "buy", "quantity": 1, "tenor": "Winter"},
+                ],
+                "outcome": {
+                    "zh": "入冬前欧洲和亚洲现货价格升至纪录区间。价差期权和已确认交付能力控制了上行风险，同时避免在极端价格下一次性追满掉期。",
+                    "en": "European and Asian spot prices reached record territory entering winter. Call spreads and confirmed deliverability controlled upside risk without chasing a full swap hedge at extreme prices.",
+                },
+                "regime": "backwardation",
+                "base_price": 72.0,
+                "seed": 210921,
+            },
+            {
+                "date": "2021-10-15",
+                "label": {"zh": "高价入冬与组合再平衡", "en": "High-price winter entry and rebalancing"},
+                "facts": {
+                    "zh": ["新气年以欧洲和亚洲现货纪录高位开局", "冬季数量和天气不确定性仍高", "高价与波动推升信用、保证金和客户履约压力"],
+                    "en": ["The new gas year opens with record-high European and Asian spot prices", "Winter volume and weather uncertainty remain high", "High prices and volatility increase credit, margin, and customer-performance pressure"],
+                },
+                "decision_required": {
+                    "zh": "重估实货覆盖率与纸货比例，保留天气上行保护，并检查客户售价指数与采购指数是否错配。",
+                    "en": "Reassess physical and paper coverage, retain weather upside protection, and check whether customer sales indices match procurement indices.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Firm winter supply", "side": "buy", "quantity": 120000, "tenor": "Winter"},
+                    {"leg_type": "swap", "market": "TTF Winter swap", "side": "buy", "quantity": 60000, "tenor": "Winter"},
+                    {"leg_type": "basis", "market": "Customer index / TTF basis", "side": "buy", "quantity": 30000, "tenor": "Winter"},
+                    {"leg_type": "option", "market": "TTF weather call", "side": "buy", "quantity": 30000, "tenor": "Winter"},
+                ],
+                "outcome": {
+                    "zh": "组合从单纯追涨转向数量、指数和天气分层管理。已确认实货、基差匹配和有限损失期权共同改善了冬季履约韧性。",
+                    "en": "The portfolio moved from chasing price to layered volume, index, and weather management. Firm physical supply, basis alignment, and limited-loss options improved winter delivery resilience.",
+                },
+                "regime": "volatile",
+                "base_price": 96.0,
+                "seed": 211015,
+            },
+        ],
+    },
+    {
+        "id": "wti_storage_squeeze_2020",
+        "commodity": "crude_oil",
+        "market_profile": {
+            "benchmark": "WTI",
+            "label": {"zh": "WTI 原油", "en": "WTI crude"},
+        },
+        "title": {
+            "zh": "2020 WTI 库容与交割挤压复盘",
+            "en": "2020 WTI storage and delivery squeeze replay",
+        },
+        "summary": {
+            "zh": "从持有库存在途原油的贸易商视角，经历需求骤降、Cushing 库容紧张和近月合约负价，管理实货流向、WTI 纸货、月差与交割风险。",
+            "en": "Manage physical flows, WTI paper, calendar spreads, and delivery risk as demand collapses, Cushing storage tightens, and the prompt contract trades below zero.",
+        },
+        "exposure": {
+            "direction": "inventory_long",
+            "volume": 100000,
+            "unit": "bbl",
+            "risk": {
+                "zh": "在途和库存原油面临价格下跌、近月交割、库容、WTI/Brent 基差与流动性风险",
+                "en": "Crude in transit and storage exposed to falling prices, prompt delivery, storage, WTI/Brent basis, and liquidity risk",
+            },
+        },
+        "skills": ["flat_price", "calendar_spread", "physical_paper_matching", "storage", "benchmark_basis", "risk_controls"],
+        "source_notes": [
+            {
+                "publisher": "U.S. Energy Information Administration",
+                "title": "Low liquidity and limited available storage pushed WTI crude oil futures prices below zero",
+                "published": "2020-04-27",
+                "available_from": "2020-04-27",
+                "url": "https://www.eia.gov/todayinenergy/detail.php?id=43495",
+                "use": "Retrospective calibration for the May WTI expiry, limited uncommitted Cushing storage, and the divergence from Brent and later-dated WTI.",
+            },
+            {
+                "publisher": "U.S. Commodity Futures Trading Commission",
+                "title": "CFTC Staff Publishes Interim Report on NYMEX WTI Crude Contract Trading on and around April 20, 2020",
+                "published": "2020-11-23",
+                "available_from": "2020-11-23",
+                "url": "https://www.cftc.gov/PressRoom/PressReleases/8315-20",
+                "use": "Retrospective calibration for the May contract settlement at -$37.63/bbl and contract-expiry market structure.",
+            },
+            {
+                "publisher": "U.S. Energy Information Administration",
+                "title": "U.S. crude oil inventories are approaching record-high levels",
+                "published": "2020-05-01",
+                "available_from": "2020-05-01",
+                "url": "https://www.eia.gov/todayinenergy/detail.php?id=43555",
+                "use": "Retrospective calibration for rapid inventory builds and high Cushing storage utilisation.",
+            },
+        ],
+        "checkpoints": [
+            {
+                "date": "2020-04-10",
+                "label": {"zh": "需求骤降与库存累积", "en": "Demand collapse and inventory build"},
+                "facts": {
+                    "zh": ["出行限制导致成品油和炼厂原油需求骤降", "美国商业原油库存快速增加", "WTI 近月贴水扩大并暴露库容价值"],
+                    "en": ["Travel restrictions sharply reduce product and refinery crude demand", "U.S. commercial crude inventories build rapidly", "Prompt WTI discounts widen and expose the value of storage"],
+                },
+                "decision_required": {
+                    "zh": "你持有 100,000 桶在途和 Cushing 库存。决定减少到货、卖出 WTI 纸货、锁定库容并管理 WTI/Brent 基差。",
+                    "en": "You hold 100,000 barrels in transit and at Cushing. Decide how to reduce receipts, sell WTI paper, secure storage, and manage WTI/Brent basis.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Cushing receipts / inventory", "side": "sell", "quantity": 100000, "tenor": "May"},
+                    {"leg_type": "future", "market": "NYMEX WTI May", "side": "sell", "quantity": 70000, "tenor": "May"},
+                    {"leg_type": "basis", "market": "WTI / Brent basis", "side": "sell", "quantity": 30000, "tenor": "May"},
+                    {"leg_type": "capacity", "market": "Cushing storage", "side": "buy", "quantity": 1, "tenor": "April-May"},
+                ],
+                "outcome": {
+                    "zh": "库存继续快速累积，未落实库容的近月多头承受越来越强的交割压力。提前缩减到货和卖出纸货降低了价格与运营风险。",
+                    "en": "Inventories continued to build rapidly, intensifying delivery pressure on prompt longs without committed storage. Early receipt reductions and short paper reduced price and operational risk.",
+                },
+                "regime": "contango",
+                "base_price": 23.0,
+                "seed": 200410,
+            },
+            {
+                "date": "2020-04-20",
+                "label": {"zh": "近月合约跌至负价", "en": "Prompt contract turns negative"},
+                "facts": {
+                    "zh": ["WTI 五月合约临近到期且流动性枯竭", "未承诺库容稀缺，实物交割能力成为关键", "五月 WTI 与 Brent、远月 WTI 的关系剧烈断裂"],
+                    "en": ["The May WTI contract approaches expiry as liquidity collapses", "Uncommitted storage is scarce and physical delivery capability becomes decisive", "May WTI diverges sharply from Brent and later-dated WTI"],
+                },
+                "decision_required": {
+                    "zh": "立即决定是否平掉五月纸货、滚动到六月，并把月差、保证金和交割操作纳入风控。",
+                    "en": "Decide immediately whether to close May paper and roll to June, explicitly controlling calendar spread, margin, and delivery operations.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "Cushing inventory / receipts", "side": "sell", "quantity": 100000, "tenor": "May"},
+                    {"leg_type": "future", "market": "NYMEX WTI May close-out", "side": "buy", "quantity": 70000, "tenor": "May"},
+                    {"leg_type": "future", "market": "NYMEX WTI June hedge", "side": "sell", "quantity": 70000, "tenor": "June"},
+                    {"leg_type": "basis", "market": "WTI May / June calendar spread", "side": "sell", "quantity": 70000, "tenor": "May/June"},
+                    {"leg_type": "capacity", "market": "Committed Cushing storage", "side": "buy", "quantity": 1, "tenor": "May-June"},
+                ],
+                "outcome": {
+                    "zh": "五月 WTI 最终以负价结算，而 Brent 与远月 WTI 仍为正。及时滚动和确认交割能力比仅看方向性价格判断更重要。",
+                    "en": "May WTI settled below zero while Brent and later WTI remained positive. Timely rolling and confirmed delivery capability mattered more than a simple directional price view.",
+                },
+                "regime": "volatile",
+                "base_price": 6.0,
+                "forward_prices": [-37.63, 20.43, 26.28, 28.51, 29.40, 30.20, 31.00, 31.50, 32.00, 32.60, 33.10, 33.50],
+                "history_closes": [45.90, 42.10, 37.80, 33.20, 29.40, 25.10, 22.80, 20.40, 19.20, 18.60, 18.27, -37.63],
+                "seed": 200420,
+            },
+            {
+                "date": "2020-05-01",
+                "label": {"zh": "交割冲击后重新定价", "en": "Post-expiry repricing"},
+                "facts": {
+                    "zh": ["美国库存接近纪录高位且 Cushing 利用率继续上升", "六月 WTI 和其他基准保持正价但波动仍高", "需求、炼厂开工和库存路径决定后续月差"],
+                    "en": ["U.S. inventories approach record levels and Cushing utilisation remains high", "June WTI and other benchmarks remain positive but volatile", "Demand, refinery runs, and inventory trajectories drive the next calendar spreads"],
+                },
+                "decision_required": {
+                    "zh": "区分一次性交割挤压与持续的库存风险，重建六月/七月套保并设定滚动、库容和保证金触发条件。",
+                    "en": "Separate the one-off expiry squeeze from persistent inventory risk, then rebuild June/July cover with explicit roll, storage, and margin triggers.",
+                },
+                "target_actions": [
+                    {"leg_type": "physical", "market": "US crude inventory / refinery sale", "side": "sell", "quantity": 100000, "tenor": "June-July"},
+                    {"leg_type": "future", "market": "NYMEX WTI June", "side": "sell", "quantity": 60000, "tenor": "June"},
+                    {"leg_type": "basis", "market": "WTI June / July calendar spread", "side": "sell", "quantity": 40000, "tenor": "June/July"},
+                    {"leg_type": "capacity", "market": "Cushing storage release plan", "side": "sell", "quantity": 1, "tenor": "June-July"},
+                ],
+                "outcome": {
+                    "zh": "后续价格逐步恢复，但库存和期限结构仍主导风险。分离近月交割、远月价格和地点基差后，组合更适合真实运营约束。",
+                    "en": "Prices gradually recovered, but inventories and term structure remained central. Separating prompt delivery, deferred price, and location basis produced a hedge aligned with real operations.",
+                },
+                "regime": "contango",
+                "base_price": 19.0,
+                "seed": 200501,
+            },
+        ],
+    },
 ]
 
 
@@ -543,6 +800,52 @@ def list_replay_events(locale: str = "en") -> list[dict[str, Any]]:
     ]
 
 
+def _apply_replay_market_overrides(
+    market: dict[str, Any],
+    event: dict[str, Any],
+    checkpoint: dict[str, Any],
+    locale: str,
+) -> None:
+    profile = event.get("market_profile") if isinstance(event.get("market_profile"), dict) else {}
+    if profile.get("benchmark"):
+        market["benchmark"] = profile["benchmark"]
+        label = profile.get("label") if isinstance(profile.get("label"), dict) else {}
+        market["label"] = label.get("zh" if (locale or "").lower().startswith("zh") else "en") or profile["benchmark"]
+
+    forward_prices = checkpoint.get("forward_prices")
+    if isinstance(forward_prices, list) and forward_prices:
+        for point, raw_price in zip(market.get("forward_curve", []), forward_prices, strict=False):
+            price = float(raw_price)
+            spread = max(abs(price) * 0.002, 0.03)
+            point.update(
+                {
+                    "price": round(price, 4),
+                    "bid": round(price - spread, 4),
+                    "ask": round(price + spread, 4),
+                }
+            )
+        market["curve_metrics"] = classify_forward_curve(market.get("forward_curve", []))
+
+    history_closes = checkpoint.get("history_closes")
+    if isinstance(history_closes, list) and history_closes:
+        as_of = _parse_date(checkpoint.get("date"))
+        closes = [float(value) for value in history_closes]
+        history: list[dict[str, Any]] = []
+        for index, close in enumerate(closes):
+            previous = closes[index - 1] if index else close * 1.015
+            range_size = max(abs(close) * 0.025, 0.5)
+            history.append(
+                {
+                    "date": (as_of - timedelta(days=(len(closes) - 1 - index) * 4)).isoformat(),
+                    "open": round(previous, 4),
+                    "high": round(max(previous, close) + range_size, 4),
+                    "low": round(min(previous, close) - range_size, 4),
+                    "close": round(close, 4),
+                }
+            )
+        market["history"] = history
+
+
 def build_replay_session(event_id: str, checkpoint: int = 0, locale: str = "en") -> dict[str, Any]:
     event = next((item for item in _REPLAY_EVENTS if item["id"] == event_id), None)
     if event is None:
@@ -559,6 +862,7 @@ def build_replay_session(event_id: str, checkpoint: int = 0, locale: str = "en")
         locale=locale,
         base_price=current["base_price"],
     )
+    _apply_replay_market_overrides(market, event, current, locale)
     market["provenance"].update(
         {
             "mode": "historical_replay",

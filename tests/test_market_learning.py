@@ -7,6 +7,7 @@ from core.market_learning import (
     build_simulated_market_context,
     classify_forward_curve,
     evaluate_replay_decision,
+    list_replay_events,
     market_capability_catalog,
 )
 from tauri.backend.main import app
@@ -72,6 +73,52 @@ def test_natural_gas_replay_moves_from_supply_shock_to_lng_congestion_without_fu
     assert final["current_checkpoint"]["label"] == "High storage and LNG congestion"
     assert final["market"]["curve_metrics"]["structure"] == "contango"
     assert all(note["available_from"] <= "2022-10-24" for note in final["source_notes"])
+
+
+def test_2021_gas_refill_replay_preserves_point_in_time_sources_and_sequence() -> None:
+    first = build_replay_session("european_gas_refill_squeeze_2021", checkpoint=0, locale="en")
+    second = build_replay_session("european_gas_refill_squeeze_2021", checkpoint=1, locale="en")
+    final = build_replay_session("european_gas_refill_squeeze_2021", checkpoint=2, locale="en")
+
+    assert first["current_checkpoint"]["label"] == "Low inventories enter refill season"
+    assert "High-price winter entry" not in str(first)
+    assert first["source_notes"] == []
+    assert len(second["source_notes"]) == 2
+    assert all(note["available_from"] <= "2021-09-21" for note in second["source_notes"])
+    assert final["current_checkpoint"]["label"] == "High-price winter entry and rebalancing"
+    assert final["market"]["provenance"]["requested_regime"] == "volatile"
+
+
+def test_wti_storage_replay_teaches_expiry_delivery_and_calendar_risk() -> None:
+    first = build_replay_session("wti_storage_squeeze_2020", checkpoint=0, locale="en")
+    squeeze = build_replay_session("wti_storage_squeeze_2020", checkpoint=1, locale="en")
+    final = build_replay_session("wti_storage_squeeze_2020", checkpoint=2, locale="en")
+
+    assert first["event"]["commodity"] == "crude_oil"
+    assert first["event"]["exposure"]["direction"] == "inventory_long"
+    assert first["market"]["benchmark"] == "WTI"
+    assert "Prompt contract turns negative" not in str(first)
+    assert squeeze["current_checkpoint"]["label"] == "Prompt contract turns negative"
+    assert squeeze["market"]["provenance"]["requested_regime"] == "volatile"
+    assert squeeze["market"]["forward_curve"][0]["price"] == -37.63
+    assert squeeze["market"]["forward_curve"][1]["price"] > 0
+    assert squeeze["market"]["history"][-1]["close"] == -37.63
+    assert squeeze["market"]["curve_metrics"]["structure"] == "contango"
+    assert squeeze["source_notes"] == []
+    assert {note["publisher"] for note in final["source_notes"]} == {
+        "U.S. Energy Information Administration",
+    }
+
+
+def test_replay_catalog_contains_two_business_distinct_events_per_active_product() -> None:
+    events = list_replay_events(locale="en")
+    by_commodity = {
+        commodity: [event for event in events if event["commodity"] == commodity]
+        for commodity in {event["commodity"] for event in events}
+    }
+
+    assert len(by_commodity["natural_gas"]) >= 2
+    assert len(by_commodity["crude_oil"]) >= 2
 
 
 def test_natural_gas_replay_scores_storage_and_regas_reasoning_locally() -> None:
