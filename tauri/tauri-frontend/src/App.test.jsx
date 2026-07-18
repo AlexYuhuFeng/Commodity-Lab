@@ -271,6 +271,20 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
         fallback_mode: "ai_simulated",
         replays: [
           {
+            id: "european_gas_crisis_2022",
+            commodity: "natural_gas",
+            title: "2022 European gas crisis and LNG-congestion replay",
+            summary: "Manage TTF, LNG, and storage through the European gas crisis.",
+            checkpoint_count: 3
+          },
+          {
+            id: "european_gas_refill_squeeze_2021",
+            commodity: "natural_gas",
+            title: "2021 European storage-refill and global LNG competition replay",
+            summary: "Manage TTF, regional basis, LNG, and storage through a tight refill season.",
+            checkpoint_count: 3
+          },
+          {
             id: "hormuz_2026_disruption",
             commodity: "crude_oil",
             title: "2026 Strait of Hormuz supply-shock replay",
@@ -282,7 +296,7 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
     }
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.3.0",
+        current_version: "1.4.0",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -386,7 +400,7 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: "1. What basis risk remains?" };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.3.0", latest_version: "1.3.0", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.3.0", assets: [] };
+      return { current_version: "1.4.0", latest_version: "1.4.0", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.4.0", assets: [] };
     }
     return {};
   };
@@ -531,7 +545,7 @@ describe("Commodity Lab shell", () => {
     const request = calls.find((call) => call.path === "/api/v1/ai/training-case")?.body;
     expect(request.market_mode).toBe("ai_simulated");
     expect(request.market_regime).toBe("backwardation");
-    expect(await screen.findByText("AI-simulated market")).toBeInTheDocument();
+    expect((await screen.findAllByText("AI-simulated market")).length).toBeGreaterThan(0);
     expect(screen.getByText("Contango")).toBeInTheDocument();
     expect(screen.getByText("As of 2026-07-17")).toBeInTheDocument();
   });
@@ -566,6 +580,17 @@ describe("Commodity Lab shell", () => {
     expect(request.provider).toBe("deepseek");
     expect(request.base_url).toBe("https://api.deepseek.com");
     expect(request.model).toBe("deepseek-v4-flash");
+  });
+
+  it("shows the provider actually configured by the backend after restart", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    localStorage.setItem("commodity-lab-ai-provider", "deepseek");
+    renderShell({ aiReady: true });
+
+    fireEvent.click((await screen.findAllByText("Settings"))[0]);
+
+    await waitFor(() => expect(screen.getByLabelText("Provider")).toHaveValue("haineng"));
+    expect(localStorage.getItem("commodity-lab-ai-provider")).toBe("haineng");
   });
 
   it("uses fixed Haineng Flash routing without model or URL controls", async () => {
@@ -932,6 +957,93 @@ describe("Commodity Lab shell", () => {
     expect(request.body.template_id).toBe("crude_oil_hedging_basics");
     expect(request.body.product_scope).toBe("crude_oil");
     expect(await screen.findByText("Brent Cargo Hedge for Refinery Procurement")).toBeInTheDocument();
+  });
+
+  it("lets AI visibly switch the current exercise into a historical replay", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    renderShell({
+      aiReady: true,
+      onCall: (call) => calls.push(call),
+      assistantResponse: {
+        answer: "I switched this lesson to a point-in-time crude replay.",
+        actions: [{
+          type: "configure_market_session",
+          label: "Switch to historical replay",
+          payload: {
+            market_mode: "historical_replay",
+            replay_id: "hormuz_2026_disruption",
+            user_request: "Practise the refinery procurement decision at each checkpoint."
+          }
+        }]
+      }
+    });
+
+    fireEvent.change(await screen.findByLabelText("Course product"), { target: { value: "crude_oil" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+    fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Turn this into a historical replay." } });
+    fireEvent.click(screen.getByText("Send"));
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/training-case" && call.body?.market_mode === "historical_replay")).toBe(true));
+    const request = calls.find((call) => call.path === "/api/v1/ai/training-case" && call.body?.market_mode === "historical_replay");
+    expect(request.body.replay_id).toBe("hormuz_2026_disruption");
+    expect(await screen.findByText("Event Replay")).toBeInTheDocument();
+    expect(screen.getAllByText("Historical replay").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Switch to historical replay").length).toBeGreaterThan(0);
+  });
+
+  it("resolves a named replay when AI returns a generic generation action without replay_id", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    const calls = [];
+    renderShell({
+      aiReady: true,
+      onCall: (call) => calls.push(call),
+      assistantResponse: {
+        answer: "I prepared the requested point-in-time replay.",
+        actions: [{
+          type: "generate_case",
+          label: "Switch to the 2022 European gas crisis replay",
+          payload: {
+            market_mode: "historical_replay",
+            replay_id: "european_gas_refill_squeeze_2021",
+            user_request: "Practise the 2022 European gas crisis decisions."
+          }
+        }]
+      }
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+    fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Switch to the 2022 European gas crisis replay." } });
+    fireEvent.click(screen.getByText("Send"));
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/training-case" && call.body?.replay_id === "european_gas_crisis_2022")).toBe(true));
+    const request = calls.find((call) => call.path === "/api/v1/ai/training-case" && call.body?.replay_id === "european_gas_crisis_2022");
+    expect(request.body.market_mode).toBe("historical_replay");
+    expect(request.body.product_scope).toBe("natural_gas");
+
+    fireEvent.change(screen.getByLabelText("Course product"), { target: { value: "crude_oil" } });
+    await waitFor(() => expect(screen.queryByText("Switch to the 2022 European gas crisis replay")).not.toBeInTheDocument());
+  });
+
+  it("persists market evidence, session identity, and AI interventions in scored records", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: true });
+
+    fireEvent.click((await screen.findAllByText("Generate beginner drill"))[0]);
+    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+    fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Show high low close." } });
+    fireEvent.click(screen.getByText("Send"));
+    await screen.findByText("AI action applied");
+    fireEvent.click((await screen.findAllByText("Submit strategy"))[0]);
+
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("commodity-lab-learning-records-v2") ?? "[]")).toHaveLength(1));
+    const [record] = JSON.parse(localStorage.getItem("commodity-lab-learning-records-v2"));
+    expect(record.session_id).toMatch(/^(pending|session)-/);
+    expect(record.market_mode).toBe("ai_simulated");
+    expect(record.training_session.scoring.mode).toBe("local_deterministic");
+    expect(record.evidence_snapshot.benchmark).toBeTruthy();
+    expect(record.ai_actions.some((action) => action.kind === "set_chart_fields")).toBe(true);
   });
 
   it("ignores an in-flight case response after the product workspace changes", async () => {

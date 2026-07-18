@@ -1,4 +1,5 @@
 from copy import deepcopy
+from datetime import datetime, timezone
 from pathlib import Path
 import re
 import os
@@ -8,6 +9,7 @@ import time
 import json
 from typing import Any, List, Dict
 from urllib.request import Request, urlopen
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -239,7 +241,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.3.0",
+        "current_version": "1.4.0",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -248,7 +250,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.3.0"
+    current_version = "1.4.0"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -864,11 +866,13 @@ def _compact_live_workspace_context(context: dict[str, Any]) -> dict[str, Any]:
     case = context.get("case") if isinstance(context.get("case"), dict) else {}
     scenario = case.get("scenario") if isinstance(case.get("scenario"), dict) else {}
     market = case.get("market") if isinstance(case.get("market"), dict) else {}
+    training_session = case.get("training_session") if isinstance(case.get("training_session"), dict) else {}
     replay = market.get("replay") if isinstance(market.get("replay"), dict) else {}
     curriculum = context.get("curriculum_context") if isinstance(context.get("curriculum_context"), dict) else {}
     lesson_plan = context.get("ai_lesson_plan") if isinstance(context.get("ai_lesson_plan"), dict) else {}
     evaluation = context.get("evaluation") if isinstance(context.get("evaluation"), dict) else {}
     progress = context.get("learning_progress") if isinstance(context.get("learning_progress"), dict) else {}
+    replay_catalog = context.get("replay_catalog") if isinstance(context.get("replay_catalog"), list) else []
 
     curves = []
     for curve in market.get("curves", [])[:3]:
@@ -922,6 +926,20 @@ def _compact_live_workspace_context(context: dict[str, Any]) -> dict[str, Any]:
         },
         "task": str(case.get("prompt") or "")[:2000],
         "rubric": deepcopy(case.get("rubric", []))[:8],
+        "training_session": {
+            key: deepcopy(training_session.get(key))
+            for key in ("id", "product_scope", "template_id", "learning_objective", "market", "replay", "scoring")
+            if training_session.get(key) is not None
+        },
+        "replay_catalog": [
+            {
+                key: deepcopy(item.get(key))
+                for key in ("id", "commodity", "title", "summary", "checkpoint_count")
+                if item.get(key) is not None
+            }
+            for item in replay_catalog[:8]
+            if isinstance(item, dict)
+        ],
         "market": {
             "benchmark": market.get("benchmark"),
             "unit": market.get("unit"),
@@ -952,14 +970,62 @@ def _compact_live_workspace_context(context: dict[str, Any]) -> dict[str, Any]:
         },
         "learning_progress": {
             key: deepcopy(progress.get(key))
-            for key in ("total_attempts", "average_score", "last_score", "recommended_track_id", "weak_topics")
+            for key in ("attempts", "sessions", "averageScore", "latestScore", "marketModes", "replayCheckpoints", "weakest")
             if progress.get(key) is not None
         },
         "recent_attempts": attempts,
     }
 
 
-def _attach_market_context(case: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+def _build_training_session(
+    payload: TrainingCaseGenerateRequest,
+    template: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    provenance = context.get("provenance", {})
+    replay = context.get("replay") or {}
+    event = replay.get("event") or {}
+    checkpoint = replay.get("current_checkpoint") or {}
+    requested_mode = (payload.market_mode or "ai_simulated").strip().lower()
+    effective_mode = str(provenance.get("mode") or requested_mode)
+    return {
+        "id": f"session-{uuid4().hex}",
+        "schema_version": "1.0",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "product_scope": payload.product_scope,
+        "template_id": payload.template_id,
+        "learning_objective": payload.user_request.strip() or str(template.get("title") or ""),
+        "market": {
+            "requested_mode": requested_mode,
+            "effective_mode": effective_mode,
+            "regime": payload.market_regime,
+            "benchmark": context.get("benchmark"),
+            "as_of": context.get("as_of") or provenance.get("as_of"),
+            "source_tier": provenance.get("source_tier"),
+            "fallback_applied": bool(provenance.get("fallback_reason")),
+            "fallback_reason": provenance.get("fallback_reason"),
+        },
+        "replay": {
+            "event_id": event.get("id"),
+            "checkpoint": checkpoint.get("index", 0),
+            "checkpoint_count": event.get("checkpoint_count"),
+        } if event.get("id") else None,
+        "scoring": {
+            "mode": "local_deterministic",
+            "rubric_version": "case-rubric-v1",
+        },
+        "ai": {
+            "case_generated": True,
+            "workspace_control_enabled": True,
+        },
+    }
+
+
+def _attach_market_context(
+    case: dict[str, Any],
+    context: dict[str, Any],
+    training_session: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     market = case.setdefault("market", {})
     benchmark = context.get("benchmark", "MARKET")
     history = context.get("history", [])
@@ -1048,6 +1114,8 @@ def _attach_market_context(case: dict[str, Any], context: dict[str, Any]) -> dic
             f"{facts_markdown}\n\n"
             f"**{decision_label}:** {current_checkpoint.get('decision_required', '')}"
         )
+    if training_session:
+        case["training_session"] = deepcopy(training_session)
     return case
 
 
@@ -1295,6 +1363,7 @@ def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
     except KeyError as exc:
         raise _unknown_scenario(exc)
     market_context = _resolve_training_market(payload, template)
+    training_session = _build_training_session(payload, template, market_context)
     messages = build_training_case_messages(
         payload.locale,
         template,
@@ -1305,10 +1374,19 @@ def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
     )
     try:
         answer = client.complete(messages)
-        case = _attach_market_context(_normalize_training_case(_parse_json_response(answer)), market_context)
+        case = _attach_market_context(
+            _normalize_training_case(_parse_json_response(answer)),
+            market_context,
+            training_session,
+        )
     except Exception as exc:
         raise _haineng_failure(exc) from exc
-    return {"template": template, "case": case, "market_context": market_context}
+    return {
+        "template": template,
+        "case": case,
+        "market_context": market_context,
+        "training_session": training_session,
+    }
 
 
 @app.post("/api/v1/ai/training-case/stream")
@@ -1324,6 +1402,8 @@ def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
             yield _sse_event("template", template)
             yield _sse_event("stage", {"id": "resolve_market", "label": "Resolving market evidence and provenance"})
             market_context = _resolve_training_market(payload, template)
+            training_session = _build_training_session(payload, template, market_context)
+            yield _sse_event("session", training_session)
             yield _sse_event("market", market_context)
             yield _sse_event("stage", {"id": "generate_market", "label": "Composing the training market and decision path"})
             messages = build_training_case_messages(
@@ -1358,7 +1438,11 @@ def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
             else:
                 answer = client.complete(messages)
             yield _sse_event("stage", {"id": "parse_case", "label": "Building scenario, target actions, and rubric"})
-            case = _attach_market_context(_normalize_training_case(_parse_json_response(answer)), market_context)
+            case = _attach_market_context(
+                _normalize_training_case(_parse_json_response(answer)),
+                market_context,
+                training_session,
+            )
             yield _sse_event("case", {"template": template, "case": case})
             yield _sse_event("done", {"ok": True})
         except Exception as exc:
@@ -1370,8 +1454,21 @@ def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
 def _live_assistant_action_schema() -> dict[str, Any]:
     return {
         "navigate_page": {"page": "home|caseLab|workbench|library|review|knowledge|progress|settings"},
-        "generate_case": {"track_id": "foundation|crude|procurement|sales|integrated", "template_id": "foundation_hedging_basics", "user_request": "short training goal"},
+        "generate_case": {
+            "track_id": "foundation|crude|procurement|sales|integrated",
+            "template_id": "foundation_hedging_basics",
+            "user_request": "short training goal",
+            "market_mode": "ai_simulated|historical_replay|live",
+            "market_regime": "contango|backwardation|flat|volatile",
+            "replay_id": "optional replay event id",
+        },
         "select_template": {"template_id": "foundation_hedging_basics", "user_request": "optional training goal"},
+        "configure_market_session": {
+            "market_mode": "ai_simulated|historical_replay|live",
+            "market_regime": "contango|backwardation|flat|volatile",
+            "replay_id": "optional replay event id",
+            "user_request": "optional refinement of the current learning goal",
+        },
         "patch_case": {
             "scenario": {"title": "short title", "summary": "updated scenario summary", "exposure": {"direction": "buy|sell|spread", "risk": "key risk"}},
             "market": {"unit": "training index", "events": [{"date": "2026-01-07", "label": "event"}]},

@@ -346,6 +346,14 @@ def test_ai_training_case_endpoint_parses_generated_json(monkeypatch) -> None:
     assert [curve["id"] for curve in payload["case"]["market"]["curves"]] == ["TTF", "NBP"]
     assert payload["case"]["market"]["curve_metrics"]["structure"] == "contango"
     assert payload["case"]["market"]["provenance"]["mode"] == "ai_simulated"
+    session = payload["case"]["training_session"]
+    assert session["id"].startswith("session-")
+    assert session["product_scope"] == "natural_gas"
+    assert session["template_id"] == "procurement_beach_to_germany"
+    assert session["market"]["requested_mode"] == "ai_simulated"
+    assert session["market"]["effective_mode"] == "ai_simulated"
+    assert session["scoring"]["mode"] == "local_deterministic"
+    assert payload["training_session"] == session
 
 
 def test_general_course_uses_the_selected_product_market() -> None:
@@ -398,7 +406,7 @@ def test_live_training_market_uses_entitled_adapter_when_available(monkeypatch) 
 def test_live_training_market_fallback_is_explicit(monkeypatch) -> None:
     from core.platts_market import PlattsConfigurationError
     from core.training_templates import get_template
-    from tauri.backend.main import TrainingCaseGenerateRequest, _resolve_training_market
+    from tauri.backend.main import TrainingCaseGenerateRequest, _build_training_session, _resolve_training_market
 
     def unavailable(self, commodity, locale="en"):
         raise PlattsConfigurationError("missing", code="platts_symbol_map_missing")
@@ -416,6 +424,10 @@ def test_live_training_market_fallback_is_explicit(monkeypatch) -> None:
     assert market["provenance"]["mode"] == "ai_simulated"
     assert market["provenance"]["fallback_reason"] == "platts_symbol_map_missing"
     assert market["provenance"]["quality"] == "explicit_simulation_fallback"
+    session = _build_training_session(payload, get_template("foundation_hedging_basics", "en"), market)
+    assert session["market"]["requested_mode"] == "live"
+    assert session["market"]["effective_mode"] == "ai_simulated"
+    assert session["market"]["fallback_applied"] is True
 
 
 def test_ai_training_case_stream_emits_market_before_real_model_deltas(monkeypatch) -> None:
@@ -461,7 +473,7 @@ def test_ai_training_case_stream_emits_market_before_real_model_deltas(monkeypat
 
     assert response.status_code == 200
     body = response.text
-    assert body.index("event: market") < body.index("event: model_delta")
+    assert body.index("event: session") < body.index("event: market") < body.index("event: model_delta")
     assert body.count("event: model_delta") == 2
     assert "event: case" in body
     assert '"received"' in body
@@ -603,6 +615,13 @@ def test_historical_replay_training_case_hides_model_actions_until_submission(mo
     assert case["scenario"]["title"] == "2026 Strait of Hormuz supply-shock replay"
     assert case["scenario"]["exposure"]["direction"] == "long"
     assert case["scenario"]["exposure"]["unit"] == "bbl"
+    assert case["training_session"]["market"]["requested_mode"] == "historical_replay"
+    assert case["training_session"]["market"]["effective_mode"] == "historical_replay"
+    assert case["training_session"]["replay"] == {
+        "event_id": "hormuz_2026_disruption",
+        "checkpoint": 0,
+        "checkpoint_count": 3,
+    }
     assert [curve["id"] for curve in case["market"]["curves"]] == ["Brent"]
     assert max(point["date"] for point in case["market"]["curves"][0]["points"]) <= "2026-04-01"
     assert "buy Brent" not in case["prompt"]

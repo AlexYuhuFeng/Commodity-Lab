@@ -1824,18 +1824,17 @@ textarea:focus {
 }
 
 .assistant-interventions {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
   gap: 7px;
-  min-height: 42px;
   border-bottom: 1px solid rgba(51, 65, 85, 0.62);
   padding: 7px 10px;
   background: linear-gradient(90deg, rgba(24, 195, 126, 0.08), transparent);
-  overflow-x: auto;
 }
 
 .assistant-interventions span {
-  flex: 0 0 auto;
+  grid-column: 1 / -1;
   color: var(--cl-muted);
   font-size: 11px;
   font-weight: 760;
@@ -1846,18 +1845,18 @@ textarea:focus {
   align-items: center;
   justify-content: flex-start;
   gap: 7px;
-  flex: 0 0 auto;
   min-height: 28px;
-  max-width: 180px;
+  min-width: 0;
+  max-width: none;
   border: 1px solid rgba(45, 212, 191, 0.28);
-  border-radius: 999px;
+  border-radius: 7px;
   padding: 5px 9px;
   color: var(--cl-text);
   background: rgba(15, 23, 42, 0.5);
   font-size: 12px;
   font-weight: 720;
   text-align: left;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .assistant-command-bar {
@@ -1875,14 +1874,13 @@ textarea:focus {
 }
 
 .assistant-command-bar > div {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
-  overflow-x: auto;
-  padding-bottom: 1px;
 }
 
 .assistant-command-bar button {
-  flex: 0 0 auto;
+  min-width: 0;
   min-height: 30px;
   border: 1px solid rgba(31, 122, 255, 0.28);
   border-radius: 999px;
@@ -1891,7 +1889,7 @@ textarea:focus {
   background: rgba(37, 99, 235, 0.18);
   font-size: 12px;
   font-weight: 760;
-  white-space: nowrap;
+  white-space: normal;
   transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
 }
 
