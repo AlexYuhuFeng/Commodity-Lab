@@ -58,7 +58,56 @@ def test_replay_session_never_leaks_future_checkpoint_information() -> None:
     assert sum(item["points"] for item in session["decision_rubric"]) == 100
     assert session["market"]["provenance"]["mode"] == "historical_replay"
     assert session["market"]["provenance"]["source_tier"] == "historically_calibrated_simulation"
-    assert session["source_notes"][0]["url"].startswith("https://www.eia.gov/")
+    assert session["source_notes"] == []
+
+
+def test_natural_gas_replay_moves_from_supply_shock_to_lng_congestion_without_future_leakage() -> None:
+    first = build_replay_session("european_gas_crisis_2022", checkpoint=0, locale="en")
+    final = build_replay_session("european_gas_crisis_2022", checkpoint=2, locale="en")
+
+    assert first["event"]["commodity"] == "natural_gas"
+    assert first["current_checkpoint"]["label"] == "Supply tightening and refill competition"
+    assert "High storage and LNG congestion" not in str(first)
+    assert first["market"]["curve_metrics"]["structure"] == "backwardation"
+    assert final["current_checkpoint"]["label"] == "High storage and LNG congestion"
+    assert final["market"]["curve_metrics"]["structure"] == "contango"
+    assert all(note["available_from"] <= "2022-10-24" for note in final["source_notes"])
+
+
+def test_natural_gas_replay_scores_storage_and_regas_reasoning_locally() -> None:
+    result = evaluate_replay_decision(
+        "european_gas_crisis_2022",
+        checkpoint=0,
+        locale="en",
+        strategy_legs=[
+            {"leg_type": "physical", "market": "Flexible LNG / pipeline supply", "side": "buy", "quantity": 100000, "tenor": "Q4"},
+            {"leg_type": "swap", "market": "TTF Q4 swap", "side": "buy", "quantity": 70000, "tenor": "Q4"},
+            {"leg_type": "option", "market": "TTF call", "side": "buy", "quantity": 30000, "tenor": "Q4"},
+            {"leg_type": "capacity", "market": "Storage injection / regas slot", "side": "buy", "quantity": 1, "tenor": "Summer-Q4"},
+        ],
+        rationale="Cover TTF price and basis risk with options, storage and regas capacity; check margin, liquidity, limits, credit, and execution.",
+    )
+
+    assert result["evaluation"]["baseline_score"] >= 90
+    assert "storage/capacity" in result["evaluation"]["rubric"][1]["rule"]
+
+
+def test_natural_gas_replay_accepts_future_as_a_swap_substitute_for_flat_price_cover() -> None:
+    result = evaluate_replay_decision(
+        "european_gas_crisis_2022",
+        checkpoint=0,
+        locale="en",
+        strategy_legs=[
+            {"leg_type": "physical", "market": "Flexible LNG / pipeline supply", "side": "buy", "quantity": 100000, "tenor": "Q4"},
+            {"leg_type": "future", "market": "TTF Q4 future", "side": "buy", "quantity": 70000, "tenor": "Q4"},
+            {"leg_type": "option", "market": "TTF call", "side": "buy", "quantity": 30000, "tenor": "Q4"},
+            {"leg_type": "capacity", "market": "Storage injection / regas slot", "side": "buy", "quantity": 1, "tenor": "Summer-Q4"},
+        ],
+        rationale="Cover TTF price and basis risk with options, storage and regas capacity; check margin, liquidity, limits, credit, and execution.",
+    )
+
+    assert result["evaluation"]["baseline_score"] >= 90
+    assert "incomplete_decision_structure" not in result["evaluation"]["mistake_tags"]
 
 
 def test_market_capability_catalog_separates_live_replay_and_simulation(monkeypatch) -> None:

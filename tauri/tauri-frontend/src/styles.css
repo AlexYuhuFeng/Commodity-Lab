@@ -7573,6 +7573,84 @@ button:not(:disabled):active,
   background: #ffffff;
 }
 
+/* Product workspaces share one course shell; unfinished products show structure, not fake data. */
+.cl-product-scaffold-page {
+  max-width: 980px;
+}
+
+.cl-product-scaffold {
+  padding: 18px;
+}
+
+.cl-scaffold-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--cl-border);
+  color: var(--cl-muted);
+}
+
+.cl-scaffold-status strong {
+  color: var(--cl-warn);
+}
+
+.cl-scaffold-grid {
+  display: grid;
+}
+
+.cl-scaffold-grid article {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--cl-border);
+}
+
+.cl-scaffold-grid article > svg {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0 4px;
+  color: var(--cl-muted);
+}
+
+.cl-scaffold-grid article strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--cl-text);
+}
+
+.cl-scaffold-grid article p,
+.cl-scaffold-note {
+  margin: 0;
+  color: var(--cl-muted);
+  line-height: 1.55;
+}
+
+.cl-scaffold-note {
+  padding-top: 14px;
+  font-size: 12px;
+}
+
+.thinking-steps li.complete {
+  color: var(--cl-muted);
+}
+
+.thinking-steps li.complete i {
+  background: var(--cl-good);
+}
+
+.thinking-steps li.active i {
+  animation: assistant-stage-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes assistant-stage-pulse {
+  0%, 100% { transform: scale(0.82); opacity: 0.58; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
 /* AI case studio: one goal, one market choice, one primary action. */
 .cl-case-studio {
   display: grid;
@@ -7788,12 +7866,77 @@ button:not(:disabled):active,
 
 .market-evidence-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(160px, 1.4fr) repeat(3, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
   border: 1px solid var(--cl-border);
   border-radius: 7px;
   background: var(--cl-border);
+}
+
+.market-quality {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.market-quality::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
+  content: "";
+}
+
+.market-quality.quality-entitled_current::before,
+.market-quality.quality-live::before {
+  background: #2dd4bf;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
+}
+
+.market-quality.quality-stale::before,
+.market-quality.quality-live_stale_cache::before,
+.market-quality.quality-explicit_simulation_fallback::before {
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+
+.market-evidence-components {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.market-evidence-components > span {
+  display: grid;
+  grid-template-columns: 15px auto auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid var(--cl-border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: var(--cl-muted);
+  background: var(--cl-panel-2);
+  font-size: 10px;
+}
+
+.market-evidence-components svg {
+  width: 13px;
+  height: 13px;
+  color: var(--cl-accent);
+}
+
+.market-evidence-components b {
+  color: var(--cl-text);
+  font-weight: 690;
+}
+
+.market-evidence-components small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .market-evidence-strip span {
@@ -8446,6 +8589,14 @@ body,
   grid-column: 1 / -1;
 }
 
+.cl-review-advisor {
+  grid-column: 1 / -1;
+}
+
+.cl-review-advisor .markdown-output {
+  max-width: 880px;
+}
+
 .cl-replay-review > div:last-child {
   display: grid;
   gap: 1px;
@@ -8568,6 +8719,25 @@ body,
 .cl-product-switcher select:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--cl-accent) 70%, transparent);
   outline-offset: 2px;
+}
+
+/* WebView2 renders native select popups outside the transparent control surface. */
+select {
+  color-scheme: dark;
+}
+
+select option {
+  color: #f4f4f5;
+  background: #18181b;
+}
+
+[data-theme="light"] select {
+  color-scheme: light;
+}
+
+[data-theme="light"] select option {
+  color: #18181b;
+  background: #ffffff;
 }
 
 .cl-scenario-head,

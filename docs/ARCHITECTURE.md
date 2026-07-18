@@ -33,9 +33,11 @@ Every market context uses the same contract and carries `mode`, `source_tier`, `
 
 ### Live market
 
-The provider adapter is designed for entitled S&P Global Commodity Insights (Platts) delivery. S&P documents API, streaming, sFTP, and developer/MCP access for subscribed data. Live delivery still requires customer credentials, entitlements, symbol mapping, licensing review, and an encrypted local credential store.
+`core/platts_market.py` implements entitled S&P Global Commodity Insights REST delivery against the documented Energy API base URL and current-symbol market-data endpoint. It supports bearer-token, OAuth username/password, and Basic Authentication modes where the customer's product permits them. Customer symbols are supplied through an external JSON mapping and never hard-coded in the repository.
 
-Current status: the capability contract and explicit fallback behavior exist; the production Platts fetch adapter is not complete. A live request that cannot be fulfilled falls back to a labelled simulation and never presents simulated data as live.
+The adapter caches only the normalized Commodity Lab evidence contract. Fresh cache, stale cache, and provider failure are separate states. A live request with no usable entitled snapshot falls back to a labelled simulation and never presents simulated data as live. When the subscription provides current forward assessments but not chart history, the terminal labels the forward curve as entitled and the OHLC history as a locally calibrated training path.
+
+Production readiness still requires validation against the customer's actual subscription, entitlements, approved symbols, units, and redistribution terms. Credentials remain a local deployment responsibility until the Windows credential-store flow is completed.
 
 ### Historical replay
 
@@ -82,7 +84,7 @@ AI may generate or update a case, curve context, strategy legs, explanation, exa
 The curriculum has two layers:
 
 1. **General hedging tools:** exposure direction, forward structure and carry, futures/forwards/swaps, physical-paper matching, basis, options, hedge ratios, FX, and execution controls. Completion records in this layer are shared across products.
-2. **Product-specific application:** market conventions, business flows, benchmarks, logistics, and risk combinations for the selected commodity. Natural Gas and Crude Oil are active workspaces. Refined Products, Power, and Carbon are visible but disabled until their reviewed curriculum and scenario packs are ready.
+2. **Product-specific application:** market conventions, business flows, benchmarks, logistics, and risk combinations for the selected commodity. European Natural Gas and Crude Oil have reviewed courses. North American Gas, Refined Products, Power, and Carbon are selectable workspace scaffolds, but they expose no placeholder lessons, attempts, or progress until reviewed packs are ready.
 
 The compact product selector changes the active curriculum, scenarios, market engine, historical events, progress view, and AI context together. Product changes invalidate in-flight generation and assistant requests, and template actions are checked against the selected product before execution. This prevents stale or hallucinated cross-product content from entering the current lesson.
 
@@ -104,6 +106,8 @@ The app does not expose private chain-of-thought. During longer operations it sh
 
 Provider text is not the primary control surface. Structured AI actions such as `patch_case`, `set_market_curves`, `set_chart_fields`, `set_strategy_legs`, and learning-route updates must produce an immediate visible workspace change. Text explains the change briefly after the UI has applied it.
 
+Generated cases pass through deterministic consistency guards before they reach the learner. The backend reconciles the task quantity with exposure and target legs, enforces procurement/sales futures direction, aligns all comparison curves to one evidence timeline, and repairs directionally contradictory exposure text. The model supplies variation; the application owns financial and data-contract invariants.
+
 ## Data and Security Rules
 
 - AI and market credentials must never enter Git, release notes, screenshots, or logs.
@@ -116,6 +120,8 @@ Provider text is not the primary control surface. Structured AI actions such as 
 ## Primary References
 
 - [S&P Global Commodity Insights Market Data](https://www.spglobal.com/commodityinsights/en/products-services/market-data)
+- [S&P Global Energy API Getting Started](https://developer.spglobal.com/energy/delivery-solutions/api/getting-started)
+- [S&P Global Energy API Overview](https://developer.spglobal.com/energy/delivery-solutions/api)
 - [S&P Global Commodity Insights Developer MCP Getting Started](https://developer.spglobal.com/commodityinsights/mcp/getting-started)
 - [CME Group: What is Contango and Backwardation?](https://www.cmegroup.com/education/courses/introduction-to-ferrous-metals/what-is-contango-and-backwardation)
 - [U.S. EIA: Petroleum markets responded to disruptions in the Middle East in Q2 2026](https://www.eia.gov/todayinenergy/detail.php?id=67865)

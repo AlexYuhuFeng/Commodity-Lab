@@ -364,6 +364,60 @@ def test_general_course_uses_the_selected_product_market() -> None:
     assert market["benchmark"] == "Brent"
 
 
+def test_live_training_market_uses_entitled_adapter_when_available(monkeypatch) -> None:
+    from core.training_templates import get_template
+    from tauri.backend.main import TrainingCaseGenerateRequest, _resolve_training_market
+
+    entitled = {
+        "commodity": "natural_gas",
+        "benchmark": "TTF",
+        "unit": "EUR/MWh",
+        "as_of": "2026-07-17",
+        "forward_curve": [{"tenor": "M+1", "price": 31.0}, {"tenor": "M+2", "price": 32.0}],
+        "history": [],
+        "curve_metrics": {"structure": "contango"},
+        "provenance": {"mode": "live", "is_live": True, "source": "Platts"},
+    }
+    monkeypatch.setattr(
+        "core.platts_market.PlattsMarketClient.fetch_market_context",
+        lambda self, commodity, locale="en": entitled,
+    )
+    payload = TrainingCaseGenerateRequest(
+        template_id="foundation_hedging_basics",
+        product_scope="natural_gas",
+        locale="en",
+        market_mode="live",
+    )
+
+    market = _resolve_training_market(payload, get_template("foundation_hedging_basics", "en"))
+
+    assert market is entitled
+    assert market["provenance"]["is_live"] is True
+
+
+def test_live_training_market_fallback_is_explicit(monkeypatch) -> None:
+    from core.platts_market import PlattsConfigurationError
+    from core.training_templates import get_template
+    from tauri.backend.main import TrainingCaseGenerateRequest, _resolve_training_market
+
+    def unavailable(self, commodity, locale="en"):
+        raise PlattsConfigurationError("missing", code="platts_symbol_map_missing")
+
+    monkeypatch.setattr("core.platts_market.PlattsMarketClient.fetch_market_context", unavailable)
+    payload = TrainingCaseGenerateRequest(
+        template_id="foundation_hedging_basics",
+        product_scope="natural_gas",
+        locale="en",
+        market_mode="live",
+    )
+
+    market = _resolve_training_market(payload, get_template("foundation_hedging_basics", "en"))
+
+    assert market["provenance"]["mode"] == "ai_simulated"
+    assert market["provenance"]["fallback_reason"] == "platts_symbol_map_missing"
+    assert market["provenance"]["quality"] == "explicit_simulation_fallback"
+
+
 def test_ai_training_case_stream_emits_market_before_real_model_deltas(monkeypatch) -> None:
     captured_prompt: list[str] = []
     answer = """{
@@ -416,6 +470,47 @@ def test_ai_training_case_stream_emits_market_before_real_model_deltas(monkeypat
     assert "item-8" not in captured_prompt[0]
     assert "model-5" in captured_prompt[0]
     assert "model-6" not in captured_prompt[0]
+
+
+def test_ai_training_case_recovers_positive_crude_volume_from_target_legs(monkeypatch) -> None:
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def complete(self, messages, tools=None):
+            return """{
+              "scenario": {
+                "id": "crude-volume-case",
+                "title": "Brent procurement hedge",
+                "summary": "A 100,000 bbl procurement case.",
+                "business_type": "Crude procurement",
+                "knowledge_points": ["crude_benchmark_basis"],
+                "exposure": {"direction": "long", "volume_mmbtu": 580000, "volume_unit": "bbl", "risk": "flat price decline and Brent basis"}
+              },
+              "market": {"unit": "USD/bbl", "curves": [{"id": "WTI", "label": "WTI", "points": [{"date": "2027-03-01", "close": 80}]}], "events": []},
+              "target_actions": [
+                {"leg_type": "physical", "market": "Brent cargo", "side": "buy", "quantity": 580000, "tenor": "M+3"},
+                {"leg_type": "future", "market": "ICE Brent", "side": "sell", "quantity": 580000, "tenor": "M+3"}
+              ],
+              "rubric": [{"id": "direction", "label": "Direction", "points": 100, "rule": "Buy Brent"}],
+              "prompt": "\u5bf910\u4e07\u6876 Brent \u91c7\u8d2d\u505a\u5957\u4fdd\uff0c\u5b9e\u8d27\u4e0e\u7eb8\u8d27\u6570\u91cf\u4e25\u683c\u5339\u914d\u3002"
+            }"""
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post(
+        "/api/v1/ai/training-case",
+        json={"template_id": "crude_oil_hedging_basics", "locale": "zh", "user_request": "\u5bf910\u4e07\u6876 Brent \u91c7\u8d2d\u505a\u5957\u4fdd"},
+    )
+
+    assert response.status_code == 200
+    generated = response.json()["case"]
+    assert generated["scenario"]["exposure"]["volume_mmbtu"] == 100000
+    assert generated["scenario"]["exposure"]["volume_unit"] == "bbl"
+    assert "price increase" in generated["scenario"]["exposure"]["risk"]
+    assert generated["target_actions"][0]["quantity"] == 100000
+    assert generated["target_actions"][1]["quantity"] == 100000
+    assert generated["target_actions"][1]["side"] == "buy"
+    assert max(point["date"] for point in generated["market"]["curves"][1]["points"]) <= generated["market"]["as_of"]
 
 
 def test_ai_training_case_endpoint_repairs_common_llm_json_errors(monkeypatch) -> None:
@@ -562,6 +657,122 @@ def test_live_assistant_endpoint_returns_safe_action_cards(monkeypatch) -> None:
     payload = response.json()
     assert payload["answer"].startswith("### Plan")
     assert [action["type"] for action in payload["actions"]] == ["set_chart_fields", "run_ai_capability"]
+
+
+def test_live_assistant_stream_compacts_context_and_emits_actions(monkeypatch) -> None:
+    captured_prompt: list[str] = []
+    answer = json.dumps(
+        {
+            "answer": "Buy TTF paper against the future procurement exposure.",
+            "actions": [
+                {
+                    "type": "set_strategy_legs",
+                    "label": "Fill the hedge",
+                    "payload": {
+                        "legs": [
+                            {"leg_type": "swap", "market": "TTF Q4", "side": "buy", "quantity": 70000, "tenor": "Q4"}
+                        ]
+                    },
+                }
+            ],
+        }
+    )
+
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def stream_complete(self, messages, tools=None):
+            captured_prompt.append("\n".join(message["content"] for message in messages))
+            midpoint = len(answer) // 2
+            yield answer[:midpoint]
+            yield answer[midpoint:]
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post(
+        "/api/v1/ai/live-assistant/stream",
+        json={
+            "locale": "en",
+            "message": "Fill the strategy for this procurement obligation.",
+            "workspace_state": {
+                "active_page": "workbench",
+                "product_scope": "natural_gas",
+                "case": {
+                    "scenario": {"title": "Winter delivery", "exposure": {"direction": "long", "risk": "TTF upside"}},
+                    "prompt": "Cover a future fixed-price customer delivery obligation.",
+                    "market": {
+                        "benchmark": "TTF",
+                        "source_notes": [{"symbol": "raw-source-secret"}],
+                        "curves": [
+                            {
+                                "id": "TTF",
+                                "points": [{"date": f"2022-01-{day:02d}", "close": day} for day in range(1, 21)],
+                            }
+                        ],
+                    },
+                },
+                "strategy_legs": [],
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.text
+    assert body.count("event: model_delta") == 2
+    assert body.index("event: stage") < body.index("event: model_delta") < body.index("event: result")
+    assert '"set_strategy_legs"' in body
+    assert captured_prompt
+    assert "Do not pair a physical purchase with a paper sale" in captured_prompt[0]
+    assert "raw-source-secret" not in captured_prompt[0]
+    assert "2022-01-01" not in captured_prompt[0]
+    assert "2022-01-20" in captured_prompt[0]
+
+
+def test_streamed_advisor_uses_the_active_replay_instead_of_the_registry_default(monkeypatch) -> None:
+    captured_prompt: list[str] = []
+
+    class FakeClient:
+        def is_configured(self) -> bool:
+            return True
+
+        def stream_complete(self, messages, tools=None):
+            captured_prompt.append("\n".join(message["content"] for message in messages))
+            yield "## Verdict\n- Keep the procurement hedge aligned with Q4 delivery."
+
+    monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
+    response = client.post(
+        "/api/v1/ai/advisor-review/stream",
+        json={
+            "capability": "advisor_review",
+            "scenario_id": "europe_ttf_nbp_spread",
+            "locale": "en",
+            "rationale": "Buy TTF paper and reserve regas capacity.",
+            "evaluation": {"baseline_score": 78, "mistake_tags": ["missing_execution_controls"]},
+            "market_context": {
+                "case": {
+                    "scenario": {
+                        "title": "2022 European gas crisis replay",
+                        "summary": "A winter procurement obligation during pipeline supply cuts.",
+                        "exposure": {"direction": "long", "risk": "TTF procurement cost upside"},
+                    },
+                    "market": {
+                        "benchmark": "TTF",
+                        "as_of": "2022-06-14",
+                        "source_symbol": "licensed-secret-symbol",
+                        "replay": {"current_checkpoint": {"label": "Supply tightening", "decision_required": "Cover Q4 procurement."}},
+                    },
+                },
+                "strategy_legs": [{"leg_type": "future", "market": "TTF Q4", "side": "buy", "quantity": 70000}],
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert "event: review" in response.text
+    assert captured_prompt
+    assert "2022 European gas crisis replay" in captured_prompt[0]
+    assert "TTF Q4" in captured_prompt[0]
+    assert "licensed-secret-symbol" not in captured_prompt[0]
 
 
 def test_compat_advisor_and_exam_return_haineng_answers_when_configured(monkeypatch) -> None:

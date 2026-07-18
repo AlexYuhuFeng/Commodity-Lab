@@ -1,6 +1,6 @@
 # Commodity Lab Tauri Client
 
-This directory contains the Commodity Lab Windows desktop client.
+This directory contains the Commodity Lab Windows and Linux desktop client.
 
 ## Dev Run
 
@@ -20,7 +20,7 @@ npm ci
 npm run tauri:dev
 ```
 
-## Windows Package
+## Desktop Packages
 
 From the repository root:
 
@@ -28,12 +28,12 @@ From the repository root:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\package_tauri.ps1
 ```
 
-The generated bundle is under `tauri\src-tauri\target\release\bundle\`.
+The generated Windows bundle is under `tauri\src-tauri\target\release\bundle\`. Linux x86_64 and ARM64 `.deb` and `.AppImage` packages are built natively by `.github/workflows/tauri-build.yml`.
 
-For a formal public release, use the guarded release script from the repository root:
+For a formal public release, use the guarded script from a clean `main` checkout:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.2.1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.3.0
 ```
 
-It runs tests, npm audit, backend rebuild freshness checks, Windows packaging, local install, and GitHub release publishing.
+It runs tests, npm audit, backend rebuild freshness checks, Windows packaging, and local install, then pushes a `v*.*.*` tag. The tag starts the cross-platform workflow, which publishes Windows x86_64, Linux x86_64, and Linux ARM64 assets to one GitHub release. Pass `-SkipReleaseTag` to stop after local Windows qualification.
