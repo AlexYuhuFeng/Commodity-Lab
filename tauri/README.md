@@ -33,7 +33,7 @@ The generated Windows bundle is under `tauri\src-tauri\target\release\bundle\`. 
 For a formal public release, use the guarded script from a clean `main` checkout:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.4.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.5.0
 ```
 
 It runs tests, npm audit, backend rebuild freshness checks, Windows packaging, and local install, then pushes a `v*.*.*` tag. The tag starts the cross-platform workflow, which publishes Windows x86_64, Linux x86_64, and Linux ARM64 assets to one GitHub release. Pass `-SkipReleaseTag` to stop after local Windows qualification.

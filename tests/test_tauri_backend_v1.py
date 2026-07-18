@@ -802,6 +802,16 @@ def test_compat_advisor_and_exam_return_haineng_answers_when_configured(monkeypa
         def complete(self, messages, tools=None):
             assert tools is None
             assert messages
+            if "single-choice assessment" in "\n".join(message["content"] for message in messages):
+                return json.dumps(
+                    {
+                        "title": "Basis checkpoint",
+                        "questions": [
+                            {"id": f"q{index}", "prompt": f"Question {index}", "options": ["A", "B"], "correct_index": 0, "explanation": "Because A is correct.", "skills": ["basis"]}
+                            for index in range(1, 4)
+                        ],
+                    }
+                )
             return "provider answer"
 
     monkeypatch.setattr("core.haineng_client.HainengClient", lambda: FakeClient())
@@ -822,7 +832,11 @@ def test_compat_advisor_and_exam_return_haineng_answers_when_configured(monkeypa
     assert advisor_response.status_code == 200
     assert advisor_response.json()["answer"] == "provider answer"
     assert exam_response.status_code == 200
-    assert exam_response.json()["exam"] == "provider answer"
+    exam = exam_response.json()["exam"]
+    assert exam["title"] == "Basis checkpoint"
+    assert len(exam["questions"]) == 3
+    assert exam["questions"][0]["correct_index"] == 0
+    assert exam["questions"][0]["skills"] == ["basis"]
 
 
 def test_compat_assistant_uses_haineng_contract(monkeypatch) -> None:

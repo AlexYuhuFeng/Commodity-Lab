@@ -140,13 +140,16 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             curl \
+            dbus-x11 \
             file \
+            libfuse2 \
             libappindicator3-dev \
             librsvg2-dev \
             libssl-dev \
             libwebkit2gtk-4.0-dev \
             patchelf \
-            wget
+            wget \
+            xvfb
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -215,6 +218,39 @@ jobs:
           fi
           find tauri/src-tauri/target/release/bundle -maxdepth 3 -type f -print
 
+      - name: Smoke test bundled backend
+        run: |
+          log_file="$(mktemp)"
+          COMMODITY_LAB_BACKEND_PORT=18765 tauri/bundled/backend/commodity_lab_backend >"$log_file" 2>&1 &
+          backend_pid=$!
+          cleanup() { kill "$backend_pid" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          ready=0
+          for _ in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:18765/api/health | grep -q '"ok":true'; then
+              ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          cat "$log_file"
+          test "$ready" -eq 1
+
+      - name: Smoke test AppImage launch
+        run: |
+          appimage="$(find tauri/src-tauri/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' -print -quit)"
+          test -n "$appimage"
+          chmod +x "$appimage"
+          set +e
+          WEBKIT_DISABLE_COMPOSITING_MODE=1 timeout 20s xvfb-run -a "$appimage" >appimage-smoke.log 2>&1
+          status=$?
+          set -e
+          cat appimage-smoke.log
+          if [ "$status" -ne 124 ] && [ "$status" -ne 143 ]; then
+            echo "AppImage exited before the smoke-test window (status $status)" >&2
+            exit "$status"
+          fi
+
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
@@ -253,15 +289,21 @@ jobs:
           - Windows x86_64: NSIS and MSI installers.
           - Linux x86_64: Debian package and AppImage.
           - Linux ARM64: Debian package and AppImage.
-          - Shared general hedging curriculum with reviewed European Natural Gas and Crude Oil workspaces.
-          - AI-streamed cases, visible workspace control, historical replay, and deterministic local scoring.
+          - Structured AI exams with immediate local scoring and real progress records.
+          - Spaced review, weak-point drills, and AI-generated learning plans now act directly on the workspace.
+          - Reviewed gas and crude replays include plausible staged and option-weighted alternatives plus counterfactual drills.
+          - Windows AI credentials use per-user DPAPI encryption with legacy-settings migration.
+          - Linux bundles now pass bundled-backend and AppImage launch smoke tests in CI.
 
           ## 中文
           - Windows x86_64：NSIS 与 MSI 安装包。
           - Linux x86_64：Debian 安装包与 AppImage。
           - Linux ARM64：Debian 安装包与 AppImage。
-          - 共享套保通识课程，以及经审阅的欧洲天然气与原油工作区。
-          - AI 流式案例、可见界面控制、历史复盘与本地即时评分。
+          - AI 生成结构化测验，客户端即时评分并写入真实学习进度。
+          - 间隔复习、弱项训练和 AI 学习计划会直接更新工作区。
+          - 经审查的天然气与原油复盘加入分层执行、期权增强等可行替代方案和反事实练习。
+          - Windows AI 密钥采用当前用户 DPAPI 加密，并自动迁移旧版明文配置。
+          - Linux 安装包在 CI 中新增后端健康检查和 AppImage 启动冒烟测试。
 
           所有安装包仅作为 GitHub Release 附件发布，不进入源码仓库。
           EOF

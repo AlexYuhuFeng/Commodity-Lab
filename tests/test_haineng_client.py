@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import sys
 import types
 
@@ -57,6 +59,9 @@ def test_exam_messages_request_three_to_five_questions() -> None:
     )
     text = str(messages)
     assert "3 to 5" in text
+    assert "single-choice assessment" in text
+    assert "correct_index" in text
+    assert "Return only compact strict JSON" in text
     assert "Haineng" in text
     assert "europe_route_capacity_constraint" in text
 
@@ -104,7 +109,32 @@ def test_persisted_settings_survive_runtime_reset(monkeypatch: pytest.MonkeyPatc
     assert effective.api_key == "saved-secret-key"
     assert redact_settings(effective)["configured"] is True
     assert "saved-secret-key" not in str(redact_settings(effective))
+    raw_payload = json.loads(config_file.read_text(encoding="utf-8"))
+    assert raw_payload["version"] == 2
+    assert "api_key" not in raw_payload
+    if os.name == "nt":
+        assert raw_payload["credential"]["scheme"] == "windows_dpapi"
+        assert "saved-secret-key" not in config_file.read_text(encoding="utf-8")
+    else:
+        assert raw_payload["credential"]["scheme"] == "restricted_file"
+        assert config_file.stat().st_mode & 0o077 == 0
     set_runtime_settings(None)
+
+
+def test_legacy_plaintext_settings_are_read_and_migrated_on_windows(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    config_file = tmp_path / "AI密钥.json"
+    config_file.write_text(json.dumps({"provider": "deepseek", "api_key": "legacy-secret-key"}), encoding="utf-8")
+    monkeypatch.setenv("COMMODITY_LAB_AI_SETTINGS_FILE", str(config_file))
+    monkeypatch.delenv("COMMODITY_LAB_DISABLE_LOCAL_AI_SETTINGS", raising=False)
+
+    persisted = load_persisted_settings()
+
+    assert persisted is not None
+    assert persisted.api_key == "legacy-secret-key"
+    if os.name == "nt":
+        raw_text = config_file.read_text(encoding="utf-8")
+        assert "legacy-secret-key" not in raw_text
+        assert json.loads(raw_text)["credential"]["scheme"] == "windows_dpapi"
 
 
 def test_unconfigured_complete_raises() -> None:

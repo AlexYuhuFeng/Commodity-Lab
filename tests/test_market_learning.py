@@ -9,6 +9,8 @@ from core.market_learning import (
     evaluate_replay_decision,
     list_replay_events,
     market_capability_catalog,
+    replay_authoring_schema,
+    review_replay_event,
 )
 from tauri.backend.main import app
 
@@ -119,6 +121,18 @@ def test_replay_catalog_contains_two_business_distinct_events_per_active_product
 
     assert len(by_commodity["natural_gas"]) >= 2
     assert len(by_commodity["crude_oil"]) >= 2
+    assert all(event["review"]["status"] == "reviewed" for event in events)
+
+
+def test_replay_authoring_contract_reviews_sources_chronology_and_actions() -> None:
+    schema = replay_authoring_schema()
+    assert schema["version"] == 1
+    assert {"date", "facts", "decision_required", "target_actions", "outcome"}.issubset(schema["checkpoint_required"])
+    for event in list_replay_events(locale="en"):
+        review = review_replay_event(event["id"])
+        assert review["status"] == "reviewed"
+        assert review["issues"] == []
+        assert all(review["checks"].values())
 
 
 def test_natural_gas_replay_scores_storage_and_regas_reasoning_locally() -> None:
@@ -220,6 +234,10 @@ def test_replay_decision_scores_locally_and_reveals_model_strategy_only_after_su
     assert result["evaluation"]["baseline_score"] >= 90
     assert result["next_checkpoint"] == 1
     assert result["model_strategy"]
+    assert len(result["alternative_strategies"]) == 2
+    assert {alternative["id"] for alternative in result["alternative_strategies"]} == {"staged", "option_weighted"}
+    assert all(alternative["rationale"] and alternative["tradeoff"] for alternative in result["alternative_strategies"])
+    assert all(alternative["legs"] != result["model_strategy"] for alternative in result["alternative_strategies"])
     assert result["outcome"]
 
 

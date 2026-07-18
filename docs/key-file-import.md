@@ -8,11 +8,11 @@ Commodity Lab 支持从任意文件夹导入 AI密钥文件。测试分发时，
 
 - Do not commit real API keys to this repository.
 - Do not paste real API keys into release notes, screenshots, logs, or GitHub issues.
-- The imported key is used only on the local machine at runtime.
+- The imported key is used only on the local machine at runtime. On Windows, the app persists its own copy with per-user DPAPI encryption; the source file stays where the user placed it and is not changed.
 
 - 不要把真实 API Key 提交到仓库。
 - 不要在 release notes、截图、日志或 GitHub issue 里暴露真实 API Key。
-- 导入后的密钥只在本机运行时使用。
+- 导入后的密钥只在本机运行时使用。Windows 客户端会用当前用户的 DPAPI 加密保存应用副本，用户选择的源文件不会被修改。
 
 ## JSON Format / JSON 格式
 
