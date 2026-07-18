@@ -55,19 +55,19 @@ For test distribution, provide users with a local `AI密钥` file instead of ask
 
 ## Product Loop / 产品流程
 
-1. State the skill or business decision to practise.
-2. Choose simulated, historical replay, or entitled live market evidence.
-3. AI generates a concrete case, events, expected hedge legs, and rubric around that evidence.
+1. Start with the ordered course or choose targeted practice by learning stage, business role, and risk type.
+2. State the learning goal, select a course chapter, and choose a forward-curve structure.
+3. AI generates a concrete case, training market, expected hedge legs, and scoring rubric.
 4. Inspect spot history, forward structure, high/low/close values, and event markers.
 5. Build a multi-leg strategy: physical, swap, future, basis, FX, capacity, freight, or options.
-6. Submit for immediate local scoring and receive a concise AI review.
+6. Submit for immediate local scoring, then receive a concise AI review and next-step recommendation.
 
-1. 用自然语言说明希望训练的技能或业务决策。
-2. 选择模拟市场、历史复盘或已授权实盘市场依据。
-3. AI 围绕该市场依据生成案例、事件、目标动作和评分规则。
+1. 从有顺序的课程开始，或按学习阶段、业务角色和风险类型选择专项练习。
+2. 说明学习目标，选择课程章节和远期曲线结构。
+3. AI 生成具体案例、训练行情、目标动作和评分规则。
 4. 查看历史价格、远期结构、high/low/close 与事件标记。
 5. 构建实货、掉期、期货、基差、汇率、运力、运费或期权组合。
-6. 提交后立即本地评分，并获得简洁的 AI 复盘。
+6. 提交后立即本地评分，再获得简洁的 AI 复盘和下一步建议。
 
 ## Key Features / 核心功能
 
@@ -148,18 +148,18 @@ npm run tauri:build
 Formal cross-platform release (run from a clean `main` checkout):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.5.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.5.1
 ```
 
-The script qualifies and installs the Windows build locally, then pushes `v1.5.0`. GitHub Actions builds Windows x86_64, Linux x86_64, and Linux ARM64 natively and publishes one release with bilingual notes. Use `-SkipReleaseTag` for local Windows qualification without triggering a public release.
+The script qualifies and installs the Windows build locally, then pushes `v1.5.1`. GitHub Actions builds Windows x86_64, Linux x86_64, and Linux ARM64 natively and publishes one release with bilingual notes. Use `-SkipReleaseTag` for local Windows qualification without triggering a public release.
 
 正式跨平台发布（必须在干净的 `main` 分支运行）：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.5.0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.5.1
 ```
 
-该脚本先在本机完成 Windows 测试、审计、打包和安装验证，再推送 `v1.5.0` 标签。GitHub Actions 会分别原生构建 Windows x86_64、Linux x86_64 和 Linux ARM64，并统一发布带中英文说明的 Release。仅做本机 Windows 验证时使用 `-SkipReleaseTag`。
+该脚本先在本机完成 Windows 测试、审计、打包和安装验证，再推送 `v1.5.1` 标签。GitHub Actions 会分别原生构建 Windows x86_64、Linux x86_64 和 Linux ARM64，并统一发布带中英文说明的 Release。仅做本机 Windows 验证时使用 `-SkipReleaseTag`。
 
 ## Runtime Configuration / 运行配置
 

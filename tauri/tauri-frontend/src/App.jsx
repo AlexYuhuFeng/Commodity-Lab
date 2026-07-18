@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest, backendStreamRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.5.0";
+const currentVersion = "1.5.1";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -131,20 +131,10 @@ function getSystemThemePreference() {
 }
 
 const navItems = [
-  { id: pageIds.home, icon: "home", zh: "学习路径", en: "Learning Path" },
-  { id: pageIds.caseLab, icon: "sparkles", zh: "生成练习", en: "Practice Generator" },
-  { id: pageIds.workbench, icon: "workbench", zh: "训练工作台", en: "Training Workbench" },
-  { id: pageIds.library, icon: "library", zh: "场景库", en: "Scenario Library" },
-  { id: pageIds.knowledge, icon: "map", zh: "课程地图", en: "Course Map" },
-  { id: pageIds.progress, icon: "progress", zh: "我的进度", en: "My Progress" }
-];
-
-const learningFlow = [
-  { zh: "发现", en: "Discover", detailZh: "理解知识点与业务风险", detailEn: "Concepts and business risk" },
-  { zh: "生成", en: "Generate", detailZh: "AI 构建案例与数据", detailEn: "AI case and data" },
-  { zh: "练习", en: "Practice", detailZh: "组合实货与纸货动作", detailEn: "Build physical and paper legs" },
-  { zh: "复盘", en: "Review", detailZh: "评分、错误和对照", detailEn: "Score and compare" },
-  { zh: "强化", en: "Reinforce", detailZh: "按弱项生成变体", detailEn: "Drill weak points" }
+  { id: pageIds.home, icon: "home", zh: "课程", en: "Courses" },
+  { id: pageIds.library, icon: "library", zh: "练习库", en: "Practice Library" },
+  { id: pageIds.workbench, icon: "workbench", zh: "训练台", en: "Workbench" },
+  { id: pageIds.progress, icon: "progress", zh: "进度", en: "Progress" }
 ];
 
 const learningTracks = [
@@ -177,51 +167,65 @@ const learningTracks = [
     lessonsEn: ["Benchmarks", "Physical/paper", "Calendar/basis", "Inventory/freight"]
   },
   {
-    id: "procurement",
+    id: "gas_local",
+    templateId: "gas_local_market_procurement",
+    zh: "本地市场价格风险",
+    en: "Local-Market Price Risk",
+    levelZh: "第二阶段",
+    levelEn: "Stage 2",
+    detailZh: "在同一市场、同一币种内掌握采购成本和销售收入的基础套保。",
+    detailEn: "Hedge procurement cost and sales revenue within one market and one currency.",
+    requestZh: "生成一个欧洲天然气本地市场套保案例，只包含单一枢纽、单一币种和清晰的采购或销售价格敞口。",
+    requestEn: "Generate a European gas local-market hedge with one hub, one currency, and a clear procurement or sales price exposure.",
+    lessons: ["采购成本", "销售收入", "数量与期限"],
+    lessonsEn: ["Procurement cost", "Sales revenue", "Volume and tenor"]
+  },
+  {
+    id: "gas_basis",
     templateId: "procurement_beach_to_germany",
-    zh: "采购端业务",
-    en: "Procurement Desk",
-    levelZh: "进阶",
-    levelEn: "Intermediate",
-    detailZh: "覆盖 GSA、EEX/OCM 窗口、LNG 船货、双边 EFET 的采购套保。",
-    detailEn: "GSA, EEX/OCM windows, LNG cargo procurement, and bilateral EFET hedging.",
-    requestZh: "生成采购端天然气套保案例，先说明业务背景，再训练 GSA、EEX/OCM、LNG 或 EFET 中一个具体场景。",
-    requestEn: "Generate a procurement-side gas hedging case. Explain the business context first, then train one specific GSA, EEX/OCM, LNG, or EFET scenario.",
-    lessons: ["GSA 资源", "EEX/OCM 窗口", "LNG 船货", "EFET 采购"],
-    lessonsEn: ["GSA supply", "EEX/OCM window", "LNG cargo", "EFET procurement"]
+    zh: "跨区域与基差风险",
+    en: "Cross-Regional and Basis Risk",
+    levelZh: "第三阶段",
+    levelEn: "Stage 3",
+    detailZh: "从单一价格风险扩展到枢纽、交割地点、跨期和运输路径错配。",
+    detailEn: "Extend outright hedging to hub, delivery-location, calendar, and route mismatches.",
+    requestZh: "生成一个欧洲天然气跨区域供销案例，重点训练枢纽基差、交割地点和运输路径。",
+    requestEn: "Generate a European gas cross-regional supply-and-sale case focused on hub basis, delivery point, and transport route.",
+    lessons: ["枢纽基差", "交割地点", "跨期与运力"],
+    lessonsEn: ["Hub basis", "Delivery point", "Calendar and capacity"]
   },
   {
-    id: "sales",
-    templateId: "sales_efet_bilateral",
-    zh: "销售端业务",
-    en: "Sales Desk",
-    levelZh: "进阶",
-    levelEn: "Intermediate",
-    detailZh: "学习 EFET 双边、窗口销售、LNG 气化销售和客户价格风险。",
-    detailEn: "EFET bilateral sales, window sales, LNG regas sales, and customer price risk.",
-    requestZh: "生成销售端天然气套保案例，围绕 EFET 双边、窗口销售或 LNG 气化销售，强调客户定价和履约风险。",
-    requestEn: "Generate a sales-side gas hedging case around EFET bilateral sales, window sales, or LNG regas sales, emphasizing customer pricing and performance risk.",
-    lessons: ["双边销售", "窗口销售", "气化销售", "客户风险"],
-    lessonsEn: ["Bilateral sale", "Window sale", "Regas sale", "Customer risk"]
+    id: "gas_fx",
+    templateId: "gas_cross_currency_settlement",
+    zh: "跨币种与结算风险",
+    en: "Cross-Currency and Settlement Risk",
+    levelZh: "第四阶段",
+    levelEn: "Stage 4",
+    detailZh: "在商品套保之外管理计价币种、结算币种、本位币和单位换算。",
+    detailEn: "Manage pricing, settlement, functional-currency, and unit-conversion risk alongside the commodity hedge.",
+    requestZh: "生成一个欧洲天然气跨币种供销案例，要求先完成商品套保，再匹配外汇金额、方向和期限。",
+    requestEn: "Generate a European gas cross-currency supply-and-sale case that first hedges the commodity and then matches FX amount, direction, and tenor.",
+    lessons: ["交易与结算币种", "FX 方向", "金额与期限"],
+    lessonsEn: ["Trade and settlement currency", "FX direction", "Amount and tenor"]
   },
   {
-    id: "integrated",
+    id: "gas_integrated",
     templateId: "integrated_gas_portfolio",
-    zh: "组合套保设计",
-    en: "Integrated Hedge Design",
-    levelZh: "综合",
-    levelEn: "Advanced",
-    detailZh: "把基差、汇率、运力、信用和执行窗口合成可交易的多腿策略。",
-    detailEn: "Combine basis, FX, capacity, credit, and execution windows into a tradeable multi-leg strategy.",
+    zh: "运力、可选性与组合策略",
+    en: "Capacity, Optionality, and Integrated Strategy",
+    levelZh: "第五阶段",
+    levelEn: "Stage 5",
+    detailZh: "综合实货、纸货、基差、汇率、运力、期权、信用和执行约束。",
+    detailEn: "Combine physical, paper, basis, FX, capacity, options, credit, and execution constraints.",
     requestZh: "生成综合天然气套保训练案例：必须包含实货腿、纸货腿、汇率或运力检查，并要求用户解释每条腿覆盖的风险。",
     requestEn: "Generate an integrated natural gas hedging drill with a physical leg, paper leg, FX or capacity check, and a requirement to explain the risk covered by each leg.",
-    lessons: ["基差", "汇率", "运力", "风控复盘"],
-    lessonsEn: ["Basis", "FX", "Capacity", "Risk review"]
+    lessons: ["运输与交付", "LNG 可选性", "组合执行", "风控复盘"],
+    lessonsEn: ["Transport and delivery", "LNG optionality", "Portfolio execution", "Risk review"]
   }
 ];
 
 const productWorkspaces = [
-  { id: "natural_gas", zh: "欧洲天然气", en: "European Natural Gas", icon: "flame", trackIds: ["foundation", "procurement", "sales", "integrated"], groups: ["foundation", "procurement", "sales", "integrated"], enabled: true, coursesReady: true },
+  { id: "natural_gas", zh: "欧洲天然气", en: "European Natural Gas", icon: "flame", trackIds: ["foundation", "gas_local", "gas_basis", "gas_fx", "gas_integrated"], groups: ["foundation", "procurement", "sales", "integrated"], enabled: true, coursesReady: true },
   { id: "crude_oil", zh: "原油", en: "Crude Oil", icon: "chart", trackIds: ["foundation", "crude"], groups: ["foundation", "crude"], enabled: true, coursesReady: true },
   { id: "north_american_gas", zh: "北美天然气", en: "North American Gas", icon: "flame", trackIds: ["foundation"], groups: ["foundation"], enabled: true, coursesReady: false, scopeZh: "Henry Hub、区域基差、储气、管输和电力燃料需求", scopeEn: "Henry Hub, regional basis, storage, pipelines, and power-burn demand" },
   { id: "refined_products", zh: "成品油", en: "Refined Products", icon: "library", trackIds: ["foundation"], groups: ["foundation"], enabled: true, coursesReady: false, scopeZh: "裂解价差、库存、炼厂产率、船货和质量基差", scopeEn: "Crack spreads, inventory, refinery yields, cargoes, and quality basis" },
@@ -381,94 +385,106 @@ const courseSyllabus = [
     ]
   },
   {
-    trackId: "procurement",
+    trackId: "gas_local",
     lessons: [
       {
-        id: "procurement-gsa",
-        titleZh: "上游 Beach / GSA 资源",
-        titleEn: "Upstream Beach / GSA Supply",
-        outcomeZh: "处理资源锁定、NBP/TTF 基差、EUR/GBP 和跨境运力。",
-        outcomeEn: "Handle supply lock-in, NBP/TTF basis, EUR/GBP, and cross-border capacity."
+        id: "gas-local-procurement",
+        titleZh: "本地采购成本套保",
+        titleEn: "Local Procurement Cost Hedge",
+        outcomeZh: "识别同一枢纽、同一币种下的采购价格上涨风险，并匹配纸货方向。",
+        outcomeEn: "Identify procurement-price upside in one hub and currency, then match the paper-hedge direction."
       },
       {
-        id: "procurement-window",
-        titleZh: "EEX / OCM 窗口采购",
-        titleEn: "EEX / OCM Window Procurement",
-        outcomeZh: "围绕日内、日前或月度窗口设计采购和纸货执行方案。",
-        outcomeEn: "Design procurement and paper execution around intraday, day-ahead, or monthly windows."
+        id: "gas-local-sale",
+        titleZh: "本地销售收入套保",
+        titleEn: "Local Sales Revenue Hedge",
+        outcomeZh: "识别销售价格下跌风险，并区分固定价、浮动价和公式价敞口。",
+        outcomeEn: "Identify sales-price downside and distinguish fixed, floating, and formula-priced exposure."
       },
       {
-        id: "procurement-lng",
-        titleZh: "LNG 船货采购",
-        titleEn: "LNG Cargo Procurement",
-        outcomeZh: "连接船期、JKM/TTF 指数、转港可选性、气化窗口和汇率。",
-        outcomeEn: "Connect cargo timing, JKM/TTF indexes, diversion optionality, regas windows, and FX."
-      },
-      {
-        id: "procurement-efet",
-        titleZh: "EFET 双边采购",
-        titleEn: "Bilateral EFET Procurement",
-        outcomeZh: "检查交割点、信用、履约、基准错配和结算风险。",
-        outcomeEn: "Check delivery point, credit, performance, benchmark mismatch, and settlement risk."
+        id: "gas-local-volume-tenor",
+        titleZh: "数量与期限匹配",
+        titleEn: "Volume and Tenor Matching",
+        outcomeZh: "把合同数量、交割期和套保工具期限逐项对齐。",
+        outcomeEn: "Align contract volume, delivery period, and hedge-instrument tenor."
       }
     ]
   },
   {
-    trackId: "sales",
+    trackId: "gas_basis",
     lessons: [
       {
-        id: "sales-efet",
-        titleZh: "EFET 双边销售",
-        titleEn: "Bilateral EFET Sale",
-        outcomeZh: "把客户价格公式、交割义务和纸货套保连接起来。",
-        outcomeEn: "Connect customer price formula, delivery obligation, and paper hedges."
+        id: "gas-basis-hub",
+        titleZh: "枢纽基差",
+        titleEn: "Hub Basis",
+        outcomeZh: "区分 NBP、TTF、THE 等枢纽之间的价格风险与单边价格风险。",
+        outcomeEn: "Separate NBP, TTF, THE, and other hub basis from outright price risk."
       },
       {
-        id: "sales-window",
-        titleZh: "窗口销售",
-        titleEn: "Window Sale",
-        outcomeZh: "管理销售窗口、限价执行、流动性和期限错配。",
-        outcomeEn: "Manage sales window, limit execution, liquidity, and tenor mismatch."
+        id: "gas-basis-delivery",
+        titleZh: "交割地点与合同基准",
+        titleEn: "Delivery Point and Contract Benchmark",
+        outcomeZh: "检查实货交割地、客户价格公式和纸货基准是否一致。",
+        outcomeEn: "Check whether physical delivery, customer pricing, and paper benchmark align."
       },
       {
-        id: "sales-regas",
-        titleZh: "LNG 气化销售",
-        titleEn: "LNG Regas Sale",
-        outcomeZh: "处理气化窗口、下游销售价格下跌和可选性风险。",
-        outcomeEn: "Handle regas windows, downstream selloff risk, and optionality."
-      },
-      {
-        id: "sales-customer",
-        titleZh: "客户定价风险",
-        titleEn: "Customer Pricing Risk",
-        outcomeZh: "拆解固定价、浮动价、封顶价或公式价带来的利润风险。",
-        outcomeEn: "Decompose fixed, floating, capped, or formula pricing margin risk."
+        id: "gas-basis-capacity",
+        titleZh: "跨期、运力与路径",
+        titleEn: "Calendar, Capacity, and Route",
+        outcomeZh: "把期限错配和跨区域运输约束纳入基差套保。",
+        outcomeEn: "Include tenor mismatch and cross-regional transport constraints in the basis hedge."
       }
     ]
   },
   {
-    trackId: "integrated",
+    trackId: "gas_fx",
     lessons: [
       {
-        id: "integrated-basis",
-        titleZh: "基差与跨市场价差",
-        titleEn: "Basis and Cross-Market Spread",
-        outcomeZh: "把地点、枢纽、期限、单位和汇率的价差拆开。",
-        outcomeEn: "Separate location, hub, tenor, unit, and FX spread effects."
+        id: "gas-fx-exposure",
+        titleZh: "计价、结算与本位币",
+        titleEn: "Pricing, Settlement, and Functional Currency",
+        outcomeZh: "识别商品计价、合同结算和利润核算之间的汇率敞口。",
+        outcomeEn: "Identify FX exposure across commodity pricing, contract settlement, and functional currency."
       },
       {
-        id: "integrated-capacity",
+        id: "gas-fx-instrument",
+        titleZh: "外汇工具与方向",
+        titleEn: "FX Instrument and Direction",
+        outcomeZh: "根据预期收付款选择外汇远期或掉期，并确定买卖方向。",
+        outcomeEn: "Choose an FX forward or swap and determine direction from expected receipts and payments."
+      },
+      {
+        id: "gas-fx-notional",
+        titleZh: "金额、单位与期限",
+        titleEn: "Notional, Units, and Tenor",
+        outcomeZh: "统一 p/th、EUR/MWh、USD/MMBtu，并匹配外汇名义金额和期限。",
+        outcomeEn: "Normalize p/th, EUR/MWh, and USD/MMBtu, then match FX notional and tenor."
+      }
+    ]
+  },
+  {
+    trackId: "gas_integrated",
+    lessons: [
+      {
+        id: "gas-integrated-delivery",
         titleZh: "运力、储气与平衡",
         titleEn: "Capacity, Storage, and Balancing",
-        outcomeZh: "检查提名、管输、库存和偏差是否破坏纸货保护。",
-        outcomeEn: "Check whether nomination, transport, inventory, or imbalance breaks paper protection."
+        outcomeZh: "检查提名、管输、库存、偏差和交割窗口是否影响套保有效性。",
+        outcomeEn: "Check whether nominations, transport, inventory, imbalance, and delivery windows affect hedge effectiveness."
       },
       {
-        id: "integrated-controls",
-        titleZh: "执行与风控复盘",
-        titleEn: "Execution and Risk Review",
-        outcomeZh: "把流动性、信用、限额、保证金和执行窗口放进交易前检查。",
-        outcomeEn: "Bring liquidity, credit, limits, margin, and execution windows into pre-trade checks."
+        id: "gas-integrated-optionality",
+        titleZh: "LNG 与运营可选性",
+        titleEn: "LNG and Operational Optionality",
+        outcomeZh: "用期权、领口和运营权利管理船货、气化和转港的非对称风险。",
+        outcomeEn: "Use options, collars, and operating rights for asymmetric cargo, regas, and diversion risk."
+      },
+      {
+        id: "gas-integrated-controls",
+        titleZh: "组合执行与风控",
+        titleEn: "Portfolio Execution and Controls",
+        outcomeZh: "把多条实货与纸货腿、信用、保证金、限额和执行窗口合并检查。",
+        outcomeEn: "Review multiple physical and paper legs together with credit, margin, limits, and execution windows."
       }
     ]
   }
@@ -477,9 +493,10 @@ const courseSyllabus = [
 const trackSkillFocus = {
   foundation: ["exposure", "instrument", "rationale"],
   crude: ["instrument", "basis", "timing", "control"],
-  procurement: ["basis", "capacity", "timing"],
-  sales: ["basis", "fx", "control"],
-  integrated: ["basis", "fx", "capacity", "control", "rationale"]
+  gas_local: ["exposure", "instrument", "timing"],
+  gas_basis: ["basis", "capacity", "timing"],
+  gas_fx: ["fx", "instrument", "timing"],
+  gas_integrated: ["basis", "fx", "capacity", "control", "rationale"]
 };
 
 const hedgingKnowledgeCoverage = [
@@ -742,43 +759,91 @@ const gasTradingModels = [
 
 const scenarioLibraryItems = [
   {
-    id: "procurement_beach_to_germany",
+    id: "gas_local_market_procurement",
     commodity: "natural-gas",
-    region: "uk-europe",
+    stage: "foundation",
     role: "procurement",
-    riskFocus: "basis-fx-capacity",
-    titleZh: "英国上游 Beach Delivery 卖德国",
-    titleEn: "UK Beach Delivery sold into Germany",
-    summaryZh: "上游 beach 交付资源销售至德国，处理 NBP/TTF 基差、EUR/GBP、运力和 EFET/GSA 匹配。",
-    summaryEn: "UK beach gas sold into Germany with NBP/TTF basis, EUR/GBP, capacity, and EFET/GSA matching.",
-    tags: ["GSA", "TTF/NBP", "FX", "Capacity"],
-    difficultyZh: "中等",
-    difficultyEn: "Intermediate",
-    duration: "90",
+    riskFocus: "outright",
+    titleZh: "本地市场采购成本套保",
+    titleEn: "Local-Market Procurement Cost Hedge",
+    summaryZh: "同一枢纽、同一币种下，匹配采购合同与固定价掉期或期货，掌握方向、数量和期限。",
+    summaryEn: "Match a same-hub, same-currency purchase contract with a fixed-price swap or future, focusing on direction, volume, and tenor.",
+    tags: ["TTF", "Procurement", "Swap"],
+    difficultyZh: "基础",
+    difficultyEn: "Foundation",
+    duration: "35",
     enabled: true
   },
   {
-    id: "sales_lng_regas",
+    id: "gas_local_market_sale",
     commodity: "natural-gas",
-    region: "lng-global",
+    stage: "foundation",
     role: "sales",
-    riskFocus: "lng-optionality",
-    titleZh: "LNG 船货气化销售下跌行情",
-    titleEn: "LNG regas sale during selloff",
-    summaryZh: "船货、气化窗口和下游销售之间的价格、基差、期权性和履约风险套保。",
-    summaryEn: "Hedge cargo, regas window, downstream sale, basis, optionality, and performance risk.",
-    tags: ["LNG", "Regas", "TTF", "Optionality"],
-    difficultyZh: "困难",
-    difficultyEn: "Advanced",
-    duration: "75",
+    riskFocus: "outright",
+    titleZh: "本地市场销售收入套保",
+    titleEn: "Local-Market Sales Revenue Hedge",
+    summaryZh: "围绕固定价、浮动价或公式价销售合同，识别价格下跌风险并建立对应纸货保护。",
+    summaryEn: "Identify downside in fixed, floating, or formula-priced sales and build the matching paper hedge.",
+    tags: ["TTF", "Sales", "Fixed/Floating"],
+    difficultyZh: "基础",
+    difficultyEn: "Foundation",
+    duration: "35",
+    enabled: true
+  },
+  {
+    id: "procurement_beach_to_germany",
+    commodity: "natural-gas",
+    stage: "basis",
+    role: "integrated",
+    riskFocus: "basis",
+    titleZh: "跨枢纽供销基差套保",
+    titleEn: "Cross-Hub Supply and Sales Basis Hedge",
+    summaryZh: "上游或区域资源销往另一欧洲市场，训练 NBP、TTF、THE 等枢纽之间的基差和交割地点错配。",
+    summaryEn: "Move upstream or regional supply into another European market and hedge basis across NBP, TTF, THE, or other delivery points.",
+    tags: ["GSA/EFET", "Hub Basis", "Delivery Point"],
+    difficultyZh: "进阶",
+    difficultyEn: "Intermediate",
+    duration: "55",
+    enabled: true
+  },
+  {
+    id: "gas_cross_currency_settlement",
+    commodity: "natural-gas",
+    stage: "currency",
+    role: "integrated",
+    riskFocus: "fx",
+    titleZh: "跨币种天然气供销套保",
+    titleEn: "Cross-Currency Gas Supply and Sales Hedge",
+    summaryZh: "商品计价、合同结算与本位币不同，先完成商品套保，再匹配外汇金额、方向和期限。",
+    summaryEn: "Hedge the commodity first, then align FX amount, direction, and tenor when pricing, settlement, and functional currencies differ.",
+    tags: ["EUR/GBP", "FX Forward", "Unit Conversion"],
+    difficultyZh: "进阶",
+    difficultyEn: "Intermediate",
+    duration: "60",
+    enabled: true
+  },
+  {
+    id: "gas_transport_capacity_hedge",
+    commodity: "natural-gas",
+    stage: "operations",
+    role: "integrated",
+    riskFocus: "capacity",
+    titleZh: "跨区域运输与交付保障",
+    titleEn: "Cross-Regional Transport and Delivery Coverage",
+    summaryZh: "把管输运力、提名、路径拥堵和交割窗口纳入实货与纸货组合，识别价格套保无法覆盖的履约风险。",
+    summaryEn: "Add capacity, nomination, congestion, and delivery windows to the physical-paper hedge and identify uncovered performance risk.",
+    tags: ["Capacity", "Nomination", "Balancing"],
+    difficultyZh: "进阶",
+    difficultyEn: "Intermediate",
+    duration: "65",
     enabled: true
   },
   {
     id: "procurement_eex_ocm_window",
     commodity: "natural-gas",
-    region: "europe-window",
+    stage: "operations",
     role: "procurement",
-    riskFocus: "liquidity-tenor",
+    riskFocus: "execution",
     titleZh: "EEX / OCM 窗口采购与纸货匹配",
     titleEn: "EEX / OCM window procurement hedge",
     summaryZh: "围绕窗口成交、期限错配和流动性风险，设计实货采购与掉期/期货组合。",
@@ -792,13 +857,13 @@ const scenarioLibraryItems = [
   {
     id: "sales_efet_bilateral",
     commodity: "natural-gas",
-    region: "europe-bilateral",
+    stage: "basis",
     role: "sales",
-    riskFocus: "credit-basis",
-    titleZh: "EFET 双边销售与违约风险",
-    titleEn: "Bilateral EFET sale and credit risk",
-    summaryZh: "双边合约销售、信用限额、基差、履约和保证金占用的组合套保案例。",
-    summaryEn: "Bilateral sale, credit limits, basis, performance, and margin usage in one hedge case.",
+    riskFocus: "basis",
+    titleZh: "EFET 双边销售与交割基差",
+    titleEn: "Bilateral EFET Sale and Delivery Basis",
+    summaryZh: "围绕客户价格公式、交割点、信用限额和纸货基准，处理双边销售中的基差与履约风险。",
+    summaryEn: "Manage customer pricing, delivery point, credit limit, paper benchmark, basis, and performance in a bilateral sale.",
     tags: ["EFET", "Credit", "Basis"],
     difficultyZh: "中等",
     difficultyEn: "Intermediate",
@@ -806,9 +871,41 @@ const scenarioLibraryItems = [
     enabled: true
   },
   {
+    id: "sales_lng_regas",
+    commodity: "natural-gas",
+    stage: "portfolio",
+    role: "sales",
+    riskFocus: "optionality",
+    titleZh: "LNG 气化与销售组合套保",
+    titleEn: "LNG Regas and Sales Portfolio Hedge",
+    summaryZh: "综合船货指数、气化窗口、下游销售、基差和运营可选性，管理非对称价格与履约风险。",
+    summaryEn: "Combine cargo index, regas window, downstream sale, basis, and operating optionality to manage asymmetric price and performance risk.",
+    tags: ["LNG", "Regas", "Optionality"],
+    difficultyZh: "综合",
+    difficultyEn: "Advanced",
+    duration: "80",
+    enabled: true
+  },
+  {
+    id: "integrated_gas_portfolio",
+    commodity: "natural-gas",
+    stage: "portfolio",
+    role: "integrated",
+    riskFocus: "integrated",
+    titleZh: "天然气组合风险管理",
+    titleEn: "Integrated Gas Portfolio Risk Management",
+    summaryZh: "同时管理实货、纸货、枢纽基差、汇率、运力、期权、信用和执行约束。",
+    summaryEn: "Manage physical, paper, hub basis, FX, capacity, options, credit, and execution constraints as one portfolio.",
+    tags: ["Multi-Leg", "Portfolio", "Controls"],
+    difficultyZh: "综合",
+    difficultyEn: "Advanced",
+    duration: "90",
+    enabled: true
+  },
+  {
     id: "crude_oil_hedging_basics",
     commodity: "crude-oil",
-    region: "global-crude",
+    stage: "foundation",
     role: "crude",
     riskFocus: "crude-basis-inventory",
     titleZh: "Brent / WTI 原油船货套保",
@@ -825,11 +922,9 @@ const scenarioLibraryItems = [
 
 const scenarioFilterDefinitions = [
   { id: "commodity", labelZh: "商品", labelEn: "Commodity" },
-  { id: "region", labelZh: "地区", labelEn: "Region" },
+  { id: "stage", labelZh: "学习阶段", labelEn: "Learning Stage" },
   { id: "role", labelZh: "业务角色", labelEn: "Business Role" },
-  { id: "difficulty", labelZh: "难度", labelEn: "Difficulty" },
-  { id: "riskFocus", labelZh: "风险重点", labelEn: "Risk Focus" },
-  { id: "status", labelZh: "状态", labelEn: "Status" }
+  { id: "riskFocus", labelZh: "风险类型", labelEn: "Risk Type" }
 ];
 
 const scenarioFilterLabels = {
@@ -837,17 +932,17 @@ const scenarioFilterLabels = {
     "natural-gas": ["天然气", "Natural Gas"],
     "crude-oil": ["原油", "Crude Oil"]
   },
-  region: {
-    "uk-europe": ["英国 / 欧洲", "UK / Europe"],
-    "lng-global": ["LNG 船货", "LNG Cargo"],
-    "europe-window": ["欧洲窗口", "Europe Window"],
-    "europe-bilateral": ["欧洲双边", "Europe Bilateral"],
-    "global-crude": ["全球原油", "Global Crude"],
-    future: ["后续开放", "Future Release"]
+  stage: {
+    foundation: ["1 基础价格风险", "1 Price Foundations"],
+    basis: ["2 基差与跨区域", "2 Basis and Region"],
+    currency: ["3 跨币种结算", "3 Cross-Currency"],
+    operations: ["4 运输与执行", "4 Transport and Execution"],
+    portfolio: ["5 综合组合", "5 Integrated Portfolio"]
   },
   role: {
     procurement: ["采购端", "Procurement"],
     sales: ["销售端", "Sales"],
+    integrated: ["供销组合", "Integrated Supply and Sales"],
     crude: ["原油采购/销售", "Crude procurement/sales"],
     constructing: ["建设中", "Constructing"]
   },
@@ -858,15 +953,14 @@ const scenarioFilterLabels = {
     Constructing: ["建设中", "Constructing"]
   },
   riskFocus: {
-    "basis-fx-capacity": ["基差 / 汇率 / 运力", "Basis / FX / Capacity"],
-    "lng-optionality": ["LNG / 可选性", "LNG / Optionality"],
-    "liquidity-tenor": ["流动性 / 期限", "Liquidity / Tenor"],
-    "credit-basis": ["信用 / 基差", "Credit / Basis"],
+    outright: ["单边价格", "Outright Price"],
+    basis: ["基差与交割点", "Basis and Delivery"],
+    fx: ["汇率与结算", "FX and Settlement"],
+    capacity: ["运力与平衡", "Capacity and Balancing"],
+    execution: ["窗口与流动性", "Window and Liquidity"],
+    optionality: ["LNG 与可选性", "LNG and Optionality"],
+    integrated: ["组合风险", "Integrated Risk"],
     "crude-basis-inventory": ["原油基差 / 库存", "Crude Basis / Inventory"],
-    constructing: ["建设中", "Constructing"]
-  },
-  status: {
-    available: ["可训练", "Available"],
     constructing: ["建设中", "Constructing"]
   }
 };
@@ -937,6 +1031,16 @@ function copy(locale, zh, en) {
   return normalizeLocale(locale) === "zh" ? zh : en;
 }
 
+function levelLabel(locale, level) {
+  const labels = {
+    beginner: ["基础", "Foundation"],
+    intermediate: ["进阶", "Intermediate"],
+    advanced: ["综合", "Advanced"]
+  };
+  const [zh, en] = labels[level] ?? [level, level];
+  return copy(locale, zh, en);
+}
+
 const mistakeLabels = {
   missing_physical_leg: ["缺少实货腿", "Missing physical leg"],
   missing_paper_leg: ["缺少纸货套保腿", "Missing paper hedge leg"],
@@ -988,16 +1092,64 @@ const fallbackTemplates = {
       suggested_leg_types: ["physical", "swap"]
     },
     {
+      id: "gas_local_market_procurement",
+      group: "procurement",
+      business_type: "本地市场天然气采购",
+      title: "本地市场采购成本套保",
+      summary: "在同一枢纽、同一币种下管理采购成本上涨风险。",
+      coverage: ["exposure_objective", "outright_price", "physical_paper_matching", "forward_curve_carry", "risk_controls"],
+      gas_models: ["simple_procurement", "eex_ocm_procurement"],
+      knowledge_points: ["exposure_objective", "outright_price", "physical_paper_matching", "risk_controls"],
+      required_curves: ["TTF"],
+      suggested_leg_types: ["physical", "swap"]
+    },
+    {
+      id: "gas_local_market_sale",
+      group: "sales",
+      business_type: "本地市场天然气销售",
+      title: "本地市场销售收入套保",
+      summary: "在同一枢纽、同一币种下管理销售收入下跌风险。",
+      coverage: ["exposure_objective", "outright_price", "physical_paper_matching", "risk_controls"],
+      gas_models: ["customer_indexed_sale", "efet_bilateral_sale"],
+      knowledge_points: ["exposure_objective", "outright_price", "physical_paper_matching", "risk_controls"],
+      required_curves: ["TTF"],
+      suggested_leg_types: ["physical", "swap"]
+    },
+    {
       id: "procurement_beach_to_germany",
       group: "procurement",
-      business_type: "上游 Beach Delivery 资源（GSA）",
-      title: "英国上游 Beach Delivery 卖德国",
-      summary: "AI 生成 NBP/TTF、汇率、运输和实纸货匹配案例。",
+      business_type: "跨区域天然气供销",
+      title: "跨枢纽供销基差套保",
+      summary: "管理不同欧洲枢纽、交割地点和运输路径之间的基差风险。",
       coverage: ["basis_spread", "fx", "capacity_storage_balancing", "physical_paper_matching", "risk_controls"],
       gas_models: ["gsa_procurement", "pipeline_capacity"],
       knowledge_points: ["basis_spread", "fx", "capacity_storage_balancing", "physical_paper_matching"],
       required_curves: ["TTF", "NBP", "EURGBP", "TTF_NBP_SPREAD"],
       suggested_leg_types: ["physical", "basis", "fx", "capacity"]
+    },
+    {
+      id: "gas_cross_currency_settlement",
+      group: "integrated",
+      business_type: "跨币种天然气供销",
+      title: "跨币种天然气供销套保",
+      summary: "在商品套保基础上匹配计价、结算和本位币敞口。",
+      coverage: ["physical_paper_matching", "basis_spread", "fx", "risk_controls"],
+      gas_models: ["cross_border_sale", "customer_indexed_sale"],
+      knowledge_points: ["physical_paper_matching", "basis_spread", "fx", "risk_controls"],
+      required_curves: ["TTF", "NBP", "EURGBP", "TTF_NBP_SPREAD"],
+      suggested_leg_types: ["physical", "basis", "fx"]
+    },
+    {
+      id: "gas_transport_capacity_hedge",
+      group: "integrated",
+      business_type: "跨区域运输与交付",
+      title: "跨区域运输与交付保障",
+      summary: "将运力、提名、拥堵和交割窗口纳入套保组合。",
+      coverage: ["basis_spread", "capacity_storage_balancing", "physical_paper_matching", "risk_controls"],
+      gas_models: ["pipeline_capacity", "cross_border_sale"],
+      knowledge_points: ["basis_spread", "capacity_storage_balancing", "physical_paper_matching", "risk_controls"],
+      required_curves: ["TTF", "NBP", "TTF_NBP_SPREAD"],
+      suggested_leg_types: ["physical", "basis", "capacity"]
     },
     {
       id: "procurement_lng_cargo",
@@ -3061,62 +3213,6 @@ function ProductSidebar({ activePage, collapsed, locale, onPageChange, onToggleC
   );
 }
 
-function LearningStepper({ active = 2, locale }) {
-  return (
-    <ol className="cl-learning-stepper">
-      {learningFlow.map((step, index) => (
-        <li className={index === active ? "active" : index < active ? "done" : ""} key={step.en}>
-          <span>{index + 1}</span>
-          <strong>{labelFor(locale, step)}</strong>
-          <small>{copy(locale, step.detailZh, step.detailEn)}</small>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function LearningLoopPanel({ aiLessonPlan, aiReady, learningProgress, locale, onGenerate, productScope }) {
-  const activePlan = !aiLessonPlan?.product_scope || aiLessonPlan.product_scope === productScope ? aiLessonPlan : null;
-  const track = selectedTrackForProduct(activePlan?.track_id, learningProgress, productScope);
-  const prompt = activePlan?.practice_prompt ?? copy(locale, track.requestZh, track.requestEn);
-  const activeIndex = activePlan ? 1 : learningProgress.hasRecords ? 3 : 0;
-  const activeStep = learningFlow[activeIndex] ?? learningFlow[0];
-  return (
-    <section className={activePlan ? "cl-panel cl-learning-loop-panel ai-guided" : "cl-panel cl-learning-loop-panel"}>
-      <div className="cl-panel-heading">
-        <span>{copy(locale, "学习闭环", "Learning Loop")}</span>
-        <strong>{activePlan ? copy(locale, "AI 正在引导这一步", "AI is guiding this step") : copy(locale, "先理解，再生成，再实操", "Understand, generate, practice")}</strong>
-      </div>
-      <div className="cl-learning-loop-track" aria-label={copy(locale, "学习闭环", "Learning Loop")}>
-        {learningFlow.map((step, index) => (
-          <div className={index === activeIndex ? "active" : index < activeIndex ? "done" : ""} key={step.en}>
-            <span>{index + 1}</span>
-            <b>{labelFor(locale, step)}</b>
-            <small>{copy(locale, step.detailZh, step.detailEn)}</small>
-          </div>
-        ))}
-      </div>
-      <div className="cl-learning-loop-focus">
-        <div>
-          <small>{copy(locale, "当前阶段", "Current stage")}</small>
-          <strong>{labelFor(locale, activeStep)}</strong>
-          <span>{copy(locale, activeStep.detailZh, activeStep.detailEn)}</span>
-        </div>
-        <div>
-          <small>{copy(locale, "当前模块", "Current module")}</small>
-          <strong>{labelFor(locale, track)}</strong>
-          <span>{activePlan?.objective ?? copy(locale, track.detailZh, track.detailEn)}</span>
-        </div>
-        <div>
-          <small>{copy(locale, "下一步课堂动作", "Next classroom move")}</small>
-          <strong>{copy(locale, "生成本节练习", "Generate this lesson")}</strong>
-          <button className="cl-secondary" disabled={!aiReady} onClick={() => onGenerate(track.templateId, prompt)} type="button"><Icon name="sparkles" />{copy(locale, "让 AI 生成", "Ask AI to generate")}</button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function aiActionKindLabel(locale, kind) {
   const labels = {
     generate_case: ["生成案例", "Generated case"],
@@ -3133,7 +3229,7 @@ function aiActionKindLabel(locale, kind) {
     navigate_page: ["切换页面", "Navigated"],
     run_ai_capability: ["运行能力", "Ran capability"]
   };
-  const [zh, en] = labels[kind] ?? ["软件动作", "Software action"];
+  const [zh, en] = labels[kind] ?? ["更新内容", "Updated content"];
   return copy(locale, zh, en);
 }
 
@@ -3143,9 +3239,9 @@ function AiInterventionStrip({ interventions, locale, onNavigate }) {
     <div className="cl-ai-intervention-strip" role="status">
       <div className="cl-ai-intervention-summary">
         <span><Icon name="sparkles" />{copy(locale, "AI 已介入当前学习", "AI is shaping this lesson")}</span>
-        <strong>{copy(locale, "已把对话转成软件动作", "Conversation became app changes")}</strong>
+        <strong>{copy(locale, "已根据你的要求更新本课", "This lesson now reflects your request")}</strong>
       </div>
-      <div className="cl-ai-action-pipeline" aria-label={copy(locale, "最近 AI 动作", "Recent AI actions")}>
+      <div className="cl-ai-action-pipeline" aria-label={copy(locale, "最近更新", "Recent updates")}>
         {interventions.slice(0, 3).map((item) => (
           <button key={item.id} onClick={() => item.page ? onNavigate(item.page) : null} type="button">
             <small>{aiActionKindLabel(locale, item.kind)}</small>
@@ -3178,77 +3274,6 @@ function lessonPracticePrompt(locale, track, lesson) {
   );
 }
 
-function CourseLessonList({ aiReady = true, currentTrackId, learningProgress, locale, onGenerateLesson, track }) {
-  const syllabus = syllabusForTrack(track.id);
-  const stats = attemptsForTrack(learningProgress, track);
-  const isRecommended = currentTrackId === track.id;
-  return (
-    <div className="cl-lesson-stack">
-      <div className="cl-lesson-stack-meta">
-        <span>{copy(locale, "课程顺序", "Lesson Sequence")}</span>
-        {stats.score != null ? <strong>{stats.score}/100</strong> : null}
-      </div>
-      <ol>
-        {syllabus.lessons.map((lesson, index) => (
-          <li className={isRecommended && index === 0 ? "active" : ""} key={lesson.id}>
-            <span>{index + 1}</span>
-            <div>
-              <em>{index === 0 ? copy(locale, "先修：无", "Prerequisite: none") : copy(locale, "先修", "Prerequisite")}</em>
-              <b>{copy(locale, lesson.titleZh, lesson.titleEn)}</b>
-              <small><strong>{copy(locale, "学习产出", "Learning outcome")}</strong>{copy(locale, lesson.outcomeZh, lesson.outcomeEn)}</small>
-              {onGenerateLesson ? (
-                <button className="cl-lesson-generate" disabled={!aiReady} onClick={() => onGenerateLesson(track.templateId, lessonPracticePrompt(locale, track, lesson))} type="button">
-                  <Icon name="sparkles" />{copy(locale, "AI 生成本课练习", "Generate lesson with AI")}
-                </button>
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ol>
-      <span className="cl-lesson-stack-foot">
-        {stats.attempts ? copy(locale, `${stats.attempts} 次正式提交`, `${stats.attempts} scored attempts`) : copy(locale, "尚未正式练习", "Not practiced yet")}
-      </span>
-    </div>
-  );
-}
-
-function AiTeachingPlanPanel({ aiLessonPlan, aiReady, learningProgress, locale, onGenerate, productScope }) {
-  const activePlan = !aiLessonPlan?.product_scope || aiLessonPlan.product_scope === productScope ? aiLessonPlan : null;
-  const track = selectedTrackForProduct(activePlan?.track_id, learningProgress, productScope);
-  const syllabus = syllabusForTrack(track.id);
-  const stats = attemptsForTrack(learningProgress, track);
-  const steps = activePlan?.steps?.length ? activePlan.steps : syllabus.lessons.slice(0, 3).map((lesson) => copy(locale, lesson.titleZh, lesson.titleEn));
-  const title = activePlan?.title ?? copy(locale, `下一节：${track.zh}`, `Next: ${track.en}`);
-  const objective = activePlan?.objective ?? copy(locale, track.detailZh, track.detailEn);
-  const prompt = activePlan?.practice_prompt ?? copy(locale, track.requestZh, track.requestEn);
-  return (
-    <section className={activePlan ? "cl-panel cl-ai-plan-panel active" : "cl-panel cl-ai-plan-panel"}>
-      <div className="cl-panel-heading">
-        <span>{copy(locale, "AI 教学计划", "AI Teaching Plan")}</span>
-        <strong>{activePlan ? copy(locale, "AI 已定制", "AI customized") : copy(locale, "按真实记录推荐", "Recommended from records")}</strong>
-      </div>
-      <div className="cl-ai-plan-body">
-        <div className="cl-ai-plan-orbit" aria-hidden="true"><Icon name="sparkles" /></div>
-        <div>
-          <h3>{title}</h3>
-          <p>{objective}</p>
-          <div className="cl-plan-evidence">
-            <span>{copy(locale, "推荐模块", "Recommended module")}<b>{labelFor(locale, track)}</b></span>
-            <span>{copy(locale, "正式提交", "Scored attempts")}<b>{stats.attempts}</b></span>
-            <span>{copy(locale, "模块均分", "Module average")}<b>{stats.score ?? "--"}</b></span>
-          </div>
-        </div>
-      </div>
-      <ol className="cl-ai-plan-steps">
-        {steps.map((step, index) => <li key={`${step}-${index}`}><span>{index + 1}</span>{step}</li>)}
-      </ol>
-      <div className="cl-action-row">
-        <button className="cl-primary" disabled={!aiReady} onClick={() => onGenerate(track.templateId, prompt)} type="button"><Icon name="play" />{copy(locale, "按计划生成本节练习", "Generate this lesson")}</button>
-      </div>
-    </section>
-  );
-}
-
 function ProductScaffoldPage({ locale, workspace }) {
   return (
     <section className="cl-page cl-product-scaffold-page">
@@ -3257,38 +3282,31 @@ function ProductScaffoldPage({ locale, workspace }) {
         locale={locale}
         titleZh={`${workspace.zh}工作区`}
         titleEn={`${workspace.en} Workspace`}
-        subtitleZh="产品框架已经接入统一课程、训练和 AI 控制体系；产品专属课程尚未开放。"
-        subtitleEn="This product is wired into the shared curriculum, training, and AI-control framework; product-specific courses are not open yet."
+        subtitleZh="该品种的专项课程正在准备中。通识课程仍可正常学习。"
+        subtitleEn="Product-specific lessons are in preparation. General hedging courses remain available."
       />
       <section className="cl-panel cl-product-scaffold">
         <div className="cl-scaffold-status">
           <span>{copy(locale, "课程状态", "Course status")}</span>
-          <strong>{copy(locale, "建设中", "Scaffold ready")}</strong>
+          <strong>{copy(locale, "筹备中", "In preparation")}</strong>
         </div>
         <div className="cl-scaffold-grid">
           <article>
             <Icon name="library" />
             <div>
-              <strong>{copy(locale, "共享通识层", "Shared general layer")}</strong>
-              <p>{copy(locale, "敞口、远期结构、期货/掉期、基差、期权、套保比率和风控沿用统一能力模型。", "Exposure, forward structure, futures/swaps, basis, options, hedge ratios, and controls use the shared competency model.")}</p>
+              <strong>{copy(locale, "可先学习", "Available now")}</strong>
+              <p>{copy(locale, "敞口识别、远期结构、期货与掉期、基差、期权、套保比率和风险控制。", "Exposure, forward structure, futures and swaps, basis, options, hedge ratios, and risk controls.")}</p>
             </div>
           </article>
           <article>
             <Icon name={workspace.icon} />
             <div>
-              <strong>{copy(locale, "计划覆盖", "Planned scope")}</strong>
+              <strong>{copy(locale, "课程范围", "Planned coverage")}</strong>
               <p>{copy(locale, workspace.scopeZh, workspace.scopeEn)}</p>
             </div>
           </article>
-          <article>
-            <Icon name="sparkles" />
-            <div>
-              <strong>{copy(locale, "后续接入方式", "Future integration")}</strong>
-              <p>{copy(locale, "课程、实时/复盘行情、AI 生成案例和本地评分将复用现有工作台，不另建孤立功能。", "Courses, live/replay markets, AI-generated cases, and local scoring will reuse the existing workbench instead of creating isolated tools.")}</p>
-            </div>
-          </article>
         </div>
-        <p className="cl-scaffold-note">{copy(locale, "当前正式课程仅开放欧洲天然气与原油；这里不显示占位题目或虚假进度。", "Only European Natural Gas and Crude Oil courses are currently open. This workspace does not show placeholder drills or fake progress.")}</p>
+        <p className="cl-scaffold-note">{copy(locale, "欧洲天然气与原油专项课程现已开放。", "European natural gas and crude oil courses are available now.")}</p>
       </section>
     </section>
   );
@@ -3297,233 +3315,116 @@ function ProductScaffoldPage({ locale, workspace }) {
 function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, locale, onGenerate, onPageChange, productScope }) {
   const workspace = productWorkspace(productScope);
   const visibleTracks = tracksForProduct(productScope);
-  const score = learningProgress.latestScore;
-  const hasProgress = learningProgress.hasRecords && score != null;
   const recommendedTrack = recommendedTrackId(learningProgress, productScope);
-  const weakSummary = learningProgress.weakest.length
-    ? learningProgress.weakest.map((item) => labelFor(locale, item, "zh", "en")).join(" / ")
-    : copy(locale, "提交一次策略后自动生成能力画像。", "Submit a strategy once to build your capability profile.");
-  const startTrack = visibleTracks[0];
-  function startTrackDrill(track) {
-    onGenerate(track.templateId, copy(locale, track.requestZh, track.requestEn));
+  const activePlan = !aiLessonPlan?.product_scope || aiLessonPlan.product_scope === productScope ? aiLessonPlan : null;
+  const currentTrack = selectedTrackForProduct(activePlan?.track_id ?? recommendedTrack, learningProgress, productScope);
+  const currentSyllabus = syllabusForTrack(currentTrack.id);
+  const nextLesson = currentSyllabus.lessons[0];
+  const nextPrompt = activePlan?.practice_prompt ?? lessonPracticePrompt(locale, currentTrack, nextLesson);
+  const completedTracks = visibleTracks.filter((track) => attemptsForTrack(learningProgress, track).attempts > 0).length;
+  const courseProgress = visibleTracks.length ? Math.round((completedTracks / visibleTracks.length) * 100) : 0;
+  function startLesson(track, lesson = null) {
+    const prompt = lesson
+      ? lessonPracticePrompt(locale, track, lesson)
+      : copy(locale, track.requestZh, track.requestEn);
+    onGenerate(track.templateId, prompt);
   }
-  function trackActionLabel(track, index) {
-    if (loadingTemplate === track.templateId) return t("loading", locale);
-    if (!aiReady) return copy(locale, "先配置 AI", "Connect AI first");
-    return index === 0
-      ? copy(locale, "生成第一课练习", "Generate first drill")
-      : copy(locale, "生成本章练习", "Generate chapter drill");
-  }
-  const actionHint = aiReady
-    ? copy(locale, "点击后 AI 会生成练习，并自动打开训练工作台。", "Click to generate a drill and open the workbench.")
-    : copy(locale, "需要先导入 AI 密钥；点击按钮会打开设置。", "Import an AI key first; clicking opens Settings.");
   return (
     <section className="cl-page cl-home-page">
       <PageTitle
         icon="home"
         locale={locale}
-        titleZh={`通识 + ${workspace.zh} 学习路径`}
-        titleEn={`General + ${workspace.en} Learning Path`}
-        subtitleZh={`先掌握跨品种通用的金融工具，再进入${workspace.zh}业务、市场结构和组合套保。`}
-        subtitleEn={`Build inter-commodity hedging fundamentals first, then apply them to ${workspace.en.toLowerCase()} business, market structure, and multi-leg hedges.`}
-        action={<button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={Boolean(loadingTemplate)} type="button"><Icon name="play" />{aiReady ? copy(locale, "开始第一课", "Start Lesson 1") : copy(locale, "配置 AI", "Connect AI")}</button>}
+        titleZh={`${workspace.zh}套保课程`}
+        titleEn={`${workspace.en} Hedging Course`}
+        subtitleZh={productScope === "crude_oil"
+          ? "先掌握通用金融工具，再进入基准、船货、月差、品级、库存和运费套保。"
+          : "先掌握通用金融工具，再按风险复杂度完成本地市场、跨区域、跨币种和组合套保。"}
+        subtitleEn={productScope === "crude_oil"
+          ? "Master general instruments, then progress through benchmarks, cargoes, calendar spreads, grades, inventory, and freight hedging."
+          : "Master general instruments, then progress through local-market, cross-regional, cross-currency, and portfolio hedging."}
       />
-      <div className="cl-home-grid">
-        <section className="cl-panel cl-hero-panel cl-course-hero">
-          <div>
-            <span>{copy(locale, "建议从基础课开始", "Recommended starting point")}</span>
-            <h3>{copy(locale, "从基础敞口识别开始，逐步掌握套保目标、工具选择与实货/纸货匹配。", "Start with exposure identification, then build hedge objectives, tool selection, and physical-paper matching.")}</h3>
-            <p>{copy(locale, "Commodity Lab 的训练顺序是：识别业务敞口 -> 选择实货/纸货工具 -> 做组合腿 -> 本地评分 -> AI 针对弱项生成下一题。", "Commodity Lab trains in this order: identify exposure -> choose physical/paper tools -> build multi-leg strategy -> score locally -> let AI generate the next weak-point drill.")}</p>
-          </div>
-          <div className="cl-hero-actions">
-            <button className="cl-primary" onClick={() => startTrackDrill(startTrack)} disabled={Boolean(loadingTemplate)} type="button"><Icon name="play" />{aiReady ? copy(locale, "生成入门练习", "Generate beginner drill") : copy(locale, "先导入 AI 密钥", "Import AI key")}</button>
-            <button className="cl-secondary" onClick={() => onPageChange(pageIds.knowledge)} type="button"><Icon name="map" />{copy(locale, "看课程地图", "Open course map")}</button>
-          </div>
-        </section>
-        <LearningLoopPanel aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={onGenerate} productScope={productScope} />
-        <AiTeachingPlanPanel aiLessonPlan={aiLessonPlan} aiReady={aiReady} learningProgress={learningProgress} locale={locale} onGenerate={onGenerate} productScope={productScope} />
-        <section className="cl-panel cl-learning-route-panel cl-course-panel">
-          <div className="cl-panel-heading"><span>{copy(locale, "课程路径", "Course Path")}</span><strong>{copy(locale, `通识 + ${workspace.zh}`, `General + ${workspace.en}`)}</strong></div>
-          <div className="cl-course-grid">
-            {visibleTracks.map((track, index) => (
-              <article key={track.id}>
-                <div>
-                  <b>{index + 1}</b>
-                  <span>{copy(locale, track.levelZh, track.levelEn)}</span>
-                </div>
-                <h3>{labelFor(locale, track)}</h3>
-                <p>{copy(locale, track.detailZh, track.detailEn)}</p>
-                <CourseLessonList aiReady={aiReady} currentTrackId={recommendedTrack} learningProgress={learningProgress} locale={locale} onGenerateLesson={onGenerate} track={track} />
-                <button className={index === 0 ? "cl-primary" : "cl-secondary"} disabled={Boolean(loadingTemplate)} onClick={() => startTrackDrill(track)} type="button">
-                  <Icon name={index === 0 ? "play" : "sparkles"} />
-                  {trackActionLabel(track, index)}
-                </button>
-                <small className="cl-course-action-note">{actionHint}</small>
-              </article>
-            ))}
-          </div>
-        </section>
-        <section className="cl-panel">
-          <div className="cl-panel-heading"><span>{copy(locale, "能力快照", "Capability Snapshot")}</span><strong>{hasProgress ? `${score}/100` : copy(locale, "本机记录", "Local records")}</strong></div>
-          {hasProgress ? (
-            <>
-              <div className="cl-progress-ring" style={{ "--score": `${score * 3.6}deg` }}>
-                <strong>{score}</strong>
-                <span>/100</span>
-              </div>
-              <p className="cl-muted">{copy(locale, "当前弱项：", "Current weak points: ")}{weakSummary}</p>
-              <div className="cl-mini-skill-grid">
-                {learningProgress.dimensions.filter((item) => item.score != null).slice(0, 4).map((item) => (
-                  <span key={item.id}>
-                    <small>{labelFor(locale, item, "zh", "en")}</small>
-                    <i><b style={{ width: `${item.score}%` }} /></i>
-                    <strong>{item.score}</strong>
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="cl-empty-progress">
-              <strong>{copy(locale, "暂无正式训练记录", "No scored training records yet")}</strong>
-              <p>{copy(locale, "生成案例并提交一次组合策略后，这里才会显示真实能力分、弱项和学习建议。", "Generate a case and submit a strategy to see real scores, weak points, and learning guidance.")}</p>
-              <button className="cl-secondary" onClick={() => onPageChange(pageIds.caseLab)} type="button">{copy(locale, "开始第一次训练", "Start first drill")}</button>
+      <div className="cl-course-home">
+        <section className="cl-panel cl-course-next">
+          <div className="cl-course-next-copy">
+            <span>{copy(locale, "下一课", "Next Lesson")}</span>
+            <h3>{copy(locale, nextLesson.titleZh, nextLesson.titleEn)}</h3>
+            <p>{activePlan?.objective ?? copy(locale, nextLesson.outcomeZh, nextLesson.outcomeEn)}</p>
+            <div className="cl-course-next-meta">
+              <span>{copy(locale, "所属阶段", "Stage")}<strong>{labelFor(locale, currentTrack)}</strong></span>
+              <span>{copy(locale, "已完成阶段", "Completed stages")}<strong>{completedTracks}/{visibleTracks.length}</strong></span>
+              <span>{copy(locale, "课程进度", "Course progress")}<strong>{courseProgress}%</strong></span>
             </div>
-          )}
+          </div>
+          <button className="cl-primary" disabled={Boolean(loadingTemplate)} onClick={() => onGenerate(currentTrack.templateId, nextPrompt)} type="button"><Icon name="play" />{aiReady ? copy(locale, "开始本课", "Start Lesson") : copy(locale, "配置 AI", "Connect AI")}</button>
         </section>
-        <section className="cl-panel cl-quick-actions">
-          <div className="cl-panel-heading"><span>{copy(locale, "下一步", "Next Actions")}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div>
-          {[
-            [pageIds.knowledge, "map", "先看知识结构", "Understand the map"],
-            [pageIds.caseLab, "sparkles", "生成章节练习", "Generate chapter drill"],
-            [pageIds.workbench, "workbench", "打开训练工作台", "Open training workbench"],
-            [pageIds.progress, "progress", "查看训练画像", "View progress profile"]
-          ].map(([page, icon, zh, en]) => (
-            <button key={page} onClick={() => onPageChange(page)} type="button"><Icon name={icon} /><span>{copy(locale, zh, en)}</span><Icon name="arrow" /></button>
-          ))}
+
+        <section className="cl-panel cl-course-roadmap">
+          <div className="cl-panel-heading"><span>{copy(locale, "课程顺序", "Course Sequence")}</span><strong>{copy(locale, "由基础到综合", "Foundation to Portfolio")}</strong></div>
+          <ol className="cl-course-stage-list">
+            {visibleTracks.map((track, index) => {
+              const stats = attemptsForTrack(learningProgress, track);
+              const syllabus = syllabusForTrack(track.id);
+              const active = track.id === currentTrack.id;
+              return (
+                <li className={active ? "active" : stats.attempts ? "complete" : ""} key={track.id}>
+                  <span className="cl-course-stage-number">{index + 1}</span>
+                  <div className="cl-course-stage-copy">
+                    <div><small>{copy(locale, track.levelZh, track.levelEn)}</small>{stats.score != null ? <b>{stats.score}/100</b> : null}</div>
+                    <h3>{labelFor(locale, track)}</h3>
+                    <p>{copy(locale, track.detailZh, track.detailEn)}</p>
+                    <details>
+                      <summary>{copy(locale, `查看 ${syllabus.lessons.length} 节课程`, `View ${syllabus.lessons.length} lessons`)}</summary>
+                      <div className="cl-stage-lessons">
+                        {syllabus.lessons.map((lesson, lessonIndex) => (
+                          <button disabled={Boolean(loadingTemplate)} key={lesson.id} onClick={() => startLesson(track, lesson)} type="button">
+                            <span>{lessonIndex + 1}</span>
+                            <div><strong>{copy(locale, lesson.titleZh, lesson.titleEn)}</strong><small>{copy(locale, lesson.outcomeZh, lesson.outcomeEn)}</small></div>
+                            <Icon name="arrow" />
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                  <button className={active ? "cl-primary" : "cl-secondary"} disabled={Boolean(loadingTemplate)} onClick={() => startLesson(track)} type="button">
+                    {stats.attempts ? copy(locale, "继续阶段", "Continue Stage") : copy(locale, "开始阶段", "Start Stage")}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="cl-course-library-link">
+            <span>{copy(locale, "需要按业务类型或风险类型练习？", "Need practice by business or risk type?")}</span>
+            <button className="cl-secondary" onClick={() => onPageChange(pageIds.library)} type="button"><Icon name="library" />{copy(locale, "打开练习库", "Open Practice Library")}</button>
+          </div>
         </section>
       </div>
     </section>
   );
 }
 
-function MarketEvidenceSelector({ capabilities, locale, marketMode, marketRegime, productScope, replayId, setMarketMode, setMarketRegime, setReplayId }) {
-  const modes = capabilities?.modes?.length ? capabilities.modes : fallbackMarketCapabilities(locale).modes;
-  const allReplays = capabilities?.replays?.length ? capabilities.replays : fallbackMarketCapabilities(locale).replays;
-  const replayCommodity = productScope === "crude_oil" ? "crude_oil" : "natural_gas";
-  const replays = allReplays.filter((item) => item.commodity === replayCommodity);
-  const platts = capabilities?.providers?.find((provider) => provider.id === "platts") ?? fallbackMarketCapabilities(locale).providers[0];
-  const plattsState = providerStatusCopy(platts.status, locale);
-  const activeReplay = replays.find((item) => item.id === replayId) ?? replays[0];
-  const orderedModes = ["ai_simulated", "historical_replay", "live"]
-    .map((id) => modes.find((mode) => mode.id === id))
-    .filter((mode) => Boolean(mode) && (mode.id !== "historical_replay" || replays.length));
-  return (
-    <div className="cl-market-evidence">
-      <div className="cl-market-evidence-heading">
-        <span>{copy(locale, "市场依据", "Market evidence")}</span>
-        <small>{copy(locale, "所有价格都会标明来源与时点", "Every price keeps its source and as-of time")}</small>
-      </div>
-      <div className="cl-market-mode-tabs" role="tablist" aria-label={copy(locale, "市场模式", "Market mode")}>
-        {orderedModes.map((mode) => (
-          <button
-            aria-label={mode.label}
-            aria-selected={marketMode === mode.id}
-            className={marketMode === mode.id ? "active" : ""}
-            key={mode.id}
-            onClick={() => setMarketMode(mode.id)}
-            role="tab"
-            type="button"
-          >
-            <Icon name={mode.id === "historical_replay" ? "history" : mode.id === "live" ? "pulse" : "sparkles"} />
-            <span>{mode.label}</span>
-          </button>
-        ))}
-      </div>
-      {marketMode === "ai_simulated" ? (
-        <div className="cl-market-mode-detail">
-          <div>
-            <strong>{copy(locale, "连贯的训练行情", "Coherent training market")}</strong>
-            <p>{copy(locale, "程序生成可复现曲线，AI 据此编排业务与决策。", "The app builds reproducible curves; AI composes the business and decisions around them.")}</p>
-          </div>
-          <label>{copy(locale, "远期曲线结构", "Forward curve structure")}
-            <select value={marketRegime} onChange={(event) => setMarketRegime(event.target.value)}>
-              <option value="contango">Contango</option>
-              <option value="backwardation">Backwardation</option>
-              <option value="flat">{copy(locale, "平坦", "Flat")}</option>
-              <option value="volatile">{copy(locale, "高波动", "Volatile")}</option>
-            </select>
-          </label>
-        </div>
-      ) : null}
-      {marketMode === "historical_replay" ? (
-        <div className="cl-market-mode-detail replay">
-          <label>{copy(locale, "复盘事件", "Replay event")}
-            <select value={activeReplay?.id ?? ""} onChange={(event) => setReplayId(event.target.value)}>
-              {replays.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-            </select>
-          </label>
-          <div>
-            <p>{activeReplay?.summary}</p>
-            <small>{copy(locale, `${activeReplay?.checkpoint_count ?? 0} 个决策时点 · 后续信息默认隐藏`, `${activeReplay?.checkpoint_count ?? 0} decision points · future information hidden`)}</small>
-          </div>
-        </div>
-      ) : null}
-      {marketMode === "live" ? (
-        <div className="cl-market-mode-detail live">
-          <div>
-            <strong>{platts.label}</strong>
-            <p>{plattsState.detail}</p>
-          </div>
-          <span className={plattsState.connected ? "cl-source-status connected" : "cl-source-status"}>{plattsState.label}</span>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, loadingTemplate, marketCapabilities, onGenerate, productScope, setActiveTemplateId }) {
+function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, loadingTemplate, onGenerate, productScope, setActiveTemplateId }) {
   const allTemplates = businessTemplates.templates?.length ? businessTemplates.templates : fallbackTemplates.templates;
   const templates = templatesForProduct(allTemplates, productScope);
   const [request, setRequest] = useState("");
-  const [marketMode, setMarketModeState] = useState("ai_simulated");
   const [marketRegime, setMarketRegime] = useState("contango");
-  const [replayId, setReplayId] = useState(() => marketCapabilities?.replays?.[0]?.id ?? "hormuz_2026_disruption");
   const active = templates.find((template) => template.id === activeTemplateId) ?? templates[0];
   const activeCoverage = coverageForTemplate(active);
   const activeModels = modelsForTemplate(active);
-  const replayCommodity = productScope === "crude_oil" ? "crude_oil" : "natural_gas";
-  const availableReplays = (marketCapabilities?.replays ?? []).filter((item) => item.commodity === replayCommodity);
 
   useEffect(() => {
     if (active?.id && active.id !== activeTemplateId) setActiveTemplateId(active.id);
   }, [active?.id, activeTemplateId, setActiveTemplateId]);
-
-  useEffect(() => {
-    if (!availableReplays.length && marketMode === "historical_replay") setMarketModeState("ai_simulated");
-    if (availableReplays.length && !availableReplays.some((item) => item.id === replayId)) setReplayId(availableReplays[0].id);
-  }, [availableReplays, marketMode, replayId]);
 
   function randomize() {
     const next = templates[Math.floor(Math.random() * templates.length)];
     setActiveTemplateId(next.id);
   }
 
-  function setMarketMode(nextMode) {
-    setMarketModeState(nextMode);
-    if (nextMode === "historical_replay") {
-      const replay = availableReplays.find((item) => item.id === replayId) ?? availableReplays[0];
-      if (replay?.commodity === "crude_oil") {
-        const crudeTemplate = templates.find((template) => template.group === "crude");
-        if (crudeTemplate) setActiveTemplateId(crudeTemplate.id);
-      }
-    }
-  }
-
   function marketGenerationOptions() {
     return {
-      market_mode: marketMode,
+      market_mode: "ai_simulated",
       market_regime: marketRegime,
-      replay_id: marketMode === "historical_replay" ? replayId : null
+      replay_id: null
     };
   }
 
@@ -3532,35 +3433,29 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
       <PageTitle
         icon="sparkles"
         locale={locale}
-        titleZh="构建 AI 训练案例"
-        titleEn="Build an AI Training Case"
-        subtitleZh="告诉 AI 你要练什么；市场、场景和评分规则会一起生成。"
-        subtitleEn="Tell AI what to practise; the market, scenario, and rubric are generated together."
+        titleZh="自定义练习"
+        titleEn="Custom Practice"
+        subtitleZh="选择课程范围与市场条件，生成符合当前学习目标的练习。"
+        subtitleEn="Choose a course scope and market conditions to create practice for your learning goal."
       />
       <div className="cl-case-studio">
         <section className="cl-panel cl-studio-composer">
-          <MarketEvidenceSelector
-            capabilities={marketCapabilities}
-            locale={locale}
-            marketMode={marketMode}
-            marketRegime={marketRegime}
-            productScope={productScope}
-            replayId={replayId}
-            setMarketMode={setMarketMode}
-            setMarketRegime={setMarketRegime}
-            setReplayId={setReplayId}
-          />
           <label className="cl-studio-prompt">{copy(locale, "你想练什么？", "What do you want to practise?")}
             <textarea value={request} onChange={(event) => setRequest(event.target.value)} placeholder={productScope === "crude_oil"
               ? copy(locale, "例如：训练 Brent 计价船货在快速下跌中的采购套保。", "Example: practise a Brent-indexed cargo procurement hedge during a sharp selloff.")
-              : copy(locale, "例如：训练一套英国上游气卖往德国的组合套保，市场快速下跌。", "Example: practise an integrated hedge for UK beach gas sold into Germany during a sharp selloff.")} />
+              : copy(locale, "例如：训练跨枢纽供销中的价格、基差和汇率套保，市场快速下跌。", "Example: practise price, basis, and FX hedging for a cross-hub supply and sales position during a sharp selloff.")} />
           </label>
-          <details className="cl-studio-advanced">
-            <summary><span>{copy(locale, "课程与业务设置", "Course and business settings")}</span><strong>{active?.title}</strong></summary>
-            <div className="cl-studio-setting-grid">
-              <label>{copy(locale, "课程章节", "Course chapter")}<select value={active?.id ?? ""} onChange={(event) => setActiveTemplateId(event.target.value)}>{templates.map((template) => <option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
-            </div>
-          </details>
+          <div className="cl-studio-setting-grid">
+            <label>{copy(locale, "课程章节", "Course chapter")}<select value={active?.id ?? ""} onChange={(event) => setActiveTemplateId(event.target.value)}>{templates.map((template) => <option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
+            <label>{copy(locale, "远期曲线结构", "Forward curve structure")}
+              <select value={marketRegime} onChange={(event) => setMarketRegime(event.target.value)}>
+                <option value="contango">Contango</option>
+                <option value="backwardation">Backwardation</option>
+                <option value="flat">{copy(locale, "平坦", "Flat")}</option>
+                <option value="volatile">{copy(locale, "高波动", "Volatile")}</option>
+              </select>
+            </label>
+          </div>
           <div className="cl-studio-actions">
             <button className="cl-primary" disabled={!aiReady || loadingTemplate === active?.id} onClick={() => onGenerate(active?.id, request, marketGenerationOptions())} type="button"><Icon name="sparkles" />{loadingTemplate ? t("loading", locale) : copy(locale, "生成案例", "Generate Case")}</button>
             <button aria-label={copy(locale, "随机选择课程", "Randomize course")} className="cl-secondary" onClick={randomize} type="button"><Icon name="refresh" />{copy(locale, "换一个", "Randomize")}</button>
@@ -3575,18 +3470,18 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
             {(active?.knowledge_points ?? ["basis_spread", "physical_paper_matching"]).map((point) => <span key={point}>{knowledgePointLabel(locale, point, businessTemplates)}</span>)}
           </div>
           <div className="cl-preview-facts">
-            <span>{copy(locale, "训练结构", "Session structure")}<strong>{copy(locale, "市场 → 决策 → 复盘", "Market → Decision → Review")}</strong></span>
-            <span>{copy(locale, "参考市场", "Market basis")}<strong>{marketMode === "historical_replay" ? copy(locale, "历史复盘", "Historical replay") : marketMode === "live" ? copy(locale, "实盘 / 明示回退", "Live / explicit fallback") : copy(locale, "AI 模拟市场", "AI-simulated market")}</strong></span>
+            <span>{copy(locale, "练习方式", "Practice mode")}<strong>{copy(locale, "分析行情并构建套保组合", "Analyse the market and build a hedge")}</strong></span>
+            <span>{copy(locale, "市场环境", "Market setting")}<strong>{copy(locale, "AI 生成训练行情", "AI-generated training market")}</strong></span>
           </div>
           <div className="cl-preview-coverage">
-            <h4>{copy(locale, "知识覆盖", "Knowledge Coverage")}</h4>
+            <h4>{copy(locale, "训练重点", "Learning Focus")}</h4>
             <div>
               {activeCoverage.slice(0, 4).map((item) => (
                 <span key={item.id}>{labelFor(locale, item, "titleZh", "titleEn")}</span>
               ))}
             </div>
           </div>
-          <p className="cl-preview-models">{copy(locale, "业务模型", "Trading models")}: {activeModels.slice(0, 3).map((item) => labelFor(locale, item, "titleZh", "titleEn")).join(" · ")}</p>
+          <p className="cl-preview-models">{copy(locale, "业务场景", "Business settings")}: {activeModels.slice(0, 3).map((item) => labelFor(locale, item, "titleZh", "titleEn")).join(" · ")}</p>
         </section>
       </div>
     </section>
@@ -3676,7 +3571,6 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
     return matchesSearch && matchesFilters;
   });
   const scenarioStat = (item) => learningProgress.scenarioStats[item.id] ?? null;
-  const trainedScenarios = Object.values(learningProgress.scenarioStats).filter((stat) => stat.attempts > 0).length;
   const hasFilters = query.trim() || filterDefinitions.some((filter) => filters[filter.id] !== "all");
   function updateFilter(filterId, value) {
     setFilters((current) => ({ ...current, [filterId]: value }));
@@ -3690,13 +3584,13 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
       <PageTitle
         icon="library"
         locale={locale}
-        titleZh="场景库"
-        titleEn="Scenario Library"
-        subtitleZh={`只显示当前${workspace.zh}工作区的 AI 训练案例。`}
-        subtitleEn={`Only AI training cases for the current ${workspace.en} workspace are shown.`}
-        action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="plus" />{copy(locale, "新建案例", "New Case")}</button>}
+        titleZh="练习库"
+        titleEn="Practice Library"
+        subtitleZh={`按风险复杂度学习${workspace.zh}套保，从单一价格敞口逐步进入跨区域与组合风险。`}
+        subtitleEn={`Build ${workspace.en.toLowerCase()} hedging skills from single-price exposure to cross-regional and portfolio risk.`}
+        action={<button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="plus" />{copy(locale, "自定义练习", "Custom Practice")}</button>}
       />
-      <div className="cl-library-grid">
+      <div className="cl-library-grid cl-library-grid-single">
         <section className="cl-panel cl-library-main">
           <div className="cl-searchbar">
             <Icon name="search" />
@@ -3716,7 +3610,7 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
           </div>
           <div className="cl-scenario-table">
             <div className="cl-scenario-head">
-              <span>{copy(locale, "场景", "Scenario")}</span><span>{copy(locale, "难度", "Difficulty")}</span><span>{copy(locale, "预计时长", "Est.")}</span><span>{copy(locale, "进度", "Progress")}</span><span>{copy(locale, "操作", "Action")}</span>
+              <span>{copy(locale, "练习", "Practice")}</span><span>{copy(locale, "阶段 / 难度", "Stage / Level")}</span><span>{copy(locale, "预计时长", "Est.")}</span><span>{copy(locale, "进度", "Progress")}</span><span>{copy(locale, "操作", "Action")}</span>
             </div>
             {visible.map((item) => {
               const stat = scenarioStat(item);
@@ -3732,7 +3626,7 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
                     <div className="cl-chip-row">{item.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
                   </div>
                 </div>
-                <span>{copy(locale, item.difficultyZh, item.difficultyEn)}</span>
+                <span className="cl-scenario-level"><b>{scenarioFilterLabel(locale, "stage", item.stage)}</b><small>{copy(locale, item.difficultyZh, item.difficultyEn)}</small></span>
                 <span>{item.duration}{item.duration === "--" ? "" : copy(locale, " 分钟", " min")}</span>
                 <span className={progress == null ? "cl-progress-cell is-empty" : "cl-progress-cell"} style={{ "--pct": `${progress ?? 0}%` }}><b>{progress == null ? copy(locale, "未训练", "Not trained") : `${progress}%`}</b><i><em /></i></span>
                 <span className="cl-row-actions">
@@ -3750,18 +3644,6 @@ function ScenarioLibraryPage({ activeTemplateId, learningProgress, locale, loadi
             ) : null}
           </div>
         </section>
-        <aside className="cl-panel cl-library-side">
-          <div className="cl-panel-heading"><span>{copy(locale, "我的本机记录", "My Local Records")}</span><strong>{copy(locale, "真实训练", "Actual training")}</strong></div>
-          {[
-            [copy(locale, "正式提交", "Scored attempts"), learningProgress.attempts],
-            [copy(locale, "已训练场景", "Trained scenarios"), trainedScenarios],
-            [copy(locale, "平均得分", "Average score"), learningProgress.averageScore ?? "--"],
-            [copy(locale, "最近得分", "Latest score"), learningProgress.latestScore ?? "--"]
-          ].map(([label, value]) => <button key={label} onClick={() => onPageChange(pageIds.progress)} type="button"><Icon name="progress" /><span>{label}</span><small>{value}</small></button>)}
-          <div className="cl-divider" />
-          <div className="cl-panel-heading"><span>{copy(locale, "为你推荐", "Recommended")}</span><strong>{copy(locale, "当前产品", "Current product")}</strong></div>
-          {productItems.filter((item) => item.enabled).slice(0, 3).map((item) => <button key={item.id} onClick={() => onGenerate(item.id)} type="button"><span>{copy(locale, item.titleZh, item.titleEn)}</span><small>{item.duration} min</small></button>)}
-        </aside>
       </div>
     </section>
   );
@@ -3881,27 +3763,26 @@ function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData
   if (caseData?.status === "empty") {
     return (
       <section className="cl-page cl-workbench-page">
-        <LearningStepper active={1} locale={locale} />
         <PageTitle
           icon="workbench"
           locale={locale}
-          titleZh="训练工作台"
-          titleEn="Training Workbench"
-          subtitleZh="案例生成或选择完成后，行情、决策任务、组合操作和本地评分会在这里展开。"
-          subtitleEn="After you generate or select a case, its market, decision task, strategy controls, and local scoring will open here."
+          titleZh="训练台"
+          titleEn="Workbench"
+          subtitleZh="在同一页面分析行情、构建套保组合并提交复盘。"
+          subtitleEn="Analyse the market, build a hedge, and submit it for review on one screen."
         />
         <section className="cl-panel cl-workbench-empty">
           <div className="cl-workbench-empty-copy">
             <span className="cl-title-icon"><Icon name="sparkles" /></span>
             <div>
-              <small>{copy(locale, "尚未载入训练案例", "No training case loaded")}</small>
-              <h3>{copy(locale, "先确定本节课，再开始组合决策", "Choose the lesson before building a hedge")}</h3>
-              <p>{copy(locale, "让 AI 按你的学习目标生成新案例，或从场景库打开一套已有训练。工作台不会在你开始前显示虚构行情、答案或评分。", "Ask AI to generate a case for your learning goal, or open an existing scenario. The workbench will not show fictional market data, answers, or scores before you start.")}</p>
+              <small>{copy(locale, "尚未选择练习", "No practice selected")}</small>
+              <h3>{copy(locale, "从课程或练习库开始", "Start from a course or the practice library")}</h3>
+              <p>{copy(locale, "选择一节课程，或按业务类型和风险类型查找练习。", "Choose a lesson, or find practice by business type and risk.")}</p>
             </div>
           </div>
           <div className="cl-workbench-empty-actions">
-            <button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button"><Icon name="sparkles" />{copy(locale, "让 AI 生成案例", "Generate with AI")}</button>
-            <button className="cl-secondary" onClick={() => onPageChange(pageIds.library)} type="button"><Icon name="library" />{copy(locale, "打开场景库", "Open Scenario Library")}</button>
+            <button className="cl-primary" onClick={() => onPageChange(pageIds.home)} type="button"><Icon name="home" />{copy(locale, "返回课程", "Open Courses")}</button>
+            <button className="cl-secondary" onClick={() => onPageChange(pageIds.library)} type="button"><Icon name="library" />{copy(locale, "打开练习库", "Open Practice Library")}</button>
           </div>
         </section>
       </section>
@@ -3911,7 +3792,6 @@ function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData
   const isReplay = Boolean(caseData.market?.replay?.event?.id);
   return (
     <section className="cl-page cl-workbench-page">
-      <LearningStepper active={2} locale={locale} />
       <CaseHero activeTemplate={activeTemplate} caseData={caseData} locale={locale} />
       <ReplayDecisionPanel advancing={replayAdvancing} caseData={caseData} decisionResult={replayDecision} locale={locale} onAdvance={onAdvanceReplay} />
       <div className="cl-workbench-grid">
@@ -3921,7 +3801,7 @@ function WorkbenchPage({ activeTemplate, advisorProps, aiInterventions, caseData
         </div>
         <div className="cl-workbench-center">
           <section className="cl-panel cl-strategy-tools">
-            <div className="cl-panel-heading"><span>3 {copy(locale, "策略构建辅助", "Strategy Assistance")}</span><strong>{copy(locale, "本地即时反馈", "Immediate local feedback")}</strong></div>
+            <div className="cl-panel-heading"><span>3 {copy(locale, "策略构建", "Build Strategy")}</span><strong>{copy(locale, "即时检查", "Instant check")}</strong></div>
             <div className="cl-action-grid">
               {!isReplay ? <button disabled={isGenerating} onClick={onSuggestTarget} type="button"><Icon name="sparkles" />{copy(locale, "AI 建议策略腿", "AI Suggest Legs")}</button> : null}
               {!isReplay ? <button disabled={isGenerating} onClick={onCheckStrategy} type="button"><Icon name="coach" />{copy(locale, "提交前检查", "Check Before Submit")}</button> : null}
@@ -4007,7 +3887,7 @@ function ReviewPage({ advisorFeedback, caseData, evaluation, exam, locale, onGen
           })}
         </div>
         <div className="cl-quiz-submit">
-          {quizResult ? <p>{copy(locale, `答对 ${quizResult.correct_count}/${quizResult.total} 题，结果已计入学习进度。`, `${quizResult.correct_count}/${quizResult.total} correct. This result is now part of your learning progress.`)}</p> : <p>{copy(locale, "完成全部题目后立即本地评分，不等待 AI。", "Answer every question for immediate local scoring; no AI wait is required.")}</p>}
+          {quizResult ? <p>{copy(locale, `答对 ${quizResult.correct_count}/${quizResult.total} 题，结果已计入学习进度。`, `${quizResult.correct_count}/${quizResult.total} correct. This result is now part of your learning progress.`)}</p> : <p>{copy(locale, "完成全部题目后即可查看结果。", "Answer every question to view your result.")}</p>}
           <button className="cl-primary" disabled={Boolean(quizResult) || Object.keys(quizAnswers).length !== quizQuestions.length} type="submit"><Icon name="chart" />{copy(locale, "提交测验", "Submit quiz")}</button>
         </div>
       </form>
@@ -4015,7 +3895,6 @@ function ReviewPage({ advisorFeedback, caseData, evaluation, exam, locale, onGen
   ) : null;
   return (
     <section className="cl-page cl-review-page">
-      <LearningStepper active={3} locale={locale} />
       <PageTitle
         icon="chart"
         locale={locale}
@@ -4051,8 +3930,8 @@ function ReviewPage({ advisorFeedback, caseData, evaluation, exam, locale, onGen
         ) : null}
         <section className="cl-panel cl-score-summary">
           <div className="cl-progress-ring large" style={{ "--score": `${((isReplay ? replayAverage : evaluation?.baseline_score) ?? 0) * 3.6}deg` }}><strong>{isReplay ? replayAverage : evaluation?.baseline_score ?? "--"}</strong><span>/100</span></div>
-          <h3>{isReplay ? copy(locale, "历史复盘已完成", "Historical replay complete") : evaluation ? copy(locale, "本地评分已完成", "Local scoring complete") : copy(locale, "尚未提交策略", "No strategy submitted")}</h3>
-          <p>{isReplay ? copy(locale, "每个节点均按当时信息独立评分；后续事实只在提交后揭示。", "Each checkpoint was scored on information available at the time; later facts were revealed only after submission.") : copy(locale, "评分不等待 AI；AI 用于解释、追问和生成后续训练。", "Scoring does not wait for AI. AI explains, challenges, and generates follow-up drills.")}</p>
+          <h3>{isReplay ? copy(locale, "历史复盘已完成", "Historical replay complete") : evaluation ? copy(locale, "策略评估已完成", "Strategy review complete") : copy(locale, "尚未提交策略", "No strategy submitted")}</h3>
+          <p>{isReplay ? copy(locale, "每个节点均按当时信息独立评分；后续事实只在提交后揭示。", "Each checkpoint was scored on information available at the time; later facts were revealed only after submission.") : copy(locale, "查看得分、风险覆盖和改进建议，再进入下一项练习。", "Review the score, risk coverage, and improvement actions before the next drill.")}</p>
           <div className="cl-action-row">
             <button className="cl-secondary" onClick={() => onPageChange(pageIds.workbench)} type="button">{copy(locale, "回到工作台", "Back to Workbench")}</button>
             {isReplay ? <button className="cl-primary" onClick={onGenerateCounterfactual} type="button"><Icon name="sparkles" />{copy(locale, "生成反事实练习", "Generate counterfactual")}</button> : <button className="cl-primary" onClick={onGenerateVariant} type="button">{copy(locale, "训练弱项变体", "Drill Weak Variant")}</button>}
@@ -4156,7 +4035,7 @@ function KnowledgeMapPage({ locale, onPageChange, onRequestLearningPath, product
                     return (
                       <button className={selected === item.id ? `active ${item.level}` : item.level} key={item.id} onClick={() => setSelected(item.id)} type="button">
                         <span>{labelFor(locale, item, "titleZh", "titleEn")}</span>
-                        <small>{item.level}</small>
+                        <small>{levelLabel(locale, item.level)}</small>
                       </button>
                     );
                   })}
@@ -4166,7 +4045,7 @@ function KnowledgeMapPage({ locale, onPageChange, onRequestLearningPath, product
           </div>
         </section>
         <aside className="cl-panel cl-topic-panel">
-          <div className="cl-panel-heading"><span>{copy(locale, "选中主题", "Selected Topic")}</span><strong>{node.level}</strong></div>
+          <div className="cl-panel-heading"><span>{copy(locale, "选中主题", "Selected Topic")}</span><strong>{levelLabel(locale, node.level)}</strong></div>
           <h3>{labelFor(locale, node, "titleZh", "titleEn")}</h3>
           <p>{copy(locale, node.descZh, node.descEn)}</p>
           <h4>{copy(locale, "为什么重要", "Why it matters")}</h4>
@@ -4212,7 +4091,7 @@ function KnowledgeMapPage({ locale, onPageChange, onRequestLearningPath, product
         </> : null}
       </section>
       <section className="cl-panel cl-model-panel">
-        <div className="cl-panel-heading"><span>{copy(locale, "商品交易模型", "Commodity Trading Models")}</span><strong>{copy(locale, "用于 AI 出题", "Used by AI")}</strong></div>
+        <div className="cl-panel-heading"><span>{copy(locale, "业务应用", "Business Applications")}</span><strong>{copy(locale, "场景实践", "Scenario Practice")}</strong></div>
         <div className="cl-gas-model-grid">
           {productModels.map((item) => (
             <article key={item.id}>
@@ -4244,9 +4123,9 @@ function ProgressPage({ learningProgress, locale, onGenerateWeakPoint, onPageCha
         titleEn="My Progress"
         subtitleZh="按套保能力维度追踪弱项，而不是只看完成百分比。"
         subtitleEn="Track hedging skill dimensions instead of only completion percentage."
-        action={<button className="cl-primary" onClick={onGenerateWeakPoint} type="button"><Icon name="plus" />{copy(locale, "生成弱项训练", "Generate Weak-Point Drill")}</button>}
+        action={hasProgress ? <button className="cl-primary" onClick={onGenerateWeakPoint} type="button"><Icon name="plus" />{copy(locale, "生成弱项训练", "Generate Weak-Point Drill")}</button> : null}
       />
-      <div className="cl-progress-layout">
+      <div className={`cl-progress-layout${hasProgress ? "" : " is-empty"}`}>
         <section className="cl-panel">
           <div className="cl-panel-heading"><span>{copy(locale, "能力画像", "Capability Profile")}</span><strong>{hasProgress ? `${learningProgress.latestScore}/100` : copy(locale, "暂无记录", "No records")}</strong></div>
           {hasProgress ? (
@@ -4272,20 +4151,20 @@ function ProgressPage({ learningProgress, locale, onGenerateWeakPoint, onPageCha
           ) : (
             <div className="cl-empty-progress large">
               <strong>{copy(locale, "还没有可用于进度分析的训练记录", "No training records available for progress analysis")}</strong>
-              <p>{copy(locale, "只有点击“提交策略”完成本地评分后，Commodity Lab 才会记录能力分、弱项和场景进度。", "Commodity Lab records capability scores, weak points, and scenario progress only after you submit a strategy for local scoring.")}</p>
-              <button className="cl-primary" onClick={() => onPageChange(pageIds.caseLab)} type="button">{copy(locale, "生成第一个案例", "Generate first case")}</button>
+              <p>{copy(locale, "完成第一次练习后，这里将展示能力得分、薄弱项和复习计划。", "Complete your first practice to see skill scores, weak areas, and review plans here.")}</p>
+              <button className="cl-primary" onClick={() => onPageChange(pageIds.home)} type="button">{copy(locale, "开始第一课", "Start first lesson")}</button>
             </div>
           )}
         </section>
-        <section className="cl-panel">
+        {hasProgress ? <section className="cl-panel">
           <div className="cl-panel-heading"><span>{copy(locale, "AI 推荐下一步", "AI Recommended Next Step")}</span><strong>{copy(locale, "基于弱项", "Based on weak points")}</strong></div>
-          <h3>{hasProgress ? copy(locale, "按当前弱项生成下一题", "Generate the next drill from current weak points") : copy(locale, "先完成一次正式训练", "Complete one scored drill first")}</h3>
-          <p>{hasProgress ? copy(locale, "建议重点：", "Recommended focus: ") + weakSummary : copy(locale, "进度页不会使用演示数据；第一条学习建议会在你提交策略后出现。", "This page does not use demo data; your first recommendation appears after you submit a strategy.")}</p>
+          <h3>{copy(locale, "按当前弱项生成下一题", "Generate the next drill from current weak points")}</h3>
+          <p>{copy(locale, "建议重点：", "Recommended focus: ") + weakSummary}</p>
           {learningProgress.nextReview ? <p className="cl-review-due"><strong>{copy(locale, "复习计划：", "Review plan: ")}</strong>{learningProgress.dueReviews
             ? copy(locale, `${learningProgress.dueReviews} 个场景到期`, `${learningProgress.dueReviews} scenario(s) due`)
             : copy(locale, `下次复习 ${new Date(learningProgress.nextReview.nextReviewAt).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US")}`, `Next review ${new Date(learningProgress.nextReview.nextReviewAt).toLocaleDateString("en-US")}`)}</p> : null}
           <button className="cl-primary" onClick={onGenerateWeakPoint} type="button">{copy(locale, "开始推荐训练", "Start Recommended Drill")}</button>
-        </section>
+        </section> : null}
       </div>
     </section>
   );
@@ -4328,7 +4207,7 @@ function AiCoachPage({ aiReady, applyAction, locale, messages, onSend, thinking 
         <aside className="cl-panel cl-coach-actions">
           <div className="cl-panel-heading"><span>{copy(locale, "常用请求", "Common Requests")}</span><strong>{aiReady ? t("online", locale) : t("offline", locale)}</strong></div>
           {[
-            copy(locale, "生成一个英国上游 beach delivery 卖德国的套保训练题。", "Generate a UK beach delivery sale into Germany hedging drill."),
+            copy(locale, "生成一个欧洲天然气跨枢纽供销套保训练题。", "Generate a European gas cross-hub supply and sales hedging drill."),
             copy(locale, "解释 TTF/NBP 基差风险和实货纸货如何匹配。", "Explain TTF/NBP basis risk and physical-paper matching."),
             copy(locale, "检查我的策略有没有漏掉汇率、运力或信用风险。", "Check whether my strategy misses FX, capacity, or credit risk."),
             copy(locale, "根据我上一次错误生成一个更难的变体。", "Generate a harder variant based on my last mistakes.")
@@ -4382,8 +4261,8 @@ function FloatingAssistant({ activePage, aiReady, applyAction, assistantStage, i
       message: copy(locale, "根据当前课程和最近练习生成一套简短测验，并直接打开复盘测验页。", "Generate a short quiz from the current course and recent practice, then open the review quiz page.")
     },
     {
-      label: copy(locale, "提交评分", "Score strategy"),
-      message: copy(locale, "提交当前策略并使用本地评分规则立即评分，然后打开复盘页。", "Submit the current strategy for immediate local scoring, then open Review.")
+      label: copy(locale, "提交策略", "Submit strategy"),
+      message: copy(locale, "提交当前策略并打开复盘页。", "Submit the current strategy and open Review.")
     },
     {
       label: copy(locale, "检查缺口", "Check gaps"),
@@ -5410,9 +5289,9 @@ export default function App() {
       showAiGuidance(copy(locale, "AI 已创建测验并打开复盘页。", "AI created a quiz and opened Review."));
     }
     if (action.type === "submit_strategy") {
-      const intervention = recordAiIntervention(action.label ?? copy(locale, "提交并本地评分", "Scored strategy"), pageIds.review, action.type);
+      const intervention = recordAiIntervention(action.label ?? copy(locale, "提交策略并复盘", "Submitted strategy"), pageIds.review, action.type);
       submitStrategy({ aiAction: intervention });
-      showAiGuidance(copy(locale, "AI 已触发本地评分并打开复盘页。", "AI triggered local scoring and opened Review."));
+      showAiGuidance(copy(locale, "AI 已提交当前策略并打开复盘页。", "AI submitted the current strategy and opened Review."));
     }
     if (action.type === "set_learning_plan") {
       const nextPlan = normalizeLearningPlan(payload, learningProgress, productScope);
@@ -5572,7 +5451,6 @@ export default function App() {
           businessTemplates={templates}
           locale={locale}
           loadingTemplate={loadingTemplate}
-          marketCapabilities={marketCapabilities}
           onGenerate={generateTrainingCase}
           productScope={productScope}
           setActiveTemplateId={selectTemplateForPractice}

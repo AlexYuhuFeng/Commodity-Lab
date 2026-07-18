@@ -43,11 +43,23 @@ const businessTemplates = {
       suggested_leg_types: ["physical", "swap"]
     },
     {
+      id: "gas_local_market_procurement",
+      group: "procurement",
+      business_type: "Local-market gas procurement",
+      title: "Local-market procurement cost hedge",
+      summary: "Hedge a single-hub, single-currency procurement exposure.",
+      coverage: ["exposure_objective", "outright_price", "physical_paper_matching", "risk_controls"],
+      gas_models: ["simple_procurement"],
+      knowledge_points: ["exposure_objective", "outright_price", "physical_paper_matching", "risk_controls"],
+      required_curves: ["TTF"],
+      suggested_leg_types: ["physical", "swap"]
+    },
+    {
       id: "procurement_beach_to_germany",
       group: "procurement",
-      business_type: "Upstream beach delivery GSA",
-      title: "UK beach delivery sold into Germany",
-      summary: "Generate a NBP/TTF, FX, capacity, and physical-paper hedge case.",
+      business_type: "Cross-regional gas supply and sales",
+      title: "Cross-hub supply and sales basis hedge",
+      summary: "Hedge hub basis, delivery point, and transport-route risk.",
       coverage: ["basis_spread", "fx", "capacity_storage_balancing", "physical_paper_matching", "risk_controls"],
       gas_models: ["gsa_procurement", "pipeline_capacity"],
       knowledge_points: ["basis_spread", "fx", "physical_paper_matching"],
@@ -84,9 +96,9 @@ const businessTemplates = {
 const generatedCase = {
   scenario: {
     id: "ai-procurement-beach",
-    title: "UK Beach Delivery to German Citygate",
-    summary: "A procurement desk buys UK beach gas and sells German delivery, creating TTF/NBP, FX, and capacity risk.",
-    business_type: "Upstream beach delivery GSA",
+    title: "Cross-Hub Supply and Sales Hedge",
+    summary: "A regional gas position creates hub basis, FX, and delivery-capacity risk.",
+    business_type: "Cross-regional gas supply and sales",
     knowledge_points: ["basis_spread", "fx", "physical_paper_matching"],
     exposure: { direction: "spread", volume_mmbtu: 60000, risk: "NBP/TTF spread, EUR/GBP FX, and route capacity." }
   },
@@ -125,7 +137,7 @@ const generatedCase = {
     events: [{ date: "2026-01-06", label: "Capacity tightness" }]
   },
   target_actions: [
-    { id: "physical-1", leg_type: "physical", market: "UK Beach GSA", side: "buy", quantity: 60000, price: 0, tenor: "M+1", rationale: "Source gas." },
+    { id: "physical-1", leg_type: "physical", market: "Regional gas supply contract", side: "buy", quantity: 60000, price: 0, tenor: "M+1", rationale: "Source gas." },
     { id: "basis-1", leg_type: "basis", market: "TTF/NBP basis swap", side: "sell", quantity: 60000, price: 0, tenor: "M+1", rationale: "Lock spread." },
     { id: "fx-1", leg_type: "fx", market: "EURGBP forward", side: "buy", quantity: 60000, price: 0, tenor: "M+1", rationale: "Cover currency mismatch." }
   ],
@@ -135,7 +147,7 @@ const generatedCase = {
     { id: "risk", label: "Risk explanation", points: 25, rule: "Explain basis, FX, capacity, and tenor logic." },
     { id: "controls", label: "Risk controls", points: 15, rule: "Mention liquidity, limits, credit, and execution windows." }
   ],
-  prompt: "### **Decision task**\n\nBuild a multi-leg hedge for UK beach gas sold into Germany.\n\n- Include physical supply.\n- Include paper basis protection."
+  prompt: "### **Decision task**\n\nBuild a multi-leg hedge for a cross-hub gas supply and sales position.\n\n- Include physical supply.\n- Include paper basis protection."
 };
 
 const crudeGeneratedCase = {
@@ -327,7 +339,7 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
     }
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.5.0",
+        current_version: "1.5.1",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
@@ -427,7 +439,7 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
               type: "set_learning_plan",
               label: "Set learning plan",
               payload: {
-                track_id: "integrated",
+                track_id: "gas_integrated",
                 title: "Basis bridge plan",
                 objective: "Connect physical delivery, basis, FX, and capacity into one hedge package.",
                 steps: ["Review exposure", "Map hedge legs", "Generate an integrated drill"],
@@ -447,7 +459,7 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: structuredExam };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.5.0", latest_version: "1.5.0", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.5.0", assets: [] };
+      return { current_version: "1.5.1", latest_version: "1.5.1", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.5.1", assets: [] };
     }
     return {};
   };
@@ -457,6 +469,11 @@ function renderShell(options = {}) {
   localStorage.setItem("commodity-lab-guide-complete", "1");
   mockBackend(options);
   return render(<App />);
+}
+
+async function openCustomPractice() {
+  fireEvent.click(await screen.findByText("Practice Library"));
+  fireEvent.click(await screen.findByText("Custom Practice"));
 }
 
 afterEach(() => {
@@ -483,9 +500,9 @@ describe("Commodity Lab shell", () => {
     expect(await screen.findByText("AI 全功能")).toBeInTheDocument();
     expect(screen.getByText("Commodity Lab")).toBeInTheDocument();
     expect(screen.getAllByText("设置")[0]).toBeInTheDocument();
-    expect(screen.getByText("通识 + 欧洲天然气 学习路径")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "欧洲天然气套保课程" })).toBeInTheDocument();
     expect(screen.getByLabelText("课程产品")).toHaveValue("natural_gas");
-    expect(screen.getAllByText("生成练习").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("开始本课").length).toBeGreaterThan(0);
     expect(screen.queryByText(/涓|鈥|娴疯兘/)).not.toBeInTheDocument();
   });
 
@@ -497,101 +514,28 @@ describe("Commodity Lab shell", () => {
 
     expect(await screen.findByRole("heading", { name: "北美天然气工作区" })).toBeInTheDocument();
     expect(screen.getByText("Henry Hub、区域基差、储气、管输和电力燃料需求")).toBeInTheDocument();
-    expect(screen.getByText("当前正式课程仅开放欧洲天然气与原油；这里不显示占位题目或虚假进度。")).toBeInTheDocument();
-    expect(screen.queryByText("英国上游 Beach Delivery 卖德国")).not.toBeInTheDocument();
+    expect(screen.getByText("欧洲天然气与原油专项课程现已开放。")).toBeInTheDocument();
+    expect(screen.queryByText("跨枢纽供销基差套保")).not.toBeInTheDocument();
   });
 
-  it("lets the learner choose a historical replay and sends the point-in-time mode to DeepSeek", async () => {
+  it("keeps custom practice focused on AI-generated market conditions", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
     fireEvent.change(await screen.findByLabelText("Course product"), { target: { value: "crude_oil" } });
-    fireEvent.click(await screen.findByText("Practice Generator"));
-    expect(await screen.findByText("Market evidence")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "Historical replay" }));
-    expect(screen.getByText("2026 Strait of Hormuz supply-shock replay")).toBeInTheDocument();
+    await openCustomPractice();
+    expect(screen.queryByRole("tab", { name: "Historical replay" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Live market" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Course chapter")).toBeInTheDocument();
+    expect(screen.getByLabelText("Forward curve structure")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Generate Case"));
 
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/training-case")).toBe(true));
     const request = calls.find((call) => call.path === "/api/v1/ai/training-case")?.body;
-    expect(request.market_mode).toBe("historical_replay");
-    expect(request.replay_id).toBe("hormuz_2026_disruption");
+    expect(request.market_mode).toBe("ai_simulated");
+    expect(request.replay_id).toBeNull();
     expect(request.product_scope).toBe("crude_oil");
-  });
-
-  it("gates future replay information until a local decision is submitted", async () => {
-    localStorage.setItem("commodity-lab-locale", "en");
-    const calls = [];
-    renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
-
-    fireEvent.change(await screen.findByLabelText("Course product"), { target: { value: "crude_oil" } });
-    fireEvent.click(await screen.findByText("Practice Generator"));
-    fireEvent.click(screen.getByRole("tab", { name: "Historical replay" }));
-    fireEvent.click(screen.getByText("Generate Case"));
-
-    expect(await screen.findByText("Event Replay")).toBeInTheDocument();
-    expect(screen.getAllByText("Reveal after decision")).toHaveLength(2);
-    expect(screen.queryByText("Uncertainty peaks")).not.toBeInTheDocument();
-
-    fireEvent.click((await screen.findAllByText("Submit strategy"))[0]);
-    expect(await screen.findByText("72/100")).toBeInTheDocument();
-    expect(screen.getByText("Prompt prices continued higher after the disruption.")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Compare viable alternatives"));
-    expect(screen.getByText("Staged hedge")).toBeInTheDocument();
-    expect(screen.getByText("Option-weighted hedge")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Reveal next market phase/i }));
-
-    expect((await screen.findAllByText("Uncertainty peaks")).length).toBeGreaterThan(0);
-    expect(calls.some((call) => call.path.endsWith("/decision"))).toBe(true);
-    expect(calls.some((call) => call.path.endsWith("/session") && call.body?.checkpoint === 1)).toBe(true);
-  });
-
-  it("streams the active replay review into the workbench and review page", async () => {
-    localStorage.setItem("commodity-lab-locale", "en");
-    let reviewRequest;
-    const calls = [];
-    renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
-
-    fireEvent.change(await screen.findByLabelText("Course product"), { target: { value: "crude_oil" } });
-    fireEvent.click(await screen.findByText("Practice Generator"));
-    fireEvent.click(screen.getByRole("tab", { name: "Historical replay" }));
-    fireEvent.click(screen.getByText("Generate Case"));
-    expect(await screen.findByText("Event Replay")).toBeInTheDocument();
-
-    window.__COMMODITY_LAB_BACKEND_STREAM__ = async (path, body, onEvent) => {
-      if (path !== "/api/v1/ai/advisor-review/stream") {
-        const payload = await window.__COMMODITY_LAB_BACKEND__("POST", path.replace(/\/stream$/, ""), body);
-        onEvent("case", payload);
-        onEvent("done", { ok: true });
-        return;
-      }
-      reviewRequest = body;
-      const answer = "### Verdict\n\n- Strong: protected the current Brent procurement exposure.\n- Gap: freight controls remain incomplete.\n- Next drill: resize the hedge at the next checkpoint.";
-      onEvent("stage", { id: "review_attempt" });
-      onEvent("model_delta", { delta: answer.slice(0, 42) });
-      await Promise.resolve();
-      onEvent("model_delta", { delta: answer.slice(42) });
-      onEvent("review", { answer });
-      onEvent("done", { ok: true });
-    };
-
-    fireEvent.click((await screen.findAllByText("Submit strategy"))[0]);
-    expect(await screen.findByRole("heading", { name: "Verdict" })).toBeInTheDocument();
-    expect(reviewRequest.market_context.case.scenario.title).toBe("2026 Strait of Hormuz supply-shock replay");
-
-    fireEvent.click(screen.getByText("Scenario Library"));
-    fireEvent.click((await screen.findAllByRole("button", { name: "Review" }))[0]);
-
-    expect(await screen.findByText("AI Checkpoint Review")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Verdict" })).toBeInTheDocument();
-    expect(screen.getByText(/freight controls remain incomplete/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Generate counterfactual" }));
-    await waitFor(() => expect(calls.filter((call) => call.path === "/api/v1/ai/training-case").length).toBeGreaterThan(1));
-    const counterfactual = calls.filter((call) => call.path === "/api/v1/ai/training-case").at(-1).body;
-    expect(counterfactual.market_mode).toBe("ai_simulated");
-    expect(counterfactual.user_request).toContain("Change exactly one key condition");
   });
 
   it("lets the learner request a backwardated simulated market and shows provenance in the workbench", async () => {
@@ -599,7 +543,7 @@ describe("Commodity Lab shell", () => {
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
-    fireEvent.click(await screen.findByText("Practice Generator"));
+    await openCustomPractice();
     fireEvent.change(await screen.findByLabelText("Forward curve structure"), { target: { value: "backwardation" } });
     fireEvent.click(screen.getByText("Generate Case"));
 
@@ -616,13 +560,13 @@ describe("Commodity Lab shell", () => {
     renderShell({ aiReady: false });
 
     fireEvent.change(await screen.findByLabelText("课程产品"), { target: { value: "crude_oil" } });
-    fireEvent.click(await screen.findByText("生成练习"));
-    fireEvent.click(screen.getByRole("tab", { name: "Historical replay" }));
-    fireEvent.click(screen.getByRole("button", { name: "训练工作台" }));
+    fireEvent.click(await screen.findByText("练习库"));
+    fireEvent.click(await screen.findByText("自定义练习"));
+    fireEvent.click(screen.getByRole("button", { name: "训练台" }));
 
-    expect(await screen.findByText("尚未载入训练案例")).toBeInTheDocument();
-    expect(screen.getByText("让 AI 生成案例")).toBeInTheDocument();
-    expect(screen.getByText("打开场景库")).toBeInTheDocument();
+    expect(await screen.findByText("尚未选择练习")).toBeInTheDocument();
+    expect(screen.getByText("返回课程")).toBeInTheDocument();
+    expect(screen.getByText("打开练习库")).toBeInTheDocument();
     expect(screen.queryByText("第一课：原油船货与基准风险")).not.toBeInTheDocument();
     expect(screen.queryByText("第一课：套保对象与风险敞口")).not.toBeInTheDocument();
     expect(screen.queryByText("行情曲线")).not.toBeInTheDocument();
@@ -749,10 +693,10 @@ describe("Commodity Lab shell", () => {
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
-    fireEvent.click(await screen.findByText("Practice Generator"));
+    await openCustomPractice();
     fireEvent.click(await screen.findByText("Generate Case"));
 
-    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+    expect(await screen.findByText("Cross-Hub Supply and Sales Hedge")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Decision task" })).toBeInTheDocument();
     expect(screen.queryByText(/###/)).not.toBeInTheDocument();
     expect(screen.getAllByText("TTF").length).toBeGreaterThan(0);
@@ -798,7 +742,7 @@ describe("Commodity Lab shell", () => {
       onEvent("done", { ok: true });
     };
 
-    fireEvent.click(await screen.findByText("Practice Generator"));
+    await openCustomPractice();
     fireEvent.click(await screen.findByText("Generate Case"));
 
     expect(await screen.findByText("Streaming hedge case")).toBeInTheDocument();
@@ -808,7 +752,7 @@ describe("Commodity Lab shell", () => {
     expect(screen.queryByText("Include a physical purchase/sale leg.")).not.toBeInTheDocument();
 
     releaseFinalCase();
-    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+    expect(await screen.findByText("Cross-Hub Supply and Sales Hedge")).toBeInTheDocument();
   });
 
   it("includes crude oil hedging as a real AI-generated course track", async () => {
@@ -817,9 +761,10 @@ describe("Commodity Lab shell", () => {
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
     fireEvent.change(await screen.findByLabelText("Course product"), { target: { value: "crude_oil" } });
-    const crudeCard = (await screen.findByText("Crude Oil Hedging")).closest("article");
+    expect(await screen.findByText(/benchmarks, cargoes, calendar spreads, grades, inventory, and freight hedging/i)).toBeInTheDocument();
+    const crudeCard = (await screen.findByText("Crude Oil Hedging")).closest("li");
     expect(crudeCard).not.toBeNull();
-    fireEvent.click(within(crudeCard).getByRole("button", { name: /Generate chapter drill/i }));
+    fireEvent.click(within(crudeCard).getByRole("button", { name: /Start Stage/i }));
 
     expect(await screen.findByText("Brent Cargo Hedge for Refinery Procurement")).toBeInTheDocument();
     expect(screen.getAllByText("Crude procurement / sales hedging").length).toBeGreaterThan(0);
@@ -833,8 +778,8 @@ describe("Commodity Lab shell", () => {
     renderShell({ aiReady: true, failTrainingCase: true });
 
     fireEvent.change(await screen.findByLabelText("Course product"), { target: { value: "crude_oil" } });
-    const crudeCard = (await screen.findByText("Crude Oil Hedging")).closest("article");
-    fireEvent.click(within(crudeCard).getByRole("button", { name: /Generate chapter drill/i }));
+    const crudeCard = (await screen.findByText("Crude Oil Hedging")).closest("li");
+    fireEvent.click(within(crudeCard).getByRole("button", { name: /Start Stage/i }));
 
     expect(await screen.findByText("Lesson 1: Crude Cargo and Benchmark Risk")).toBeInTheDocument();
     expect(screen.getByText("100,000 bbl")).toBeInTheDocument();
@@ -851,7 +796,7 @@ describe("Commodity Lab shell", () => {
     );
     renderShell({ aiReady: true });
 
-    expect(await screen.findByText("No scored training records yet")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "European Natural Gas Hedging Course" })).toBeInTheDocument();
     expect(screen.queryByText("91/100")).not.toBeInTheDocument();
   });
 
@@ -859,30 +804,25 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: false });
 
-    fireEvent.click((await screen.findAllByText("Connect AI first"))[0]);
+    fireEvent.click((await screen.findAllByText("Connect AI"))[0]);
 
     expect(await screen.findByText("Manage language, theme, AI provider, key-file import, version updates, and developer information.")).toBeInTheDocument();
   });
 
-  it("shows general knowledge plus only the selected product models in the course map", async () => {
+  it("keeps product knowledge inside the ordered course instead of a duplicate map tab", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Course Map"));
-
-    expect(await screen.findByText("General Hedging Tools")).toBeInTheDocument();
-    expect(screen.getAllByText("Options and Optionality").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Hedge Ratio and Cross-Hedge").length).toBeGreaterThan(0);
-    expect(screen.getByText("Commodity Trading Models")).toBeInTheDocument();
-    expect(screen.getByText("Upstream Beach / GSA Supply")).toBeInTheDocument();
-    expect(screen.queryByText("Crude Cargo Procurement / Sale Hedge")).not.toBeInTheDocument();
-    expect(screen.getByText("LNG Regas Sale")).toBeInTheDocument();
-    expect(screen.getByText("Bilateral EFET Sale")).toBeInTheDocument();
+    expect(await screen.findByText("Course Sequence")).toBeInTheDocument();
+    expect(screen.getAllByText("General Hedging Tools").length).toBeGreaterThan(0);
+    expect(screen.getByText("Local-Market Price Risk")).toBeInTheDocument();
+    expect(screen.getByText("Cross-Regional and Basis Risk")).toBeInTheDocument();
+    expect(screen.queryByText("Course Map")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Course product"), { target: { value: "crude_oil" } });
-    fireEvent.click(await screen.findByText("Course Map"));
-    expect(await screen.findByText("Crude Cargo Procurement / Sale Hedge")).toBeInTheDocument();
-    expect(screen.queryByText("Upstream Beach / GSA Supply")).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Crude Oil Hedging Course" })).toBeInTheDocument();
+    expect(screen.getByText("Crude Oil Hedging")).toBeInTheDocument();
+    expect(screen.queryByText("Local-Market Price Risk")).not.toBeInTheDocument();
   });
 
   it("scores a multi-leg strategy locally without waiting for AI scoring", async () => {
@@ -890,7 +830,7 @@ describe("Commodity Lab shell", () => {
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
-    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(await screen.findByText("Practice Library"));
     fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByText("AI Suggest Legs"));
     fireEvent.change(screen.getByLabelText("Rationale"), { target: { value: "The hedge matches the delivery quantity and tenor, covers basis and price risk, and requires liquidity, credit limit, margin, and execution checks." } });
@@ -905,7 +845,7 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(await screen.findByText("Practice Library"));
     fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByText("AI Suggest Legs"));
     fireEvent.change(screen.getByLabelText("Rationale"), { target: { value: "" } });
@@ -920,23 +860,23 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(await screen.findByText("Practice Library"));
     expect(screen.getAllByRole("button", { name: "Review" })[0]).toBeDisabled();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
-    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+    expect(await screen.findByText("Cross-Hub Supply and Sales Hedge")).toBeInTheDocument();
     fireEvent.click(await screen.findByText("AI Suggest Legs"));
     fireEvent.click((await screen.findAllByText("Submit strategy"))[0]);
     expect(await screen.findByText("Review & Feedback")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Scenario Library"));
+    fireEvent.click(screen.getByText("Practice Library"));
     const review = screen.getAllByRole("button", { name: "Review" }).find((button) => !button.disabled);
     expect(review).toBeDefined();
     expect(review).toBeEnabled();
     fireEvent.click(review);
 
     expect(await screen.findByText("Review & Feedback")).toBeInTheDocument();
-    expect(screen.getByText("Local scoring complete")).toBeInTheDocument();
+    expect(screen.getByText("Strategy review complete")).toBeInTheDocument();
   });
 
   it("turns real weak-point records into a generated remediation drill and spaced review", async () => {
@@ -961,40 +901,40 @@ describe("Commodity Lab shell", () => {
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
-    fireEvent.click(await screen.findByText("My Progress"));
+    fireEvent.click(await screen.findByText("Progress"));
     expect(await screen.findByText("1 scenario(s) due")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Generate Weak-Point Drill" }));
 
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/training-case")).toBe(true));
     const request = calls.find((call) => call.path === "/api/v1/ai/training-case")?.body;
     expect(request.user_request).toContain("actual scored attempts");
-    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+    expect(await screen.findByText("Cross-Hub Supply and Sales Hedge")).toBeInTheDocument();
   });
 
   it("does not reveal a decision ticket before a case is opened", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Training Workbench"));
+    fireEvent.click(await screen.findByText("Workbench"));
 
-    expect(await screen.findByText("No training case loaded")).toBeInTheDocument();
+    expect(await screen.findByText("No practice selected")).toBeInTheDocument();
     expect(screen.queryByLabelText("Leg type")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Market")).not.toBeInTheDocument();
-    expect(screen.queryByText("Local scoring")).not.toBeInTheDocument();
+    expect(screen.queryByText("Instant review")).not.toBeInTheDocument();
   });
 
   it("maps strategy legs to visible risk coverage before submission", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(await screen.findByText("Practice Library"));
     fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByText("AI Suggest Legs"));
 
     expect(await screen.findByText("Risk Coverage Map")).toBeInTheDocument();
     expect(screen.getByText("Physical exposure")).toBeInTheDocument();
     expect(screen.getByText("Basis / location risk")).toBeInTheDocument();
-    expect(screen.getByText("Covered by UK Beach GSA")).toBeInTheDocument();
+    expect(screen.getByText("Covered by Regional gas supply contract")).toBeInTheDocument();
     expect(screen.getByText("Covered by TTF/NBP basis swap")).toBeInTheDocument();
     expect(screen.getByText("Missing target actions")).toBeInTheDocument();
   });
@@ -1003,8 +943,9 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     const { container } = renderShell({ aiReady: true });
 
-    fireEvent.click((await screen.findAllByText("Generate beginner drill"))[0]);
-    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("Practice Library"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
+    expect(await screen.findByText("Cross-Hub Supply and Sales Hedge")).toBeInTheDocument();
     fireEvent.click(await screen.findByText("AI Suggest Legs"));
 
     const markerLabels = Array.from(container.querySelectorAll(".trade-marker text"));
@@ -1017,7 +958,7 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(await screen.findByText("Practice Library"));
     fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
     fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Show high low close and explain basis." } });
@@ -1062,7 +1003,7 @@ describe("Commodity Lab shell", () => {
     };
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(await screen.findByText("Practice Library"));
     fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
     fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Fill a correct procurement hedge." } });
@@ -1172,8 +1113,9 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click((await screen.findAllByText("Generate beginner drill"))[0]);
-    expect(await screen.findByText("UK Beach Delivery to German Citygate")).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("Practice Library"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
+    expect(await screen.findByText("Cross-Hub Supply and Sales Hedge")).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
     fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Show high low close." } });
     fireEvent.click(screen.getByText("Send"));
@@ -1198,13 +1140,14 @@ describe("Commodity Lab shell", () => {
     const calls = [];
     renderShell({ aiReady: true, onCall: (call) => calls.push(call), trainingCasePromise });
 
-    fireEvent.click((await screen.findAllByText("Generate beginner drill"))[0]);
+    fireEvent.click(await screen.findByText("Practice Library"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/training-case")).toBe(true));
     fireEvent.change(screen.getByLabelText("Course product"), { target: { value: "crude_oil" } });
-    resolveTrainingCase({ template: businessTemplates.templates[1], case: generatedCase });
+    resolveTrainingCase({ template: businessTemplates.templates.find((item) => item.id === "procurement_beach_to_germany"), case: generatedCase });
 
-    expect(await screen.findByText("General + Crude Oil Learning Path")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText("UK Beach Delivery to German Citygate")).not.toBeInTheDocument());
+    expect(await screen.findByRole("heading", { name: "Crude Oil Hedging Course" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Cross-Hub Supply and Sales Hedge")).not.toBeInTheDocument());
     expect(screen.getByLabelText("Course product")).toHaveValue("crude_oil");
   });
 
@@ -1212,7 +1155,7 @@ describe("Commodity Lab shell", () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    fireEvent.click(await screen.findByText("Scenario Library"));
+    fireEvent.click(await screen.findByText("Practice Library"));
     fireEvent.click(screen.getAllByRole("button", { name: "Start" })[0]);
     fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
 
@@ -1234,46 +1177,36 @@ describe("Commodity Lab shell", () => {
     fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Build my next course plan." } });
     fireEvent.click(screen.getByText("Send"));
 
-    expect(await screen.findByText("AI Teaching Plan")).toBeInTheDocument();
-    expect(screen.getByText("AI customized")).toBeInTheDocument();
-    expect(screen.getByText("Basis bridge plan")).toBeInTheDocument();
-    expect(screen.getAllByText("Generate this lesson").length).toBeGreaterThan(0);
+    expect(await screen.findByText("Connect physical delivery, basis, FX, and capacity into one hedge package.")).toBeInTheDocument();
+    expect(screen.getAllByText("Capacity, Optionality, and Integrated Strategy").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Start Lesson").length).toBeGreaterThan(0);
     expect(screen.getByText("AI is shaping this lesson")).toBeInTheDocument();
-    expect(screen.getByText("Conversation became app changes")).toBeInTheDocument();
+    expect(screen.getByText("This lesson now reflects your request")).toBeInTheDocument();
     expect(screen.getByText("Updated path")).toBeInTheDocument();
   });
 
-  it("turns the home page into a staged AI-guided course loop", async () => {
+  it("turns the home page into a clear risk-complexity course sequence", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    expect(await screen.findByText("Learning Loop")).toBeInTheDocument();
-    expect(screen.getAllByText("Discover").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Generate").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Practice").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Review").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Reinforce").length).toBeGreaterThan(0);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
-    fireEvent.change(screen.getByPlaceholderText(/first hedging lesson/), { target: { value: "Build my next course plan." } });
-    fireEvent.click(screen.getByText("Send"));
-
-    expect(await screen.findByText("AI is guiding this step")).toBeInTheDocument();
-    expect(screen.getByText("Current module")).toBeInTheDocument();
-    expect(screen.getByText("Next classroom move")).toBeInTheDocument();
-    expect(screen.getAllByText("Generate this lesson").length).toBeGreaterThan(0);
+    expect(await screen.findByText("Course Sequence")).toBeInTheDocument();
+    expect(screen.getAllByText("General Hedging Tools").length).toBeGreaterThan(0);
+    expect(screen.getByText("Local-Market Price Risk")).toBeInTheDocument();
+    expect(screen.getByText("Cross-Regional and Basis Risk")).toBeInTheDocument();
+    expect(screen.getByText("Cross-Currency and Settlement Risk")).toBeInTheDocument();
+    expect(screen.getByText("Capacity, Optionality, and Integrated Strategy")).toBeInTheDocument();
+    expect(screen.queryByText("Learning Loop")).not.toBeInTheDocument();
   });
 
   it("presents the home curriculum as ordered lessons with AI generation controls", async () => {
     localStorage.setItem("commodity-lab-locale", "en");
     renderShell({ aiReady: true });
 
-    expect((await screen.findAllByText("Lesson Sequence")).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Prerequisite/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Learning outcome").length).toBeGreaterThan(0);
+    expect(await screen.findByText("Course Sequence")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("View 7 lessons"));
     expect(screen.getAllByText("Exposure Recognition").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Futures, Forwards, and Swaps").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Generate lesson with AI").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Start Stage").length).toBeGreaterThan(0);
   });
 
   it("scores a structured AI exam locally and persists the real result", async () => {
@@ -1281,8 +1214,8 @@ describe("Commodity Lab shell", () => {
     renderShell({ aiReady: true });
 
     expect(await screen.findByText("AI Full Power")).toBeInTheDocument();
-    fireEvent.click(await screen.findByText("Course Map"));
-    fireEvent.click(screen.getByText("Quiz Me"));
+    fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate quiz" }));
 
     expect(await screen.findByText("Basis and Execution Checkpoint")).toBeInTheDocument();
     expect(screen.getByText("Question 1")).toBeInTheDocument();
@@ -1315,7 +1248,7 @@ describe("Commodity Lab shell", () => {
     expect(screen.getByText("What basis risk remains?")).toBeInTheDocument();
     expect(screen.getByText("Question 2")).toBeInTheDocument();
     expect(screen.getByText("Which leg covers FX exposure?")).toBeInTheDocument();
-    expect(screen.getByText("Conversation became app changes")).toBeInTheDocument();
+    expect(screen.getByText("This lesson now reflects your request")).toBeInTheDocument();
     expect(screen.getAllByText("Generated quiz").length).toBeGreaterThan(0);
     expect(screen.getByText("AI is shaping this lesson")).toBeInTheDocument();
   });
@@ -1326,14 +1259,14 @@ describe("Commodity Lab shell", () => {
     renderShell({ aiReady: true, onCall: (call) => calls.push(call) });
 
     expect(await screen.findByText("AI Full Power")).toBeInTheDocument();
-    fireEvent.click(await screen.findByText("Training Workbench"));
+    fireEvent.click(await screen.findByText("Workbench"));
     fireEvent.click(await screen.findByRole("button", { name: "Live assistant" }));
-    fireEvent.click(screen.getByRole("button", { name: "Score strategy" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit strategy" }));
 
     await waitFor(() => expect(calls.some((call) => call.path === "/api/v1/ai/live-assistant")).toBe(true));
-    expect(await screen.findByText("Local scoring complete")).toBeInTheDocument();
+    expect(await screen.findByText("Strategy review complete")).toBeInTheDocument();
     expect(screen.getByText("User Strategy vs Target Actions")).toBeInTheDocument();
-    expect(screen.getByText("Conversation became app changes")).toBeInTheDocument();
+    expect(screen.getByText("This lesson now reflects your request")).toBeInTheDocument();
     expect(screen.getAllByText("Scored strategy").length).toBeGreaterThan(0);
   });
 });
