@@ -88,7 +88,8 @@ def test_business_templates_endpoint_returns_procurement_and_sales_workflows() -
     payload = response.json()
     assert {group["id"] for group in payload["groups"]} >= {"crude", "procurement", "sales"}
     assert {template["group"] for template in payload["templates"]} >= {"crude", "procurement", "sales"}
-    assert any("beach" in template["business_type"].lower() for template in payload["templates"])
+    assert any(template["id"] == "gas_local_market_procurement" for template in payload["templates"])
+    assert any(template["id"] == "procurement_beach_to_germany" and "cross" in template["business_type"].lower() for template in payload["templates"])
     assert any("LNG" in template["business_type"] for template in payload["templates"])
     assert any(template["id"] == "crude_oil_hedging_basics" for template in payload["templates"])
 
@@ -332,7 +333,7 @@ def test_ai_training_case_endpoint_parses_generated_json(monkeypatch) -> None:
         json={
             "template_id": "procurement_beach_to_germany",
             "locale": "en",
-            "user_request": "UK to Germany",
+            "user_request": "Cross-hub European gas supply and sales",
             "market_mode": "ai_simulated",
             "market_regime": "contango",
             "market_seed": 7,

@@ -283,27 +283,27 @@ jobs:
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           NOTES_FILE="release-notes.md"
           cat > "$NOTES_FILE" <<'EOF'
-          # Commodity Lab cross-platform release
+          # Commodity Lab learning-flow update
 
           ## English
           - Windows x86_64: NSIS and MSI installers.
           - Linux x86_64: Debian package and AppImage.
           - Linux ARM64: Debian package and AppImage.
-          - Structured AI exams with immediate local scoring and real progress records.
-          - Spaced review, weak-point drills, and AI-generated learning plans now act directly on the workspace.
-          - Reviewed gas and crude replays include plausible staged and option-weighted alternatives plus counterfactual drills.
-          - Windows AI credentials use per-user DPAPI encryption with legacy-settings migration.
-          - Linux bundles now pass bundled-backend and AppImage launch smoke tests in CI.
+          - Reworked the course into an ordered path from general hedging tools to local-market, basis, FX, transport, and portfolio risk.
+          - Reorganized the practice library by learning stage, business role, and risk type, with professional gas-trading scenarios.
+          - Simplified custom practice to one AI-generated market flow: learning goal, course chapter, curve structure, then generate.
+          - Removed duplicate course actions and withheld progress scores until the learner has a real submission.
+          - Added focused tests for the simplified flow, local scoring, AI workspace actions, and real progress records.
 
           ## 中文
           - Windows x86_64：NSIS 与 MSI 安装包。
           - Linux x86_64：Debian 安装包与 AppImage。
           - Linux ARM64：Debian 安装包与 AppImage。
-          - AI 生成结构化测验，客户端即时评分并写入真实学习进度。
-          - 间隔复习、弱项训练和 AI 学习计划会直接更新工作区。
-          - 经审查的天然气与原油复盘加入分层执行、期权增强等可行替代方案和反事实练习。
-          - Windows AI 密钥采用当前用户 DPAPI 加密，并自动迁移旧版明文配置。
-          - Linux 安装包在 CI 中新增后端健康检查和 AppImage 启动冒烟测试。
+          - 将课程重构为有顺序的学习路径：套保通识、本地市场、基差、汇率、运输与组合风险逐级推进。
+          - 练习库改为按学习阶段、业务角色和风险类型组织，并补充专业天然气交易场景。
+          - 自定义练习收敛为统一 AI 生成流程：学习目标、课程章节、曲线结构、生成练习。
+          - 删除重复课程操作；用户没有真实提交前，不再展示评分或弱项结论。
+          - 增加针对简化流程、本地即时评分、AI 工作区操作和真实学习记录的测试。
 
           所有安装包仅作为 GitHub Release 附件发布，不进入源码仓库。
           EOF

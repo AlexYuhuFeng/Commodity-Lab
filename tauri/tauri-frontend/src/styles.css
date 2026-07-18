@@ -4834,6 +4834,11 @@ button:focus-visible {
   gap: 12px;
 }
 
+.cl-progress-layout.is-empty {
+  grid-template-columns: minmax(0, 780px);
+  justify-content: center;
+}
+
 .cl-review-due {
   margin: 14px 0;
   border: 1px solid var(--cl-border);
@@ -5947,6 +5952,251 @@ textarea:focus-visible {
 
   .cl-workbench-empty-actions {
     min-width: 0;
+  }
+}
+
+/* Guided course flow: one clear next action followed by an ordered curriculum. */
+.cl-course-home {
+  display: grid;
+  gap: 12px;
+  width: min(1120px, 100%);
+  margin: 0 auto;
+}
+
+.cl-course-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  border-color: color-mix(in srgb, var(--cl-accent) 24%, var(--cl-border));
+}
+
+.cl-course-next-copy > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--cl-subtle);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cl-course-next-copy h3 {
+  margin: 0;
+  color: var(--cl-text);
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.cl-course-next-copy > p {
+  margin: 6px 0 12px;
+  max-width: 760px;
+}
+
+.cl-course-next-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.cl-course-next-meta span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--cl-subtle);
+  font-size: 11px;
+}
+
+.cl-course-next-meta strong {
+  color: var(--cl-text);
+  font-size: 12px;
+}
+
+.cl-course-stage-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cl-course-stage-list > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 0;
+  border-top: 1px solid var(--cl-border);
+}
+
+.cl-course-stage-list > li:first-child {
+  border-top: 0;
+}
+
+.cl-course-stage-number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--cl-border-strong);
+  border-radius: 50%;
+  color: var(--cl-subtle);
+  background: var(--cl-panel-2);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.cl-course-stage-list > li.active .cl-course-stage-number,
+.cl-course-stage-list > li.complete .cl-course-stage-number {
+  border-color: color-mix(in srgb, var(--cl-accent) 46%, var(--cl-border));
+  color: var(--cl-accent-ink);
+  background: var(--cl-accent);
+}
+
+.cl-course-stage-copy {
+  min-width: 0;
+}
+
+.cl-course-stage-copy > div:first-child {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--cl-subtle);
+  font-size: 11px;
+}
+
+.cl-course-stage-copy h3 {
+  margin: 3px 0 4px;
+  color: var(--cl-text);
+  font-size: 15px;
+}
+
+.cl-course-stage-copy p {
+  margin: 0;
+}
+
+.cl-course-stage-copy details {
+  margin-top: 8px;
+}
+
+.cl-course-stage-copy summary {
+  width: fit-content;
+  color: var(--cl-text);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.cl-stage-lessons {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cl-stage-lessons button {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--cl-border);
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: var(--cl-text);
+  background: var(--cl-panel-2);
+  text-align: left;
+}
+
+.cl-stage-lessons button > span {
+  color: var(--cl-subtle);
+  font-size: 11px;
+  text-align: center;
+}
+
+.cl-stage-lessons button div {
+  min-width: 0;
+}
+
+.cl-stage-lessons button strong,
+.cl-stage-lessons button small {
+  display: block;
+}
+
+.cl-stage-lessons button strong {
+  font-size: 12px;
+}
+
+.cl-stage-lessons button small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--cl-subtle);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cl-course-library-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cl-border);
+  color: var(--cl-subtle);
+  font-size: 12px;
+}
+
+.cl-library-grid-single {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.cl-library-page .cl-filter-row {
+  grid-template-columns: repeat(4, minmax(150px, 1fr)) !important;
+}
+
+.cl-scenario-level {
+  display: grid;
+  gap: 3px;
+}
+
+.cl-scenario-level b {
+  color: var(--cl-text);
+  font-size: 11px;
+}
+
+.cl-scenario-level small {
+  color: var(--cl-subtle);
+  font-size: 10px;
+}
+
+@media (max-width: 900px) {
+  .cl-course-next,
+  .cl-course-stage-list > li {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .cl-course-next {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cl-course-stage-list > li > button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .cl-library-page .cl-filter-row {
+    grid-template-columns: repeat(2, minmax(150px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .cl-course-library-link {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cl-library-page .cl-filter-row {
+    grid-template-columns: 1fr !important;
   }
 }
 
@@ -7820,110 +8070,6 @@ button:not(:disabled):active,
   padding: 18px;
 }
 
-.cl-market-evidence {
-  display: grid;
-  gap: 10px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid var(--cl-border);
-}
-
-.cl-market-evidence-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.cl-market-evidence-heading span {
-  color: var(--cl-text);
-  font-size: 13px;
-  font-weight: 760;
-}
-
-.cl-market-evidence-heading small {
-  color: var(--cl-muted);
-  font-size: 11px;
-}
-
-.cl-market-mode-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.cl-market-mode-tabs button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-width: 0;
-  min-height: 38px;
-  border: 1px solid var(--cl-border);
-  border-radius: 7px;
-  padding: 0 10px;
-  color: var(--cl-muted);
-  background: var(--cl-panel-2);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.cl-market-mode-tabs button span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cl-market-mode-tabs button.active {
-  border-color: rgba(37, 129, 255, 0.55);
-  color: #dcecff;
-  background: rgba(37, 129, 255, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(37, 129, 255, 0.08);
-}
-
-.cl-market-mode-detail {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
-  align-items: end;
-  gap: 14px;
-  min-height: 64px;
-  padding: 4px 2px 0;
-  animation: cl-plan-arrive 160ms ease-out;
-}
-
-.cl-market-mode-detail.replay {
-  grid-template-columns: minmax(210px, 0.7fr) minmax(0, 1fr);
-}
-
-.cl-market-mode-detail.live {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-}
-
-.cl-market-mode-detail strong,
-.cl-market-mode-detail p,
-.cl-market-mode-detail small {
-  display: block;
-}
-
-.cl-market-mode-detail strong {
-  color: var(--cl-text);
-  font-size: 12px;
-}
-
-.cl-market-mode-detail p {
-  margin: 4px 0 0;
-  color: var(--cl-muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.cl-market-mode-detail small {
-  margin-top: 5px;
-  color: var(--cl-subtle);
-  font-size: 10.5px;
-}
-
-.cl-market-mode-detail label,
 .cl-studio-prompt,
 .cl-studio-setting-grid label {
   display: grid;
@@ -7933,56 +8079,16 @@ button:not(:disabled):active,
   font-weight: 690;
 }
 
-.cl-source-status {
-  border: 1px solid rgba(245, 158, 11, 0.28);
-  border-radius: 999px;
-  padding: 5px 9px;
-  color: #f3c56c;
-  background: rgba(245, 158, 11, 0.08);
-  font-size: 11px;
-  font-weight: 730;
-}
-
-.cl-source-status.connected {
-  border-color: rgba(45, 212, 191, 0.3);
-  color: #80e5ce;
-  background: rgba(45, 212, 191, 0.08);
-}
-
 .cl-studio-prompt {
   color: var(--cl-text);
   font-size: 13px;
 }
 
 .cl-studio-prompt textarea {
-  min-height: 146px;
+  min-height: 112px;
   resize: vertical;
   padding: 13px 14px;
   line-height: 1.55;
-}
-
-.cl-studio-advanced {
-  border-top: 1px solid var(--cl-border);
-  border-bottom: 1px solid var(--cl-border);
-}
-
-.cl-studio-advanced summary {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  min-height: 46px;
-  color: var(--cl-muted);
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.cl-studio-advanced summary strong {
-  overflow: hidden;
-  color: var(--cl-text);
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .cl-studio-setting-grid {
@@ -8182,17 +8288,10 @@ button:not(:disabled):active,
 }
 
 @media (max-width: 620px) {
-  .cl-market-mode-detail,
-  .cl-market-mode-detail.replay,
   .cl-studio-setting-grid,
   .market-evidence-strip,
   .forward-curve-strip {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .cl-market-mode-tabs button {
-    padding: 0 6px;
-    font-size: 11px;
   }
 
   .forward-curve-strip {
@@ -8200,21 +8299,7 @@ button:not(:disabled):active,
   }
 }
 
-[data-theme="light"] .cl-market-mode-tabs button {
-  border-color: rgba(100, 116, 139, 0.24);
-  color: #526175;
-  background: #f8fafc;
-}
-
-[data-theme="light"] .cl-market-mode-tabs button.active {
-  border-color: rgba(37, 99, 235, 0.42);
-  color: #1d4ed8;
-  background: #eff6ff;
-}
-
-[data-theme="light"] .cl-market-mode-detail strong,
 [data-theme="light"] .cl-studio-prompt,
-[data-theme="light"] .cl-studio-advanced summary strong,
 [data-theme="light"] .market-evidence-strip strong,
 [data-theme="light"] .forward-curve-strip > div strong,
 [data-theme="light"] .forward-price {
@@ -8222,10 +8307,6 @@ button:not(:disabled):active,
   fill: #17202a;
 }
 
-[data-theme="light"] .cl-market-mode-detail p,
-[data-theme="light"] .cl-market-mode-detail small,
-[data-theme="light"] .cl-market-evidence-heading small,
-[data-theme="light"] .cl-studio-advanced summary,
 [data-theme="light"] .cl-preview-models,
 [data-theme="light"] .market-evidence-strip span,
 [data-theme="light"] .forward-curve-strip > div small,
@@ -8959,7 +9040,7 @@ select option {
 }
 
 .cl-studio-setting-grid {
-  grid-template-columns: minmax(260px, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .cl-coverage-subheading {
@@ -8969,6 +9050,10 @@ select option {
 }
 
 @media (max-width: 760px) {
+  .cl-studio-setting-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .cl-replay-alternatives > div {
     grid-template-columns: 1fr;
   }
