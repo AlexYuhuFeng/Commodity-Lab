@@ -37,6 +37,8 @@ def test_tag_workflow_publishes_all_supported_desktop_architectures() -> None:
         "commodity-lab-linux-arm64",
         "ubuntu-22.04-arm",
         "--bundles deb,appimage",
+        "ARM aarch64|aarch64",
+        "x86-64|x86_64",
         "gh release create",
     ]
     for fragment in required_fragments:

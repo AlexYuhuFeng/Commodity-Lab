@@ -204,9 +204,16 @@ jobs:
 
       - name: Verify Linux bundle architecture
         run: |
-          test -x tauri/src-tauri/target/release/commodity_lab_tauri
-          file tauri/src-tauri/target/release/commodity_lab_tauri
-          find tauri/src-tauri/target/release/bundle -type f -maxdepth 3 -print
+          desktop_binary="$(find tauri/src-tauri/target/release -maxdepth 1 -type f -perm -111 -print -quit)"
+          test -n "$desktop_binary"
+          binary_info="$(file "$desktop_binary")"
+          echo "$binary_info"
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            grep -Eq 'ARM aarch64|aarch64' <<<"$binary_info"
+          else
+            grep -Eq 'x86-64|x86_64' <<<"$binary_info"
+          fi
+          find tauri/src-tauri/target/release/bundle -maxdepth 3 -type f -print
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
