@@ -8,12 +8,13 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 env:
   RELEASE_TAG: v1.5.2
 
 jobs:
-  create_release_tag:
+  dispatch_release_build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out release commit
@@ -21,15 +22,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create and push release tag
+      - name: Ensure release tag exists
         shell: bash
         run: |
           set -euo pipefail
           if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "${RELEASE_TAG} already exists; no new tag was created."
-            exit 0
+            echo "${RELEASE_TAG} already exists."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "${RELEASE_TAG}" "${GITHUB_SHA}" -m "Commodity Lab ${RELEASE_TAG} - DeepSeek API key import fix"
+            git push origin "${RELEASE_TAG}"
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${RELEASE_TAG}" "${GITHUB_SHA}" -m "Commodity Lab ${RELEASE_TAG} - DeepSeek API key import fix"
-          git push origin "${RELEASE_TAG}"
+
+      - name: Dispatch Tauri release build on the tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            if gh workflow run tauri-build.yml --ref "${RELEASE_TAG}"; then
+              echo "Dispatched tauri-build.yml for ${RELEASE_TAG}."
+              exit 0
+            fi
+            echo "Dispatch attempt ${attempt} failed; retrying in 5 seconds."
+            sleep 5
+          done
+          echo "Unable to dispatch tauri-build.yml for ${RELEASE_TAG}." >&2
+          exit 1
