@@ -327,7 +327,7 @@ fn main() {
                 *lock = child;
             }
             thread::spawn(move || {
-                if let Err(error) = wait_for_backend(Duration::from_secs(20)) {
+                if let Err(error) = wait_for_backend(Duration::from_secs(90)) {
                     eprintln!("{}", error);
                 }
             });

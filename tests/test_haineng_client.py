@@ -304,6 +304,27 @@ def test_deepseek_provider_uses_public_v4_flash_contract(monkeypatch: pytest.Mon
     assert captured_payload["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
+def test_deepseek_credential_validation_uses_models_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    class Models:
+        def list(self):
+            calls.append("models.list")
+            return types.SimpleNamespace(data=[])
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str, base_url: str) -> None:
+            assert api_key == "secret-key"
+            assert base_url == "https://api.deepseek.com"
+            self.models = Models()
+
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(OpenAI=FakeOpenAI))
+
+    HainengClient(HainengSettings(api_key="secret-key", provider="deepseek")).validate_credentials()
+
+    assert calls == ["models.list"]
+
+
 def test_stream_complete_yields_provider_text_deltas(monkeypatch: pytest.MonkeyPatch) -> None:
     captured_payload: dict[str, object] = {}
 

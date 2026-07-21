@@ -282,31 +282,12 @@ jobs:
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           NOTES_FILE="release-notes.md"
-          cat > "$NOTES_FILE" <<'EOF'
-          # Commodity Lab learning-flow update
-
-          ## English
-          - Windows x86_64: NSIS and MSI installers.
-          - Linux x86_64: Debian package and AppImage.
-          - Linux ARM64: Debian package and AppImage.
-          - Reworked the course into an ordered path from general hedging tools to local-market, basis, FX, transport, and portfolio risk.
-          - Reorganized the practice library by learning stage, business role, and risk type, with professional gas-trading scenarios.
-          - Simplified custom practice to one AI-generated market flow: learning goal, course chapter, curve structure, then generate.
-          - Removed duplicate course actions and withheld progress scores until the learner has a real submission.
-          - Added focused tests for the simplified flow, local scoring, AI workspace actions, and real progress records.
-
-          ## 中文
-          - Windows x86_64：NSIS 与 MSI 安装包。
-          - Linux x86_64：Debian 安装包与 AppImage。
-          - Linux ARM64：Debian 安装包与 AppImage。
-          - 将课程重构为有顺序的学习路径：套保通识、本地市场、基差、汇率、运输与组合风险逐级推进。
-          - 练习库改为按学习阶段、业务角色和风险类型组织，并补充专业天然气交易场景。
-          - 自定义练习收敛为统一 AI 生成流程：学习目标、课程章节、曲线结构、生成练习。
-          - 删除重复课程操作；用户没有真实提交前，不再展示评分或弱项结论。
-          - 增加针对简化流程、本地即时评分、AI 工作区操作和真实学习记录的测试。
-
-          所有安装包仅作为 GitHub Release 附件发布，不进入源码仓库。
-          EOF
+          VERSION_NOTES="docs/releases/${TAG_NAME}.md"
+          if [ -f "$VERSION_NOTES" ]; then
+            cp "$VERSION_NOTES" "$NOTES_FILE"
+          else
+            printf '# Commodity Lab %s\n\nCross-platform release assets for Windows x86_64, Linux x86_64, and Linux ARM64.\n' "$TAG_NAME" > "$NOTES_FILE"
+          fi
 
           mapfile -t files < <(find artifacts -type f)
           if [ "${#files[@]}" -eq 0 ]; then
@@ -316,6 +297,7 @@ jobs:
 
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
             gh release upload "$TAG_NAME" "${files[@]}" --clobber
+            gh release edit "$TAG_NAME" --title "Commodity Lab $TAG_NAME" --notes-file "$NOTES_FILE" --latest
           else
             gh release create "$TAG_NAME" "${files[@]}" \
               --title "Commodity Lab $TAG_NAME" \

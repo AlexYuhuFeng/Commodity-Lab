@@ -118,6 +118,7 @@ def test_provider_settings_endpoint_accepts_user_key_without_echoing_secret(monk
 def test_provider_settings_persists_to_local_user_config(monkeypatch, tmp_path) -> None:
     from core.haineng_client import HainengClient, set_runtime_settings
 
+    monkeypatch.setattr(HainengClient, "validate_credentials", lambda self: None)
     set_runtime_settings(None)
     monkeypatch.delenv("COMMODITY_LAB_DISABLE_LOCAL_AI_SETTINGS", raising=False)
     monkeypatch.setenv("COMMODITY_LAB_AI_SETTINGS_FILE", str(tmp_path / "AI密钥.json"))
@@ -154,7 +155,10 @@ def test_provider_settings_endpoint_forces_haineng_flash_contract(monkeypatch) -
 
 
 def test_provider_settings_endpoint_accepts_deepseek_contract(monkeypatch) -> None:
+    from core.haineng_client import HainengClient
+
     _clear_haineng_env(monkeypatch)
+    monkeypatch.setattr(HainengClient, "validate_credentials", lambda self: None)
     response = client.post(
         "/api/v1/provider-settings",
         json={
@@ -170,6 +174,33 @@ def test_provider_settings_endpoint_accepts_deepseek_contract(monkeypatch) -> No
     assert payload["haineng"]["base_url"] == "https://api.deepseek.com"
     assert payload["haineng"]["resolved_model"] == "deepseek-v4-flash"
     assert "user-secret-key" not in str(payload)
+    _clear_haineng_env(monkeypatch)
+
+
+def test_provider_settings_rejects_invalid_deepseek_key_without_persisting(monkeypatch, tmp_path) -> None:
+    from core.haineng_client import HainengClient, load_persisted_settings, set_runtime_settings
+
+    class InvalidKeyError(RuntimeError):
+        status_code = 401
+
+    def reject_key(self) -> None:
+        raise InvalidKeyError("Authentication Fails, Your api key: ****cdef is invalid")
+
+    set_runtime_settings(None)
+    monkeypatch.setenv("COMMODITY_LAB_AI_SETTINGS_FILE", str(tmp_path / "ai-settings.json"))
+    monkeypatch.setattr(HainengClient, "validate_credentials", reject_key)
+
+    response = client.post(
+        "/api/v1/provider-settings",
+        json={"api_key": "sk-invalid-abcdef", "provider": "deepseek"},
+    )
+
+    assert response.status_code == 401
+    detail = response.json()["detail"]
+    assert detail["code"] == "invalid_ai_api_key"
+    assert "cdef" not in str(detail)
+    set_runtime_settings(None)
+    assert load_persisted_settings() is None
     _clear_haineng_env(monkeypatch)
 
 
