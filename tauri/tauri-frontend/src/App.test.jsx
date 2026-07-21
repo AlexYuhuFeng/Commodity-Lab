@@ -264,7 +264,7 @@ const structuredExam = {
   ]
 };
 
-function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCase = false, onCall, trainingCasePromise = null } = {}) {
+function mockBackend({ aiReady = true, assistantResponse = null, failProviderSettings = false, failTrainingCase = false, onCall, trainingCasePromise = null } = {}) {
   window.__COMMODITY_LAB_BACKEND__ = async (method, path, body) => {
     onCall?.({ method, path, body });
     if (path === "/api/health") {
@@ -339,13 +339,21 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
     }
     if (path === "/api/v1/version") {
       return {
-        current_version: "1.5.1",
+        current_version: "1.5.3",
         organization: "天然气中心",
         project_lead: "杨敏",
         repository: "AlexYuhuFeng/Commodity-Lab"
       };
     }
     if (path === "/api/v1/provider-settings") {
+      if (failProviderSettings) {
+        throw new Error(JSON.stringify({
+          detail: {
+            code: "invalid_ai_api_key",
+            message: "The AI provider rejected this API key."
+          }
+        }));
+      }
       return {
         haineng: {
           ok: true,
@@ -459,7 +467,7 @@ function mockBackend({ aiReady = true, assistantResponse = null, failTrainingCas
     if (path === "/api/v1/ai/generate") return { answer: "### Playbook\nCheck capacity, basis, liquidity, FX, and risk limits." };
     if (path === "/api/v1/exam/generate") return { exam: structuredExam };
     if (path === "/api/v1/update-check") {
-      return { current_version: "1.5.1", latest_version: "1.5.1", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.5.1", assets: [] };
+      return { current_version: "1.5.3", latest_version: "1.5.3", up_to_date: true, release_url: "https://github.com/AlexYuhuFeng/Commodity-Lab/releases/tag/v1.5.3", assets: [] };
     }
     return {};
   };
@@ -589,6 +597,20 @@ describe("Commodity Lab shell", () => {
     expect(request.provider).toBe("deepseek");
     expect(request.base_url).toBe("https://api.deepseek.com");
     expect(request.model).toBe("deepseek-v4-flash");
+  });
+
+  it("keeps the DeepSeek key editable when provider validation fails", async () => {
+    localStorage.setItem("commodity-lab-locale", "en");
+    renderShell({ aiReady: false, failProviderSettings: true });
+
+    fireEvent.click((await screen.findAllByText("Settings"))[0]);
+    fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "deepseek" } });
+    const keyInput = await screen.findByLabelText("API key");
+    fireEvent.change(keyInput, { target: { value: "invalid-local-secret" } });
+    fireEvent.click(screen.getByText("Save"));
+
+    expect(await screen.findByText(/DeepSeek rejected this API key/)).toBeInTheDocument();
+    expect(keyInput).toHaveValue("invalid-local-secret");
   });
 
   it("shows the provider actually configured by the backend after restart", async () => {

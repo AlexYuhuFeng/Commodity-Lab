@@ -1,6 +1,6 @@
 [project]
 name = "commodity-lab"
-version = "1.5.1"
+version = "1.5.3"
 description = "AI-guided commodity hedging training terminal."
 requires-python = ">=3.12"
 

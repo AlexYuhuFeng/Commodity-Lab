@@ -775,6 +775,18 @@ class HainengClient:
             return {"ok": False, "reason": "missing_ai_provider_settings", **status}
         return {"ok": True, **status}
 
+    def validate_credentials(self) -> None:
+        """Validate public DeepSeek credentials without spending completion tokens."""
+        if not self.is_configured():
+            raise RuntimeError("AI provider is not configured.")
+        if _provider_name(self.settings) != "deepseek":
+            return
+
+        from openai import OpenAI
+
+        client = OpenAI(api_key=self.settings.api_key, base_url=_provider_base_url(self.settings))
+        client.models.list()
+
     def complete(
         self,
         messages: list[dict[str, str]],

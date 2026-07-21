@@ -241,7 +241,7 @@ def health():
 @app.get("/api/v1/version")
 def v1_version():
     return {
-        "current_version": "1.5.1",
+        "current_version": "1.5.3",
         "organization": "天然气中心",
         "project_lead": "杨敏",
         "repository": "AlexYuhuFeng/Commodity-Lab",
@@ -250,7 +250,7 @@ def v1_version():
 
 @app.get("/api/v1/update-check")
 def v1_update_check():
-    current_version = "1.5.1"
+    current_version = "1.5.3"
     request = Request(
         "https://api.github.com/repos/AlexYuhuFeng/Commodity-Lab/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Commodity-Lab"},
@@ -708,6 +708,31 @@ def _haineng_failure(exc: Exception) -> HTTPException:
     return HTTPException(
         status_code=502,
         detail={"code": "ai_provider_request_failed", "message": "AI provider request failed.", "provider_message": message},
+    )
+
+
+def _provider_settings_failure(exc: Exception) -> HTTPException:
+    status_code = getattr(exc, "status_code", None)
+    message = _redact_provider_error(str(exc))
+    invalid_key = "authentication fails" in message.lower() or (
+        "api key" in message.lower() and "invalid" in message.lower()
+    )
+    if status_code == 401 or invalid_key:
+        return HTTPException(
+            status_code=401,
+            detail={
+                "code": "invalid_ai_api_key",
+                "message": "The AI provider rejected this API key.",
+                "provider_message": message,
+            },
+        )
+    return HTTPException(
+        status_code=502,
+        detail={
+            "code": "ai_provider_connection_failed",
+            "message": "The AI provider could not be reached while validating the key.",
+            "provider_message": message,
+        },
     )
 
 
@@ -1173,6 +1198,10 @@ def v1_provider_settings(payload: HainengProviderSettingsRequest):
     )
     if not HainengClient(settings).is_configured():
         raise HTTPException(status_code=400, detail="AI provider base URL is required.")
+    try:
+        HainengClient(settings).validate_credentials()
+    except Exception as exc:
+        raise _provider_settings_failure(exc) from exc
     save_persisted_settings(settings)
     set_runtime_settings(settings)
     return {"haineng": HainengClient().health_check()}

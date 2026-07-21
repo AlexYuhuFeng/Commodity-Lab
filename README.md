@@ -148,18 +148,18 @@ npm run tauri:build
 Formal cross-platform release (run from a clean `main` checkout):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.5.1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.5.3
 ```
 
-The script qualifies and installs the Windows build locally, then pushes `v1.5.1`. GitHub Actions builds Windows x86_64, Linux x86_64, and Linux ARM64 natively and publishes one release with bilingual notes. Use `-SkipReleaseTag` for local Windows qualification without triggering a public release.
+The script qualifies and installs the Windows build locally, then pushes `v1.5.3`. GitHub Actions builds Windows x86_64, Linux x86_64, and Linux ARM64 natively and publishes one release with bilingual notes. Use `-SkipReleaseTag` for local Windows qualification without triggering a public release.
 
 正式跨平台发布（必须在干净的 `main` 分支运行）：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.5.1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tauri\scripts\release_windows.ps1 -Version 1.5.3
 ```
 
-该脚本先在本机完成 Windows 测试、审计、打包和安装验证，再推送 `v1.5.1` 标签。GitHub Actions 会分别原生构建 Windows x86_64、Linux x86_64 和 Linux ARM64，并统一发布带中英文说明的 Release。仅做本机 Windows 验证时使用 `-SkipReleaseTag`。
+该脚本先在本机完成 Windows 测试、审计、打包和安装验证，再推送 `v1.5.3` 标签。GitHub Actions 会分别原生构建 Windows x86_64、Linux x86_64 和 Linux ARM64，并统一发布带中英文说明的 Release。仅做本机 Windows 验证时使用 `-SkipReleaseTag`。
 
 ## Runtime Configuration / 运行配置
 

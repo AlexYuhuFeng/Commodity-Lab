@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest, backendStreamRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
-const currentVersion = "1.5.1";
+const currentVersion = "1.5.3";
 
 const defaultProviderCatalog = {
   haineng: {
@@ -2445,7 +2445,11 @@ function SettingsMenu({ aiReady, importing, locale, onCheckUpdate, onImportLocal
 
         <section>
           <h3>{t("apiSettings", locale)}</h3>
-          <form className="setup-form" onSubmit={(event) => { event.preventDefault(); onSaveSettings(form); setForm((current) => ({ ...current, api_key: "" })); }}>
+          <form className="setup-form" onSubmit={async (event) => {
+            event.preventDefault();
+            const saved = await onSaveSettings(form);
+            if (saved) setForm((current) => ({ ...current, api_key: "" }));
+          }}>
             <label>
               {t("provider", locale)}
               <select aria-label={t("provider", locale)} value={provider} onChange={(event) => changeProvider(event.target.value)}>
@@ -4570,8 +4574,8 @@ export default function App() {
         }
       } catch (error) {
         attempts += 1;
-        if (attempts >= 48) {
-          setStartupSlow(true);
+        if (attempts >= 48) setStartupSlow(true);
+        if (attempts >= 240) {
           setServiceMessage(formatErrorMessage(error, initialLocale));
           setBackendReady(true);
           return;
@@ -4638,8 +4642,10 @@ export default function App() {
       localStorage.setItem("commodity-lab-ai-provider", fixedForm.provider);
       setProviderStatus((current) => ({ ...(current ?? {}), ...payload }));
       setServiceMessage(t("providerSaved", locale));
+      return true;
     } catch (error) {
       setServiceMessage(formatErrorMessage(error, locale));
+      return false;
     } finally {
       setBusyAction("");
     }
@@ -5545,6 +5551,13 @@ function formatErrorMessage(error, locale) {
       locale,
       "AI 返回的结构化内容不完整，已保留当前训练题。请再试一次。",
       "AI returned incomplete structured content. The current drill was kept; please try again."
+    );
+  }
+  if (code === "invalid_ai_api_key") {
+    return copy(
+      locale,
+      "DeepSeek 拒绝了此 API Key。请确认密钥仍有效且账户可使用 API，然后重试。",
+      "DeepSeek rejected this API key. Confirm that the key is active and the account can use the API, then try again."
     );
   }
   if (parsed?.detail?.provider_message) return parsed.detail.provider_message;
