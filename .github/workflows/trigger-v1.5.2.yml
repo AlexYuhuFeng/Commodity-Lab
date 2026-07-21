@@ -1,0 +1,35 @@
+name: Trigger Commodity Lab v1.5.2
+
+on:
+  push:
+    branches:
+      - release/v1.5.2
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: v1.5.2
+
+jobs:
+  create_release_tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Create and push release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "${RELEASE_TAG} already exists; no new tag was created."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${RELEASE_TAG}" "${GITHUB_SHA}" -m "Commodity Lab ${RELEASE_TAG} - DeepSeek API key import fix"
+          git push origin "${RELEASE_TAG}"
