@@ -10,8 +10,8 @@ Verified: 159 Python tests; 50 frontend tests; Vite build; two real-backend brow
 
 Resume environment: `/workspace/commodity-venv/bin/python`, Node 24; browser binaries at `/workspace/commodity-browsers`. Transient test logs are under `/tmp/commodity-*.log`. Use network-enabled sandbox execution for localhost API/browser tests. No credentials or licensed data were added.
 
-Pull request: https://github.com/AlexYuhuFeng/Commodity-Lab/pull/4. Implementation commit: `4576de5d`. The first remote CI run passed unit/build gates but failed screenshot comparison from host-font differences. Browser typography is now pinned with a test-only OFL font; rerun pending. Do not infer remote success from local results.
+Pull request: https://github.com/AlexYuhuFeng/Commodity-Lab/pull/4. Implementation commit: `4576de5d`. The first remote CI run passed unit/build gates but failed screenshot comparison from host-font differences. Browser typography is now pinned with a test-only OFL font; [remote CI run 37914696249](https://github.com/AlexYuhuFeng/Commodity-Lab/actions/runs/37914696249) passed on final implementation commit `c2621d9f`.
 
-Remaining review work: inspect remote CI outcome and reviewer feedback. Do not merge or publish releases. Next milestone: validated crude cargo financial model, then commodity-neutral packs and repeated competence/instructor evidence (M2 backlog).
+Remaining review work: address reviewer feedback. Local and remote verification gates pass. Do not merge or publish releases. Next milestone: validated crude cargo financial model, then commodity-neutral packs and repeated competence/instructor evidence (M2 backlog).
 
 User direction: every scenario uses a trading-company role, not a utility. The gas case now has fixed-price industrial sales, indexed purchases and explicit trading margin. Future crude covers cargo profit and refinery sourcing; emission-credit scenarios require validated models before enablement. Scenario version is `gas-trading-company-v1`; older experimental session records are retained and rejected for active resume to prevent silent contract changes.
