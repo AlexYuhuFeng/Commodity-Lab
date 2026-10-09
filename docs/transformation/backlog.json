@@ -57,7 +57,7 @@
       "depends_on": [
         "M1-04"
       ],
-      "status": "in_progress",
+      "status": "done",
       "acceptance_criteria": [
         "Full pytest and Vitest pass",
         "Real-backend browser and approved screenshots pass",
