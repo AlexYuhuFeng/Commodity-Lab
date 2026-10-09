@@ -66,7 +66,7 @@
     },
     {
       "id": "M2-01",
-      "title": "Reviewed crude cargo domain model",
+      "title": "Reviewed trading-company crude cargo and refinery procurement model",
       "depends_on": [
         "M1-02"
       ],
@@ -74,7 +74,8 @@
       "acceptance_criteria": [
         "Explicit barrels, USD, pricing windows and settlement",
         "Physical revenue/cost separated from paper cash flows",
-        "Independent spread and benchmark reference fixtures signed off"
+        "Independent spread and benchmark reference fixtures signed off",
+        "Learner acts for a trading company: profit-oriented cargo book or refinery sourcing mandate"
       ]
     },
     {
@@ -196,6 +197,20 @@
         "Access control and retention tested",
         "Windows/Linux packaged app smoke and visual checks",
         "Dependency/repository licensing review complete"
+      ]
+    },
+    {
+      "id": "M5-01",
+      "title": "Validate emission-credit trading-company scenarios before enablement",
+      "depends_on": [
+        "M3-02",
+        "M2-02"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Market conventions, eligibility and settlement reviewed",
+        "Independent allowance cash-flow and risk tests",
+        "Trading-company role with clear profit/risk mandate; no utility role"
       ]
     }
   ]

@@ -30,6 +30,9 @@ def test_independently_derived_resize_and_cash_flows():
     # Physical: 8k*(55+5)=480k. Budget: 8k*(40+2)=336k.
     # Net cost=480k-112k=368k; budget saving=-32k; shock offset=112/144.
     result = settlement(complete())
+    assert result["physical_sales_cash_flow_eur"] == 480000
+    assert result["unhedged_physical_margin_eur"] == 0
+    assert result["commercial_margin_before_costs_eur"] == 112000
     assert result["physical_cash_flow_eur"] == -480000
     assert result["derivative_cash_flow_eur"] == 112000
     assert result["net_procurement_cost_eur"] == 368000
@@ -189,3 +192,19 @@ def test_pack_schema_and_version_cannot_silently_change_resume():
 def test_policy_numbers_are_bounded_and_exact(number):
     with pytest.raises(ValidationError):
         Policy(maximum_hedge_ratio=number)
+
+
+def test_trading_company_sales_and_margin_conservation():
+    view = visible_state(initial_state(Policy()))
+    assert view["conventions"]["role"] == "trading_company_physical_book"
+    assert view["current"]["sale_price_eur_mwh"] == "60"
+    assert "trading company" in view["current"]["fact"]["en"]
+    assert "utility" not in view["current"]["fact"]["en"]
+    for first, second, expected_margin in [("0", "0", 0), ("5000", "4000", 70000), ("8000", "6400", 112000)]:
+        settled = visible_state(complete(first, second))
+        f = settled["financial"]
+        assert f["physical_sales_cash_flow_eur"] == 480000
+        assert f["commercial_margin_before_costs_eur"] == expected_margin
+        assert f["physical_sales_cash_flow_eur"] + f["physical_cash_flow_eur"] + f["derivative_cash_flow_eur"] == expected_margin
+        assert settled["open_position_mwh"] == "0"
+        assert settled["post_settlement_collateral_eur"] == 0

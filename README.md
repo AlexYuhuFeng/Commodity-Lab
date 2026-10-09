@@ -226,7 +226,7 @@ $env:COMMODITY_LAB_PLATTS_SYMBOL_MAP="C:\secure\platts-symbol-map.json"
 
 ## European gas risk lab (milestone 1)
 
-Open **Risk Lab / 风险实验室** in the desktop sidebar. This offline-capable synthetic procurement case has two sequential hedge decisions and a settlement review. Configure an illustrative training policy, manage changing physical nominations, and inspect policy adherence, provisional diagnostic evidence, physical purchase cash flows and swap receipts separately. Optional Haineng/DeepSeek coaching is ungraded; without a configured provider the coach clearly reports offline mode.
+Open **Risk Lab / 风险实验室** in the desktop sidebar. This offline-capable synthetic trading-company physical-book case has two sequential hedge decisions and a settlement review. Configure an illustrative training policy, manage changing physical nominations, and inspect policy adherence, provisional diagnostic evidence, physical sales receipts, purchase payments, swap receipts and trading margin separately. Optional Haineng/DeepSeek coaching is ungraded; without a configured provider the coach clearly reports offline mode.
 
 No live execution or licensed market data is used. Swap quantities are MWh training notionals, not exchange lots. Margin is a simplified collateral estimate. Free-text reasoning requires instructor review; a single case does not establish mastery.
 

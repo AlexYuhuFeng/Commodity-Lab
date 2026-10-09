@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 D = Decimal
-VERSION = "gas-procurement-v1"
+VERSION = "gas-trading-company-v1"
 RUBRIC_VERSION = "diagnostic-v1"
 
 
@@ -73,26 +73,29 @@ class Observation(Contract):
     index_eur_mwh: Decimal = Field(ge=0, allow_inf_nan=False)
     basis_eur_mwh: Decimal = Field(allow_inf_nan=False)
     physical_mwh: Decimal = Field(ge=0, allow_inf_nan=False)
+    sale_price_eur_mwh: Decimal = Field(default=D("60"), ge=0, allow_inf_nan=False)
     fact: LocalizedFact
 
 
 # Reviewed synthetic facts; these are deliberately private to the server.
 CHECKPOINTS = (
     {"date": "2026-10-01", "index_eur_mwh": "40", "basis_eur_mwh": "2", "physical_mwh": "10000",
-     "fact": {"en": "A utility must buy 10,000 MWh for November at the TTF monthly index plus regional basis. The sales tariff is fixed; rising purchase cost reduces commercial margin.",
-              "zh": "公用事业公司须在11月按TTF月度指数加区域基差采购10,000 MWh。销售价格固定，采购成本上涨会侵蚀商业利润。"}},
+     "fact": {"en": "You manage the physical book of a gas trading company. Sell nominated November gas to an industrial customer at a fixed €60/MWh, up to 10,000 MWh. Source matching volumes at the TTF monthly index plus regional basis. Protect the trading margin as purchase costs change.",
+              "zh": "你负责天然气贸易公司的实货业务。按固定60欧元/MWh向工业客户销售11月提名气量，上限10,000 MWh；按TTF月度指数加区域基差采购匹配数量。采购成本变化时，需要保护交易利润。"}},
     {"date": "2026-10-15", "index_eur_mwh": "50", "basis_eur_mwh": "3", "physical_mwh": "8000",
-     "fact": {"en": "A pipeline disruption lifts TTF and regional basis. Customer nominations fall to 8,000 MWh. Recheck existing hedge eligibility before resizing.",
-              "zh": "管道中断推高TTF及区域基差。客户提名量降至8,000 MWh，调整头寸前须重新核查现有套保资格。"}},
+     "fact": {"en": "A pipeline disruption lifts TTF and regional basis. The industrial customer nominates 8,000 MWh under its flexible-volume sales contract, reducing matching purchase obligations. Recheck existing hedge eligibility before resizing.",
+              "zh": "管道中断推高TTF及区域基差。工业客户根据灵活数量销售合同提名8,000 MWh，匹配采购义务随之减少，调整头寸前须重新核查现有套保资格。"}},
     {"date": "2026-11-30", "index_eur_mwh": "55", "basis_eur_mwh": "5", "physical_mwh": "8000",
-     "fact": {"en": "The November training index settles at €55/MWh and regional basis at €5/MWh. Physical purchase and swap cash flows settle separately.",
-              "zh": "11月训练指数以55欧元/MWh结算，区域基差为5欧元/MWh。实货采购与掉期现金流分别结算。"}},
+     "fact": {"en": "The November training index settles at €55/MWh and regional basis at €5/MWh. Customer sales at the contracted €60/MWh, physical purchases and swap cash flows settle separately.",
+              "zh": "11月训练指数以55欧元/MWh结算，区域基差为5欧元/MWh。按合同60欧元/MWh计算的客户销售收入、实货采购与掉期现金流分别结算。"}},
 )
 
 # Validate the reviewed pack at load time; AI cannot replace this fixture.
 CHECKPOINTS = tuple(Observation(**item).model_dump(mode="json") for item in CHECKPOINTS)
 if [cp["date"] for cp in CHECKPOINTS] != sorted({cp["date"] for cp in CHECKPOINTS}):
     raise ValueError("scenario chronology must be strictly increasing")
+if any(cp["sale_price_eur_mwh"] != CHECKPOINTS[0]["sale_price_eur_mwh"] for cp in CHECKPOINTS):
+    raise ValueError("fixed sales contract price cannot change between checkpoints")
 if not CHECKPOINTS[-1]["date"].startswith("2026-11"):
     raise ValueError("settlement must match the pricing period")
 
@@ -170,9 +173,11 @@ def visible_state(state: dict) -> dict:
                "visible_timeline": list(CHECKPOINTS[:cp + 1]),
                "conventions": {"commodity": "european_gas", "benchmark": "TTF", "unit": "MWh", "currency": "EUR",
                                "pricing_period": "2026-11", "delivery_period": "2026-11",
-                               "instrument": "cash_settled_training_swap", "settlement": "monthly_index_at_final_checkpoint"},
+                               "role": "trading_company_physical_book", "instrument": "cash_settled_training_swap", "settlement": "monthly_index_at_final_checkpoint"},
                "provenance": {"mode": "synthetic", "version": VERSION, "licensed_data": False},
                "position_mwh": str(target), "collateral_estimate_eur": number(margin),
+               "open_position_mwh": "0" if cp == 2 else str(target),
+               "post_settlement_collateral_eur": 0 if cp == 2 else None,
                "current_compliance": policy_check(Policy(**state["policy"]), target, D(current["physical_mwh"]), margin,
                                                   state["decisions"][-1]["decision"]["approval_obtained"] if state["decisions"] else False),
                "decisions": state["decisions"], "proposals": state["proposals"],
@@ -217,10 +222,14 @@ def settlement(state: dict) -> dict:
     final = CHECKPOINTS[2]
     volume, index, basis = (D(final[k]) for k in ("physical_mwh", "index_eur_mwh", "basis_eur_mwh"))
     physical_cost = volume * (index + basis)
+    sales = volume * D(CHECKPOINTS[0]["sale_price_eur_mwh"])
     swap = swap_cash_flow(state["trades"], index)
     budget = volume * (D(CHECKPOINTS[0]["index_eur_mwh"]) + D(CHECKPOINTS[0]["basis_eur_mwh"]))
     shock = physical_cost - budget
-    return {"physical_cash_flow_eur": number(-physical_cost), "derivative_cash_flow_eur": number(swap),
+    return {"physical_sales_cash_flow_eur": number(sales),
+            "unhedged_physical_margin_eur": number(sales - physical_cost),
+            "commercial_margin_before_costs_eur": number(sales - physical_cost + swap),
+            "physical_cash_flow_eur": number(-physical_cost), "derivative_cash_flow_eur": number(swap),
             "net_procurement_cost_eur": number(physical_cost - swap), "unhedged_cost_eur": number(physical_cost),
             "volume_adjusted_budget_eur": number(budget), "budget_variance_eur": number(budget - physical_cost + swap),
             "basis_cost_eur": number(volume * basis), "peak_collateral_estimate_eur": number(D(state["peak_collateral_eur"])),

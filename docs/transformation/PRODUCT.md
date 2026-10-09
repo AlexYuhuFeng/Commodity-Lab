@@ -3,9 +3,11 @@
 Status: implementation baseline, 2026-10-09. Training only; no execution connectivity.
 
 ## Requirements and boundaries
+
+All scenarios place the learner on a **trading-company desk**, never in a utility-company role. Gas uses physical sourcing and customer-sales margin management; future crude cases cover profit-oriented cargo trading and refinery procurement mandates. Emission-credit trading is a future domain requiring validated models and curriculum. Financial outcomes measure trading economics separately from decision quality.
 Serve new hires, commercial traders, risk managers and instructors through demonstrated competence. Assess commercial judgment separately from policy, hedge performance and realized outcome. Preserve React/Tauri, FastAPI, existing gas/crude lessons, replay, settings and releases.
 
-The first complete workflow is a synthetic European gas procurement exposure: a utility buys November 2026 gas at TTF monthly index plus regional basis. Two sequential hedge decisions precede settlement; nominations decline at the second checkpoint. Learners can hold, partially hedge or increase coverage, explain reasoning and answer diagnostic questions. Long cash-settled TTF training swaps hedge price increases; they do not hedge regional basis. No exchange contract sizing or live authorization is implied.
+The first complete workflow is a synthetic European gas procurement exposure: a gas trading company buys November 2026 gas at TTF monthly index plus regional basis to fulfill industrial-customer sales at a fixed €60/MWh, with nominated volume up to 10,000 MWh. Two sequential hedge decisions precede settlement; nominations decline at the second checkpoint. Learners can hold, partially hedge or increase coverage, explain reasoning and answer diagnostic questions. Long cash-settled TTF training swaps hedge price increases; they do not hedge regional basis. No exchange contract sizing or live authorization is implied.
 
 Policy profiles are immutable session snapshots, versioned and illustrative. Corporate defaults: 80% of eligible matching physical MWh, no naked paper, swaps only, approval above a configurable ratio. Academy and advanced lab are separate simulation environments, still constrained by implemented instrument models. Failed proposals are reviewable but do not execute or advance the checkpoint. Existing positions are rechecked after physical changes.
 

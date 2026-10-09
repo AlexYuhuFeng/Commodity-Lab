@@ -1,4 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
+// Normalize test typography with a pinned OFL font, independent of system fonts.
+const fontCss = readFileSync("node_modules/@fontsource/noto-sans-sc/400.css", "utf8")
+  .replaceAll("./files/", "/node_modules/@fontsource/noto-sans-sc/files/");
 async function openLab(page, locale = "en", theme = "dark") {
   await page.addInitScript(({ locale, theme }) => {
     localStorage.setItem("commodity-lab-locale", locale);
@@ -9,6 +13,8 @@ async function openLab(page, locale = "en", theme = "dark") {
   await page.goto("/");
   await page.getByRole("button", { name: locale === "zh" ? "风险实验室" : "Risk Lab", exact: true }).click();
   await expect(page.locator(".risk-lab")).toBeVisible();
+  await page.addStyleTag({ content: fontCss + '\n.cl-app-shell, .cl-app-shell * { font-family: "Noto Sans SC", sans-serif !important; }' });
+  await page.evaluate(async () => { await document.fonts.ready; });
 }
 async function fill(page, target) {
   await page.getByLabel("Target total long swap position (MWh)").fill(target);
@@ -42,6 +48,8 @@ test("real backend gas journey, blocked proposal, resize, settlement and resume"
   await page.getByRole("button", { name: "Submit decision and reveal next checkpoint" }).click();
   await expect(page.getByText("Settlement review", { exact: true })).toBeVisible();
   await expect(page.getByText("€368,000.00", { exact: true })).toBeVisible();
+  await expect(page.getByText("Trading margin before other costs", { exact: true })).toBeVisible();
+  await expect(page.locator(".risk-lab")).toContainText("€112,000.00");
   await page.getByRole("button", { name: "Ask the coach" }).click();
   await expect(page.getByRole("heading", { name: "Offline coaching" })).toBeVisible();
   await page.locator(".cl-content-shell").evaluate(el => { el.scrollTop = 0; });

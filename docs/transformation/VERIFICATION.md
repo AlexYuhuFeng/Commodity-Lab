@@ -4,12 +4,12 @@ Executed 2026-10-09 on Linux x86_64, Python 3.12.14, Node 24.19.0. Branch `featu
 
 | Gate | Result |
 |---|---|
-| Full backend regression | **158 passed** (`python -m pytest -q`) |
+| Full backend regression | **159 passed** (`python -m pytest -q`) |
 | Full frontend regression | **50 passed**, 3 files (`npm test`) |
 | Frontend production build | **Passed**, Vite 8.0.16 |
 | Browser workflows | **2 passed**, real FastAPI and React; English desktop and Chinese mobile journeys, blocked proposals, resize, settlement, saved-session resume, keyboard focus and overflow |
 | Visual regression | **6 PNG baselines inspected; 6 comparisons passed** without `--update-snapshots`, Playwright 1.64.0 / Chromium 156.0.8078.4 |
-| Linux packaged backend | **Built** with PyInstaller 6.22.3 using the existing build script; packaged health API and complete gas workflow **passed**, net cost €368,000 |
+| Linux packaged backend | **Built** with PyInstaller 6.22.3 using the existing build script; packaged health API and complete gas workflow **passed**, net cost €368,000 and trading margin €112,000 before other costs |
 | Diff hygiene | `git diff --check` passed |
 | New-file credential patterns | Reviewed before commit; no new credential material or licensed data |
 | Full Tauri Windows/Linux desktop bundles | **Unverified in this session**; preserved release workflow, hidden-import lists extended |
@@ -19,12 +19,13 @@ Executed 2026-10-09 on Linux x86_64, Python 3.12.14, Node 24.19.0. Branch `featu
 
 ## Independent numerical reference
 
-At decision 1, a utility expects to buy 10,000 MWh and takes 8,000 MWh long at €40/MWh. At decision 2, nominations fall to 8,000 MWh, quote is €50/MWh, and target falls to 6,400 MWh. The resize is an offsetting 1,600 MWh short trade, with all swap cash flows paid at final settlement.
+At decision 1, a gas trading company expects to source 10,000 MWh to fulfill a flexible-volume customer sales contract at €60/MWh and takes 8,000 MWh long at €40/MWh. At decision 2, nominations fall to 8,000 MWh, quote is €50/MWh, and target falls to 6,400 MWh. The resize is an offsetting 1,600 MWh short trade, with all swap cash flows paid at final settlement.
 
 Final index €55/MWh, basis €5/MWh:
 
 - Physical outflow: 8,000 × (55 + 5) = **€480,000**.
 - Swap receipt: 8,000 × (55 − 40) − 1,600 × (55 − 50) = **€112,000**. Independently: 1,600 × (50 − 40) + 6,400 × (55 − 40) = the same receipt.
+- Physical sales receipt: 8,000 × 60 = **€480,000**; unhedged physical margin **€0**; trading margin including swaps **€112,000** before freight/fees/tax/financing.
 - Net purchase cost: 480,000 − 112,000 = **€368,000**.
 - Volume-adjusted initial budget: 8,000 × (40 + 2) = **€336,000**; budget variance **−€32,000**.
 - Ex-post cost-shock offset: 112,000 / (480,000 − 336,000) = **77.78%**. It is not a statistical hedge-effectiveness test.
@@ -43,6 +44,8 @@ Committed real browser screenshots under `tauri/tauri-frontend/e2e/risk-training
 - [Chinese mobile evidence](../../tauri/tauri-frontend/e2e/risk-training.spec.js-snapshots/gas-decision-zh-mobile-light-linux.png)
 - [Chinese mobile decision form](../../tauri/tauri-frontend/e2e/risk-training.spec.js-snapshots/gas-form-zh-mobile-light-linux.png)
 
+Screenshot typography is normalized with pinned `@fontsource/noto-sans-sc` 5.3.0 (OFL-1.1), a test-only dependency; the shipped UI retains its system font stack. The initial GitHub run passed unit/build gates but exposed system-font differences, so font selection was pinned rather than relaxing comparison thresholds.
+
 The shell uses a scrolling content region; viewport captures show real visible UI. Initial clipped element captures were replaced before baseline acceptance. Light-mode labels were corrected after inspection. Baselines are Linux-specific; OS/fonts/browser changes may require reviewed rebaselining, not blind approval.
 
 ## Reproduction
@@ -59,10 +62,10 @@ npx playwright install --with-deps chromium
 COMMODITY_TEST_PYTHON=/tmp/commodity-venv/bin/python npm run test:visual
 ```
 
-Install Noto CJK fonts on Linux for Chinese screenshots. Browser harness uses a dedicated `/tmp/commodity-lab-e2e.sqlite`, disables saved AI settings, and launches both servers. Use `CHROMIUM_PATH` only for an intentional alternative browser. In the managed sandbox, API/browser tests needed network-enabled execution; restricted attempts stalled and are not counted as passing. Build artifacts and transient logs are excluded from Git.
+The test harness loads its pinned Latin/Chinese font locally, with no external font service. Browser harness uses a dedicated `/tmp/commodity-lab-e2e.sqlite`, disables saved AI settings, and launches both servers. Use `CHROMIUM_PATH` only for an intentional alternative browser. In the managed sandbox, API/browser tests needed network-enabled execution; restricted attempts stalled and are not counted as passing. Build artifacts and transient logs are excluded from Git.
 
 ## Known limits
 
-One fixed European gas procurement pack; no options, exchange-lot sizing, FX, fees, financing, daily margin ledger, portfolio VaR, or commercial sales PnL. Nomination and market changes occur at reviewed checkpoints, not intraday. Approval is self-declared for training. Device-local SQLite is not multiuser authentication, enterprise governance, tamper-evident audit, or retention management. Rationale review and repeated competency evidence are the next assessment milestone. Legacy workflows pass regression tests but are not upgraded to this financial contract. No live execution is introduced.
+One fixed European gas procurement pack; no options, exchange-lot sizing, FX, fees, financing, daily margin ledger, portfolio VaR, or full accounting PnL. Nomination and market changes occur at reviewed checkpoints, not intraday. Approval is self-declared for training. Device-local SQLite is not multiuser authentication, enterprise governance, tamper-evident audit, or retention management. Rationale review and repeated competency evidence are the next assessment milestone. Legacy workflows pass regression tests but are not upgraded to this financial contract. No live execution is introduced.
 
-PR CI now includes frontend build/tests and browser comparisons. Remote CI results remain separate from local evidence until the workflow completes.
+PR CI now includes frontend build/tests and browser comparisons. The first remote run failed screenshot comparisons due to host-font differences; a normalized-font rerun is pending after the fix. Remote CI results remain separate from local evidence until the workflow completes.

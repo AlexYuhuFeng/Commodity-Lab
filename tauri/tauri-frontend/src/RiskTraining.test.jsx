@@ -6,7 +6,7 @@ import RiskTraining from "./RiskTraining";
 import { backendRequest } from "./api";
 vi.mock("./api", () => ({ backendRequest: vi.fn() }));
 const policy = { profile: "corporate", maximum_hedge_ratio: "0.8", liquidity_limit_eur: "100000", version: "illustrative-v1" };
-const fact = { en: "A utility buys November gas at TTF plus regional basis.", zh: "公司按TTF加区域基差采购11月天然气。" };
+const fact = { en: "A trading company buys November gas at TTF plus basis for fixed-price customer sales.", zh: "公司按TTF加区域基差采购11月天然气。" };
 function view(checkpoint = 0) {
   const current = { date: checkpoint ? "2026-10-15" : "2026-10-01", fact, physical_mwh: checkpoint ? "8000" : "10000", index_eur_mwh: "40", basis_eur_mwh: "2" };
   return { id: "session1", checkpoint, complete: false, policy, current, position_mwh: "0", collateral_estimate_eur: 0, current_compliance: { permitted: true }, visible_timeline: [current], decisions: [] };

@@ -6,10 +6,12 @@ Repository: AlexYuhuFeng/Commodity-Lab. Working checkout: `/workspace/Commodity-
 
 Delivered: audit, requirements/architecture/roadmap, UX constitution, two ADRs, dependency backlog, Decimal gas engine, configurable illustrative policy, schema/version checks, durable atomic local sessions, bilingual learner flow, separate diagnostics/policy/financial assessment, ungraded optional AI/offline coach, exports and regression gates.
 
-Verified: 158 Python tests; 50 frontend tests; Vite build; two real-backend browser workflows; six screenshot comparisons; Linux packaged backend build and full scenario smoke. See VERIFICATION.md for exact numerical references and limitations.
+Verified: 159 Python tests; 50 frontend tests; Vite build; two real-backend browser workflows; six screenshot comparisons; Linux packaged backend build and full scenario smoke. See VERIFICATION.md for exact numerical references and limitations.
 
 Resume environment: `/workspace/commodity-venv/bin/python`, Node 24; browser binaries at `/workspace/commodity-browsers`. Transient test logs are under `/tmp/commodity-*.log`. Use network-enabled sandbox execution for localhost API/browser tests. No credentials or licensed data were added.
 
-Pull request: https://github.com/AlexYuhuFeng/Commodity-Lab/pull/4. Implementation commit: `4576de5d`. Remote CI is pending at preparation time; do not infer success from local results.
+Pull request: https://github.com/AlexYuhuFeng/Commodity-Lab/pull/4. Implementation commit: `4576de5d`. The first remote CI run passed unit/build gates but failed screenshot comparison from host-font differences. Browser typography is now pinned with a test-only OFL font; rerun pending. Do not infer remote success from local results.
 
 Remaining review work: inspect remote CI outcome and reviewer feedback. Do not merge or publish releases. Next milestone: validated crude cargo financial model, then commodity-neutral packs and repeated competence/instructor evidence (M2 backlog).
+
+User direction: every scenario uses a trading-company role, not a utility. The gas case now has fixed-price industrial sales, indexed purchases and explicit trading margin. Future crude covers cargo profit and refinery sourcing; emission-credit scenarios require validated models before enablement. Scenario version is `gas-trading-company-v1`; older experimental session records are retained and rejected for active resume to prevent silent contract changes.
