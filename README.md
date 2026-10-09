@@ -222,3 +222,14 @@ $env:COMMODITY_LAB_PLATTS_SYMBOL_MAP="C:\secure\platts-symbol-map.json"
 - 健康检查、日志、测试、release notes 和截图中必须隐藏供应方凭证。
 - AI 生成曲线是训练材料，不构成价格建议或实时市场数据。
 - Platts 原始授权响应和客户品种代码映射不得进入仓库。
+
+
+## European gas risk lab (milestone 1)
+
+Open **Risk Lab / 风险实验室** in the desktop sidebar. This offline-capable synthetic procurement case has two sequential hedge decisions and a settlement review. Configure an illustrative training policy, manage changing physical nominations, and inspect policy adherence, provisional diagnostic evidence, physical purchase cash flows and swap receipts separately. Optional Haineng/DeepSeek coaching is ungraded; without a configured provider the coach clearly reports offline mode.
+
+No live execution or licensed market data is used. Swap quantities are MWh training notionals, not exchange lots. Margin is a simplified collateral estimate. Free-text reasoning requires instructor review; a single case does not establish mastery.
+
+See [product architecture and roadmap](docs/transformation/PRODUCT.md), [repository audit](docs/transformation/AUDIT.md), [UX constitution](docs/transformation/UI-CONSTITUTION.md), [ADR](docs/adr/0001-training-engine-boundaries.md), [machine-readable backlog](docs/transformation/backlog.json) and [verification evidence](docs/transformation/VERIFICATION.md).
+
+Local sessions persist in `~/.commodity-lab/training.sqlite`, overridable with `COMMODITY_LAB_TRAINING_DB`. The browser stores only the current session ID. Records are device-local and are not an enterprise identity or authorization service.

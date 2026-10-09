@@ -59,6 +59,9 @@ if (-not $SkipInstall) {
 }
 
 $HiddenImports = @(
+    "core.risk_training",
+    "core.risk_training_store",
+    "tauri.backend.risk_training_api",
     "core.db",
     "core.energy_models",
     "core.gas_scenarios",

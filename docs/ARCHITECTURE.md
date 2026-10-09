@@ -1,5 +1,7 @@
 # Commodity Lab Architecture
 
+The M1 risk-training engine is specified in [transformation architecture](transformation/PRODUCT.md) and [ADR 0001](adr/0001-training-engine-boundaries.md); it preserves the legacy workflows described below.
+
 Commodity Lab is a Windows desktop learning platform for commodity trading and financial risk management. The product combines a stable competency framework with DeepSeek-generated lessons, market states, decisions, and coaching.
 
 ## Product Contract
