@@ -6,7 +6,7 @@ Repository: AlexYuhuFeng/Commodity-Lab. Working checkout: `/workspace/Commodity-
 
 Delivered: audit, requirements/architecture/roadmap, UX constitution, two ADRs, dependency backlog, Decimal gas engine, configurable illustrative policy, schema/version checks, durable atomic local sessions, bilingual learner flow, separate diagnostics/policy/financial assessment, ungraded optional AI/offline coach, exports and regression gates.
 
-Verified: 159 Python tests; 50 frontend tests; Vite build; two real-backend browser workflows; six screenshot comparisons; Linux packaged backend build and full scenario smoke. See VERIFICATION.md for exact numerical references and limitations.
+Verified: 161 Python tests; 50 frontend tests; Vite build; two real-backend browser workflows; six screenshot comparisons; Linux packaged backend build and full scenario smoke. See VERIFICATION.md for exact numerical references and limitations.
 
 Resume environment: `/workspace/commodity-venv/bin/python`, Node 24; browser binaries at `/workspace/commodity-browsers`. Transient test logs are under `/tmp/commodity-*.log`. Use network-enabled sandbox execution for localhost API/browser tests. No credentials or licensed data were added.
 
@@ -15,3 +15,5 @@ Pull request: https://github.com/AlexYuhuFeng/Commodity-Lab/pull/4. Implementati
 Remaining review work: address reviewer feedback. Local and remote verification gates pass. Do not merge or publish releases. Next milestone: validated crude cargo financial model, then commodity-neutral packs and repeated competence/instructor evidence (M2 backlog).
 
 User direction: every scenario uses a trading-company role, not a utility. The gas case now has fixed-price industrial sales, indexed purchases and explicit trading margin. Future crude covers cargo profit and refinery sourcing; emission-credit scenarios require validated models before enablement. Scenario version is `gas-trading-company-v1`; older experimental session records are retained and rejected for active resume to prevent silent contract changes.
+
+Final role consistency follow-up: shared Haineng/DeepSeek system prompts now frame the learner as a trading company, including refinery/customer sourcing mandates. The disabled North American utility-role template was reworded without enabling the domain. Two bilingual prompt-contract regressions bring the full backend suite to 161 passing tests. Check PR #4 for the latest follow-up CI status; the independently recorded gas implementation run remains passing.

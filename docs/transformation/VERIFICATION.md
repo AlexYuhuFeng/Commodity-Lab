@@ -4,7 +4,7 @@ Executed 2026-10-09 on Linux x86_64, Python 3.12.14, Node 24.19.0. Branch `featu
 
 | Gate | Result |
 |---|---|
-| Full backend regression | **159 passed** (`python -m pytest -q`) |
+| Full backend regression | **161 passed** (`python -m pytest -q`) |
 | Full frontend regression | **50 passed**, 3 files (`npm test`) |
 | Frontend production build | **Passed**, Vite 8.0.16 |
 | Browser workflows | **2 passed**, real FastAPI and React; English desktop and Chinese mobile journeys, blocked proposals, resize, settlement, saved-session resume, keyboard focus and overflow |

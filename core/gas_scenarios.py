@@ -233,8 +233,8 @@ _SCENARIO_DATA: list[dict[str, Any]] = [
         "default_symbol": "NG=F",
         "title": {"en": "North America Winter Load Spike", "zh": "北美冬季负荷上升"},
         "summary": {
-            "en": "A utility hedges rising winter fuel costs as heating demand accelerates.",
-            "zh": "公用事业企业在采暖需求上升时，对冲冬季燃料成本上涨风险。",
+            "en": "A trading company hedges indexed procurement costs for fixed-price customer sales as heating demand accelerates.",
+            "zh": "贸易公司在采暖需求上升时，为固定价格客户销售对冲指数采购成本上涨风险。",
         },
         "learning_objectives": {
             "en": [
