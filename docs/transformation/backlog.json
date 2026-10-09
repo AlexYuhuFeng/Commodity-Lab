@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "milestone": "M1 European gas procurement",
+  "updated": "2026-10-09",
+  "items": [
+    {
+      "id": "M1-01",
+      "title": "Audit, product boundaries and UX constitution",
+      "depends_on": [],
+      "status": "done",
+      "acceptance_criteria": [
+        "Repository and PR #3 assessed",
+        "Architecture and quantitative risks recorded"
+      ]
+    },
+    {
+      "id": "M1-02",
+      "title": "Gas procurement financial and policy engine",
+      "depends_on": [
+        "M1-01"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "Exact signed settlement examples pass",
+        "Cumulative hedge and convention checks pass"
+      ]
+    },
+    {
+      "id": "M1-03",
+      "title": "Durable sequential session API",
+      "depends_on": [
+        "M1-02"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "No future observations in API or AI payload",
+        "Concurrent stale submission rejected",
+        "Restart restores decisions and snapshots"
+      ]
+    },
+    {
+      "id": "M1-04",
+      "title": "Bilingual learner workflow and coach",
+      "depends_on": [
+        "M1-03"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "Offline gas workflow reaches settlement",
+        "AI cannot mutate grades",
+        "Chinese and English controls verified"
+      ]
+    },
+    {
+      "id": "M1-05",
+      "title": "Verification evidence and review PR",
+      "depends_on": [
+        "M1-04"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "Full pytest and Vitest pass",
+        "Real-backend browser and approved screenshots pass",
+        "Evidence and limitations in PR"
+      ]
+    },
+    {
+      "id": "M2-01",
+      "title": "Reviewed trading-company crude cargo and refinery procurement model",
+      "depends_on": [
+        "M1-02"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Explicit barrels, USD, pricing windows and settlement",
+        "Physical revenue/cost separated from paper cash flows",
+        "Independent spread and benchmark reference fixtures signed off",
+        "Learner acts for a trading company: profit-oriented cargo book or refinery sourcing mandate"
+      ]
+    },
+    {
+      "id": "M2-02",
+      "title": "Commodity-neutral reviewed scenario schemas",
+      "depends_on": [
+        "M1-03",
+        "M2-01"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Domain registry does not claim unsupported commodities",
+        "Invalid AI-generated packs quarantined",
+        "Chronology, obligations, units and settlement checked before publish"
+      ]
+    },
+    {
+      "id": "M2-03",
+      "title": "Evidence-based competency and remediation",
+      "depends_on": [
+        "M1-04"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Prerequisites enforce diagnostic qualification",
+        "Mastery requires multiple independent cases",
+        "Remediation follows reviewed risk evidence, not PnL"
+      ]
+    },
+    {
+      "id": "M2-04",
+      "title": "Instructor review and learner identity",
+      "depends_on": [
+        "M2-03"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Reviewed rationale rubric and multiple acceptable solutions",
+        "Separate learner records and review authority",
+        "Audit export carries scenario/policy/rubric versions"
+      ]
+    },
+    {
+      "id": "M3-01",
+      "title": "Actual policy document mapping",
+      "depends_on": [
+        "M2-04"
+      ],
+      "status": "blocked",
+      "acceptance_criteria": [
+        "Approved source policy provenance and effective dates",
+        "Eligibility, netting and approvals reconciled with policy owners",
+        "Illustrative profiles never mislabeled authoritative"
+      ]
+    },
+    {
+      "id": "M3-02",
+      "title": "Portfolio and liquidity ledger",
+      "depends_on": [
+        "M2-01",
+        "M2-02"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Positions aggregate by commodity/unit/currency/period",
+        "Cash settlement, MTM and collateral movements distinguished",
+        "Basis/FX and stress fixtures independently validated"
+      ]
+    },
+    {
+      "id": "M3-03",
+      "title": "Exchange futures and options models",
+      "depends_on": [
+        "M3-02"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Exchange lot and delivery conventions reviewed",
+        "Options valuation and settlement reference tests",
+        "No instrument enabled before numerical validation"
+      ]
+    },
+    {
+      "id": "M3-04",
+      "title": "Instructor scenario authoring and AI variations",
+      "depends_on": [
+        "M2-02",
+        "M2-04"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Schema and consistency gate before learner availability",
+        "Author/reviewer lifecycle and reproducible seeds",
+        "Counterfactual alternatives evaluated without future leakage"
+      ]
+    },
+    {
+      "id": "M4-01",
+      "title": "Licensed replay and market entitlement qualification",
+      "depends_on": [
+        "M3-04"
+      ],
+      "status": "blocked",
+      "acceptance_criteria": [
+        "Subscription and redistribution terms reviewed",
+        "As-of provenance and staleness enforced",
+        "Historical facts distinguished from synthetic price calibration"
+      ]
+    },
+    {
+      "id": "M4-02",
+      "title": "Enterprise qualification and supported releases",
+      "depends_on": [
+        "M3-01",
+        "M3-02"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Access control and retention tested",
+        "Windows/Linux packaged app smoke and visual checks",
+        "Dependency/repository licensing review complete"
+      ]
+    },
+    {
+      "id": "M5-01",
+      "title": "Validate emission-credit trading-company scenarios before enablement",
+      "depends_on": [
+        "M3-02",
+        "M2-02"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Market conventions, eligibility and settlement reviewed",
+        "Independent allowance cash-flow and risk tests",
+        "Trading-company role with clear profit/risk mandate; no utility role"
+      ]
+    }
+  ]
+}

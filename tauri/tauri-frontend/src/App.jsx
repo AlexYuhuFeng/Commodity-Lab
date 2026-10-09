@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendRequest, backendStreamRequest } from "./api";
 import { normalizeLocale, t } from "./i18n";
 
+import RiskTraining from "./RiskTraining";
+
 const currentVersion = "1.5.3";
 
 const defaultProviderCatalog = {
@@ -131,6 +133,7 @@ function getSystemThemePreference() {
 }
 
 const navItems = [
+  { id: "risk-lab", icon: "workbench", zh: "风险实验室", en: "Risk Lab" },
   { id: pageIds.home, icon: "home", zh: "课程", en: "Courses" },
   { id: pageIds.library, icon: "library", zh: "练习库", en: "Practice Library" },
   { id: pageIds.workbench, icon: "workbench", zh: "训练台", en: "Workbench" },
@@ -5445,6 +5448,7 @@ export default function App() {
   }
 
   function renderActivePage() {
+    if (activePage === "risk-lab") return <RiskTraining locale={locale} />;
     const workspace = productWorkspace(productScope);
     if (!workspace.coursesReady && activePage !== pageIds.settings) {
       return <ProductScaffoldPage locale={locale} workspace={workspace} />;
@@ -5526,7 +5530,7 @@ export default function App() {
         </section>
       </div>
 
-      <FloatingAssistant activePage={activePage} aiReady={aiReady} applyAction={applyAssistantAction} assistantStage={assistantStage} interventions={aiInterventions} locale={locale} messages={assistantMessages} onOpen={completeGuide} onSend={sendAssistant} thinking={busyAction === "assistant"} />
+      {activePage !== "risk-lab" && <FloatingAssistant activePage={activePage} aiReady={aiReady} applyAction={applyAssistantAction} assistantStage={assistantStage} interventions={aiInterventions} locale={locale} messages={assistantMessages} onOpen={completeGuide} onSend={sendAssistant} thinking={busyAction === "assistant"} />}
 
       {guideIndex >= 0 ? (
         <GuidedOverlay

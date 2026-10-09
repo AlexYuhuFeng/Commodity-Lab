@@ -28,3 +28,8 @@ tauri/tauri-frontend/dist/
 py_files_list.txt
 py_compile_output.txt
 tmp_pycache_dirs.txt
+
+# Browser verification output (reviewed PNG baselines remain tracked)
+tauri/tauri-frontend/test-results/
+tauri/tauri-frontend/playwright-report/
+tauri/bundled/

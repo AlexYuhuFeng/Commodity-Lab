@@ -385,3 +385,17 @@ def test_training_case_prompt_requests_compact_complete_json() -> None:
     assert "contango" in text
     assert "ai_simulated" in text
     assert "preserve its provenance" in text
+
+
+@pytest.mark.parametrize("locale", ["en", "zh"])
+def test_generated_scenarios_keep_learner_on_trading_company_desk(locale):
+    messages = build_training_case_messages(
+        locale=locale,
+        template={"id": "foundation_hedging_basics", "group": "foundation"},
+        user_request="Practice customer sourcing and hedge decisions",
+    )
+    system = messages[0]["content"]
+    assert "trading-company desk, never a utility-company operator" in system
+    assert "procurement on a refinery/customer mandate" in system
+    assert "not the learner employer" in system
+    assert "Do not imply validated support for emission-credit trading" in system
