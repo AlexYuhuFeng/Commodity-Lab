@@ -24,7 +24,7 @@ Inventory purchase occurred September 15, before both decisions. It affects life
 - Frontend: **53 tests passed**, including USD session creation, signed inventory decisions and explicit conventions, independent saved gas/crude sessions, Chinese resume and blocked proposal assessment.
 - Production frontend build passed.
 - Browser: **four real-backend journeys passed with all ten screenshot comparisons**, run without updating baselines. Existing gas screenshots retain their baselines; four crude baselines cover English setup/settlement and Chinese mobile inventory decisions/dated cash flow. Screenshots were inspected. Crude mobile monetary rows stack labels and values to keep negative signs attached to amounts. Snapshot scrolling uses an explicit container position to avoid depending on prior automatic scroll anchoring.
-- Linux PyInstaller backend built and complete gas/refinery/inventory API smoke passed in the preceding execution environment. The smoke reconciled margins and settlement-date cash with the table and verified persisted crude settlement reads. Fresh resumed-environment smoke results are recorded in the durable progress record.
+- Linux PyInstaller backend built and complete gas/refinery/inventory API smoke passed in the preceding execution environment. The smoke reconciled margins and settlement-date cash with the table and verified persisted crude settlement reads. Fresh resumed-environment smoke also passed all three cases and persisted crude settlement reads.
 
 ## Evidence
 
@@ -37,3 +37,5 @@ No external commodity specialist has signed off the synthetic conventions or ref
 Windows and full Linux Tauri desktop bundles, interactive packaged desktop screenshots, real Haineng/DeepSeek requests, provider quality and availability are **unverified**. Optional coaching uses existing integration and tested offline fallback; numerical authority remains deterministic.
 
 No live/licensed price source, real exchange lots or margin, options, FX, fees/tax/financing, demurrage, emission-credit model, enterprise access control or instructor publishing lifecycle is claimed. AI-authored packs cannot be uploaded or executed; semantic validation and an immutable registered catalog are the foundation, with author/reviewer lifecycle and quarantine still pending.
+
+Pull request: [#5](https://github.com/AlexYuhuFeng/Commodity-Lab/pull/5), dependent on #4; implementation `e8e89ef8`. Remote CI status is available on the pull request; local results above are independently verified.
