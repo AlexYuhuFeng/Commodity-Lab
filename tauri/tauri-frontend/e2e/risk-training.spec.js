@@ -3,13 +3,15 @@ import { readFileSync } from "node:fs";
 // Normalize test typography with a pinned OFL font, independent of system fonts.
 const fontCss = readFileSync("node_modules/@fontsource/noto-sans-sc/400.css", "utf8")
   .replaceAll("./files/", "/node_modules/@fontsource/noto-sans-sc/files/");
-async function openLab(page, locale = "en", theme = "dark") {
-  await page.addInitScript(({ locale, theme }) => {
+async function openLab(page, locale = "en", theme = "dark", scope = "natural_gas") {
+  await page.addInitScript(({ locale, theme, scope }) => {
+    localStorage.setItem("commodity-lab-product-scope", scope);
+    localStorage.removeItem("commodity-lab-risk-session-v1:crude_oil");
     localStorage.setItem("commodity-lab-locale", locale);
     localStorage.setItem("commodity-lab-theme", theme);
     localStorage.setItem("commodity-lab-guide-complete", "1");
     localStorage.removeItem("commodity-lab-risk-session-v1");
-  }, { locale, theme });
+  }, { locale, theme, scope });
   await page.goto("/");
   await page.getByRole("button", { name: locale === "zh" ? "风险实验室" : "Risk Lab", exact: true }).click();
   await expect(page.locator(".risk-lab")).toBeVisible();
@@ -88,5 +90,63 @@ test("Chinese mobile setup and decision are readable and keyboard accessible", a
     await page.getByRole("button", { name: "提交决策并揭示下一时点" }).click();
     await expect(page.getByText(checkpoint ? "决策时点 2 / 2" : "结算复盘", { exact: true })).toBeVisible();
   }
+  await noOverflow(page);
+});
+
+
+async function alignSection(page, name) {
+  await page.getByRole("heading", { name, exact: true }).evaluate(heading => {
+    const container = heading.closest(".cl-content-shell");
+    container.scrollTo({ top: container.scrollTop + heading.getBoundingClientRect().top - container.getBoundingClientRect().top - 24, behavior: "instant" });
+  });
+}
+
+test("refinery supplier crude procurement uses USD, reprices quantity and settles reviewed fixings", async ({ page }) => {
+  await openLab(page, "en", "dark", "crude_oil");
+  await expect(page.getByRole("heading", { name: "Crude oil risk lab" })).toBeVisible();
+  await expect(page).toHaveScreenshot("crude-setup-en-dark.png");
+  await page.getByRole("button", { name: "Start scenario", exact: true }).click();
+  await expect(page.getByText("Decision checkpoint 1 / 2")).toBeVisible();
+  await expect(page.locator(".risk-lab")).not.toContainText("2026-11-15");
+  for (const target of ["480000", "400000"]) {
+    await page.getByLabel("Target total long swap position (bbl)").fill(target);
+    await page.getByLabel("Which commercial risk are you managing?").selectOption("rising_purchase_cost");
+    await page.getByLabel("What remains after a Brent hedge?").selectOption("basis_remains");
+    await page.getByLabel("What must the risk manager plan for?").selectOption("collateral_needed");
+    await page.getByLabel("Commercial rationale").fill("Protect fixed-price refinery supply margin with a long Brent hedge, retaining grade and freight risk and collateral reserves.");
+    await page.getByRole("button", { name: "Submit decision and reveal next checkpoint" }).click();
+    await expect(page.getByText(target === "480000" ? "Decision checkpoint 2 / 2" : "Settlement review", { exact: true })).toBeVisible();
+  }
+  await expect(page.locator(".risk-lab")).toContainText("$3,730,000.00");
+  await expect(page.locator(".risk-lab")).toContainText("$43,270,000.00");
+  await expect(page.getByRole("heading", { name: "Revealed synthetic pricing fixings" })).toBeVisible();
+  await alignSection(page, "Financial outcome");
+  await expect(page).toHaveScreenshot("crude-settlement-en-dark.png");
+  await noOverflow(page);
+});
+
+test("Chinese mobile merchant inventory short hedge keeps historical purchase out of settlement cash", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openLab(page, "zh", "light", "crude_oil");
+  await page.getByLabel("贸易公司业务委托").selectOption("crude-merchant-inventory-v1");
+  await page.getByRole("button", { name: "开始情景", exact: true }).click();
+  await expect(page.getByText("决策时点 1 / 2")).toBeVisible();
+  await page.getByLabel("目标掉期空头总量（桶）").focus();
+  await expect(page).toHaveScreenshot("crude-inventory-form-zh-mobile-light.png");
+  for (const checkpoint of [2, null]) {
+    await page.getByRole("button", { name: "政策上限", exact: true }).click();
+    await expect(page.getByLabel("目标掉期空头总量（桶）")).toHaveValue("-240000");
+    await page.getByLabel("你在管理哪类商业风险？").selectOption("falling_sales_revenue");
+    await page.getByLabel("Brent套保后仍有哪些风险？").selectOption("basis_remains");
+    await page.getByLabel("风险经理需要规划什么？").selectOption("collateral_needed");
+    await page.getByLabel("商业理由", { exact: true }).fill("通过空头掉期保护贸易公司已有库存的销售价值，同时保留品质基差和运费敞口，预留抵押资金。");
+    await page.getByRole("button", { name: "提交决策并揭示下一时点" }).click();
+    await expect(page.getByText(checkpoint ? "决策时点 2 / 2" : "结算复盘", { exact: true })).toBeVisible();
+  }
+  await expect(page.locator(".risk-lab")).toContainText("390,000.00");
+  await expect(page.locator(".risk-lab")).toContainText("23,490,000.00");
+  await expect(page.getByText(/库存采购已在情景开始前支付/)).toBeVisible();
+  await alignSection(page, "按日期记录的现金流");
+  await expect(page).toHaveScreenshot("crude-inventory-ledger-zh-mobile-light.png");
   await noOverflow(page);
 });

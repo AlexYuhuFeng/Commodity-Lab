@@ -32,3 +32,6 @@
 .risk-lab summary { cursor:pointer; font-weight:600; }
 .risk-coach-text { white-space:pre-wrap; overflow-wrap:anywhere; }
 @media (max-width:760px) { .risk-lab { padding:16px 8px; } .risk-grid,.risk-fields { grid-template-columns:1fr; gap:16px; } .risk-card { padding:16px; } .risk-header { align-items:flex-start; flex-wrap:wrap; } .risk-progress { flex-wrap:wrap; } }
+
+.risk-crude .risk-metrics dd { white-space:nowrap; }
+@media (max-width:760px) { .risk-crude .risk-metrics div { flex-direction:column; align-items:stretch; gap:4px; } }

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "milestone": "M1 European gas procurement",
-  "updated": "2026-10-09",
+  "milestone": "M2A trading-company crude workflows",
+  "updated": "2026-10-14",
   "items": [
     {
       "id": "M1-01",
@@ -70,13 +70,15 @@
       "depends_on": [
         "M1-02"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "acceptance_criteria": [
         "Explicit barrels, USD, pricing windows and settlement",
         "Physical revenue/cost separated from paper cash flows",
         "Independent spread and benchmark reference fixtures signed off",
         "Learner acts for a trading company: profit-oriented cargo book or refinery sourcing mandate"
-      ]
+      ],
+      "implementation_evidence": "M2-CRUDE.md; M2-VERIFICATION.md; tests/test_crude_training.py; bilingual browser workflows",
+      "remaining": "External domain review/sign-off of synthetic benchmark and reference fixtures; engineering implementation verified."
     },
     {
       "id": "M2-02",
@@ -85,12 +87,14 @@
         "M1-03",
         "M2-01"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "acceptance_criteria": [
         "Domain registry does not claim unsupported commodities",
         "Invalid AI-generated packs quarantined",
         "Chronology, obligations, units and settlement checked before publish"
-      ]
+      ],
+      "implementation_evidence": "Typed reviewed-pack-v1 contracts, semantic validation, immutable registry, explicit gas/crude dispatch; ADR 0003.",
+      "remaining": "Author/reviewer publication lifecycle and AI variation quarantine are deferred; no arbitrary packs accepted."
     },
     {
       "id": "M2-03",

@@ -11,6 +11,9 @@ rm -rf "$out_dir" "$work_dir"
 mkdir -p "$out_dir" "$work_dir"
 
 hidden_imports=(
+  core.training_contracts
+  core.crude_training
+  core.training_engine
   core.risk_training
   core.risk_training_store
   tauri.backend.risk_training_api

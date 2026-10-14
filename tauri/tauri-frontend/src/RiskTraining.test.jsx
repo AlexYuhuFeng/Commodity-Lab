@@ -65,3 +65,43 @@ describe("risk training learner workflow", () => {
     expect(screen.getByRole("button", { name: "Start scenario" })).toBeInTheDocument();
   });
 });
+
+function crudeView(inventory = false) {
+  const current = { date: "2026-10-01", fact, eligible_quantity: inventory ? "300000" : "600000", benchmark_price: "80", grade_basis: "1", freight_per_unit: "2" };
+  return { id: "crude1", scenario_id: inventory ? "crude-merchant-inventory-v1" : "crude-refinery-procurement-v1", checkpoint: 0, complete: false, current, visible_timeline: [current], physical_contract: { fixed_price: inventory ? "77" : "94" }, conventions: { commodity: "crude_oil", unit: "bbl", currency: "USD", instrument: "brent_swap", pricing_period: "2026-11", delivery_period: "2026-11", pricing_window_start: "2026-11-05", pricing_window_end: "2026-11-25" }, position_quantity: "0", collateral_estimate: 0, hedge_sign: inventory ? -1 : 1, policy: { ...policy, currency: "USD", liquidity_limit: "10000000" }, current_compliance: { permitted: true }, decisions: [], visible_fixings: [] };
+}
+it("starts crude with a USD policy and keeps the saved gas session separate", async () => {
+  localStorage.setItem("commodity-lab-risk-session-v1", "gas1");
+  backendRequest.mockResolvedValueOnce(crudeView());
+  render(<RiskTraining productScope="crude_oil" />);
+  expect(backendRequest).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Start scenario" }));
+  await screen.findByText("Decision checkpoint 1 / 2");
+  expect(backendRequest).toHaveBeenCalledWith("POST", "/api/v1/risk-training/scenario-sessions", expect.objectContaining({ scenario_id: "crude-refinery-procurement-v1", policy: expect.objectContaining({ currency: "USD", liquidity_limit: "10000000" }) }));
+  expect(localStorage.getItem("commodity-lab-risk-session-v1")).toBe("gas1");
+  expect(localStorage.getItem("commodity-lab-risk-session-v1:crude_oil")).toBe("crude1");
+});
+it("submits a signed inventory hedge with explicit Brent conventions", async () => {
+  backendRequest.mockResolvedValueOnce(crudeView(true)).mockResolvedValueOnce({ ...crudeView(true), checkpoint: 1, position_quantity: "-240000", latest_assessment: { compliance: { permitted: true, reasons: [] }, decision_quality: { diagnostic_score: 100, remediation: [] } } });
+  render(<RiskTraining productScope="crude_oil" />);
+  fireEvent.change(screen.getByLabelText("Trading-company mandate"), { target: { value: "crude-merchant-inventory-v1" } });
+  fireEvent.click(screen.getByRole("button", { name: "Start scenario" }));
+  await screen.findByText("Decision checkpoint 1 / 2");
+  fireEvent.click(screen.getByRole("button", { name: "Policy maximum" }));
+  expect(screen.getByLabelText("Target total short swap position (bbl)")).toHaveValue(-240000);
+  fireEvent.change(screen.getByLabelText("Which commercial risk are you managing?"), { target: { value: "falling_sales_revenue" } });
+  fireEvent.change(screen.getByLabelText("What remains after a Brent hedge?"), { target: { value: "basis_remains" } });
+  fireEvent.change(screen.getByLabelText("What must the risk manager plan for?"), { target: { value: "collateral_needed" } });
+  fireEvent.change(screen.getByLabelText("Commercial rationale"), { target: { value: "Protect owned inventory while retaining grade basis and funding collateral." } });
+  fireEvent.click(screen.getByRole("button", { name: "Submit decision and reveal next checkpoint" }));
+  await screen.findByText("Decision checkpoint 2 / 2");
+  expect(backendRequest).toHaveBeenLastCalledWith("POST", "/api/v1/risk-training/sessions/crude1/decisions", expect.objectContaining({ target_quantity: "-240000", currency: "USD", unit: "bbl", instrument: "brent_swap", pricing_window_start: "2026-11-05", exposure_answer: "falling_sales_revenue" }));
+});
+it("resumes crude in Chinese with a blocked assessment and the inventory direction", async () => {
+  localStorage.setItem("commodity-lab-risk-session-v1:crude_oil", "crude1");
+  backendRequest.mockResolvedValueOnce({ ...crudeView(true), latest_assessment: { compliance: { permitted: false, reasons: ["physical_backing_required"] }, decision_quality: { diagnostic_score: 67, remediation: ["exposure"] } } });
+  render(<RiskTraining productScope="crude_oil" locale="zh" />);
+  await screen.findByText("提案被阻止，请修改后重新提交");
+  expect(screen.getByLabelText("目标掉期空头总量（桶）")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "原油风险实验室" })).toBeInTheDocument();
+});
