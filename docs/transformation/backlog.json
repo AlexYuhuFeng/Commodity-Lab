@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "milestone": "M2A trading-company crude workflows",
+  "milestone": "HB1 Interactive business-model handbook",
   "updated": "2026-10-14",
   "items": [
     {
@@ -215,6 +215,128 @@
         "Market conventions, eligibility and settlement reviewed",
         "Independent allowance cash-flow and risk tests",
         "Trading-company role with clear profit/risk mandate; no utility role"
+      ]
+    },
+    {
+      "id": "HB-01",
+      "title": "Additive knowledge/context/card architecture",
+      "depends_on": [
+        "M1-01"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "ADR 0004 preserves React/Tauri and existing workflows",
+        "Versioned bilingual chapter and allowlisted card contracts"
+      ]
+    },
+    {
+      "id": "HB-02",
+      "title": "Gas hub/beach/regas and crude written chapters",
+      "depends_on": [
+        "HB-01"
+      ],
+      "status": "in_progress",
+      "acceptance_criteria": [
+        "Trading-company economics, risk and financial/commercial/operational mitigation",
+        "Draft status and numerical scope explicit",
+        "External editorial/domain review before authoritative publication"
+      ]
+    },
+    {
+      "id": "HB-03",
+      "title": "Grounded durable conversations and generative cards",
+      "depends_on": [
+        "HB-01"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "Reuse Haineng/DeepSeek and actual profile context",
+        "Compatible visible session only; no future or private solutions",
+        "Invalid citations/actions rejected; honest offline fallback",
+        "Atomic revision checks and resume"
+      ]
+    },
+    {
+      "id": "HB-04",
+      "title": "Generated checked numerical practice",
+      "depends_on": [
+        "HB-02",
+        "HB-03"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "Five independently derived reference answers and signed negative margin pass",
+        "Reproducible seed; generated variants; solutions withheld until submission",
+        "Persist provisional attempts without claiming mastery"
+      ]
+    },
+    {
+      "id": "HB-05",
+      "title": "Integrated bilingual reading and interactive UX",
+      "depends_on": [
+        "HB-03",
+        "HB-04"
+      ],
+      "status": "done",
+      "acceptance_criteria": [
+        "Existing practice/Risk Lab reachable through learner actions",
+        "English/Chinese desktop/mobile browser and screenshot checks pass",
+        "No regressions to legacy tests/workflows"
+      ]
+    },
+    {
+      "id": "HB-06",
+      "title": "Provider and handbook domain qualification",
+      "depends_on": [
+        "HB-02",
+        "HB-05"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Real configured-provider grounded conversation quality/latency evaluated",
+        "External review of business contracts, terminology and numeric scope",
+        "Document sources and reviewer evidence without invented citations"
+      ]
+    },
+    {
+      "id": "HB-07",
+      "title": "Handbook authoring/import and review lifecycle",
+      "depends_on": [
+        "HB-06"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Import user handbook into versioned chapter contracts",
+        "Author/reviewer sign-off and content provenance",
+        "Approved retrieval chunks and bilingual consistency"
+      ]
+    },
+    {
+      "id": "HB-08",
+      "title": "Validated beach route and LNG/regas simulation expansion",
+      "depends_on": [
+        "M2-02",
+        "HB-06"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Market-specific route/capacity/nomination conventions reviewed",
+        "Calorific conversion, FX, terminal loss/cost/timing references independently tested",
+        "No full-simulator claim before review/tests"
+      ]
+    },
+    {
+      "id": "HB-09",
+      "title": "Chapter grounding across legacy generators and repeated evidence",
+      "depends_on": [
+        "HB-05",
+        "HB-07"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Carry reviewed passages into legacy AI generation and counterfactual tools",
+        "Associate learner practice with existing competency evidence contracts",
+        "Repeated assessments and instructor-reviewed reasoning before mastery"
       ]
     }
   ]

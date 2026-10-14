@@ -1670,6 +1670,9 @@ def v1_generate_exam(payload: ExamRequest):
 
 from tauri.backend.risk_training_api import router as risk_training_router
 app.include_router(risk_training_router)
+from tauri.backend.handbook_api import router as handbook_router, learner_profile as handbook_profile
+app.include_router(handbook_router)
+app.dependency_overrides[handbook_profile] = _profile_payload
 
 
 if __name__ == "__main__":

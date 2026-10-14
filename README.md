@@ -235,3 +235,5 @@ See [product architecture and roadmap](docs/transformation/PRODUCT.md), [reposit
 Local sessions persist in `~/.commodity-lab/training.sqlite`, overridable with `COMMODITY_LAB_TRAINING_DB`. The browser stores only the current session ID. Records are device-local and are not an enterprise identity or authorization service.
 
 Crude trading-company milestone: [scope and reference arithmetic](docs/transformation/M2-CRUDE.md), [verification and limitations](docs/transformation/M2-VERIFICATION.md), [reviewed pack architecture](docs/adr/0003-reviewed-commodity-packs.md).
+
+Interactive handbook foundation: use **Handbook / 交易手册** with European Natural Gas or Crude Oil selected. Five draft chapters connect commercial reading, contextual AI cards, checked practice and existing tools. See [milestone](docs/handbook/MILESTONE.md), [verification and screenshots](docs/handbook/VERIFICATION.md), and [architecture](docs/adr/0004-interactive-handbook.md). AI uses existing provider settings; without a provider, reading and numerical practice remain available and free-form questions are explicitly unanswered.
