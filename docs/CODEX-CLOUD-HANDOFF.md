@@ -14,7 +14,7 @@ Run the commands in `AGENTS.md`. Keep API keys in secure environment settings on
 
 Extend Commodity Lab into a universal interactive business-model trading handbook. Initially European gas and crude, trading-company roles only. Preserve reading + generative conversation + checked practice + legacy tools. Explain business economics, exposures, financial/commercial/operational mitigation and remaining risks. Do not define success by speculative PnL.
 
-## Current milestone
+## Current milestone — [PR #8](https://github.com/AlexYuhuFeng/Commodity-Lab/pull/8)
 
 HB3 adds versioned local evidence, named profiles, prerequisites for assessed reasoning, duplicate-resistant numerical readiness, immutable reflections, separate local reasoning review and JSON export. No institutional mastery is awarded. Full design is in `docs/adr/0006-local-competency-evidence.md`; workflow and endpoints in `docs/handbook/EVIDENCE.md`; verification in `docs/handbook/EVIDENCE-VERIFICATION.md`.
 
