@@ -16,6 +16,7 @@ CARD_TYPES = ("explanation","risk_map","comparison","reflection","practice","sim
 
 class StartConversation(Contract):
     chapter_id: str = Field(min_length=3,max_length=80)
+    learner_id: str = Field(default="local",min_length=1,max_length=64)
     risk_session_id: str | None = Field(default=None,max_length=64)
 
 
@@ -118,12 +119,15 @@ class HandbookStore(SessionStore):
 
     def start(self, request: StartConversation):
         chapter=chapter_for(request.chapter_id)
+        if request.risk_session_id and request.learner_id!="local":raise ValueError("risk_session_owner_unverified")
         if request.risk_session_id:
             view=self.view(request.risk_session_id)
             if not chapter.scenario_id or view["scenario_version"]!=chapter.scenario_id:raise ValueError("chapter_session_mismatch")
         id=uuid4().hex
-        state={"messages":[],"risk_session_id":request.risk_session_id}
+        state={"messages":[],"risk_session_id":request.risk_session_id,"learner_id":request.learner_id}
         with self.handbook_connect() as con:
+            from core.competency import require_learner
+            require_learner(con,request.learner_id)
             con.execute("INSERT INTO handbook_conversations VALUES (?,?,?,?,?)",(id,chapter.id,chapter.version,0,json.dumps(state)))
         return self.conversation(id)
 
@@ -141,7 +145,12 @@ class HandbookStore(SessionStore):
         if risk and risk["scenario_version"]!=chapter.scenario_id:raise ValueError("chapter_session_mismatch")
         # Send historical prose only: no prior grade solutions or hidden exercises.
         history=[{"role":m["role"],"text":m["text"]} for m in state["messages"]]
+        owner=state.get("learner_id","local")
+        if owner!="local":profile={"learner_id":owner,"profile_available":False}
         context=build_context(chapter,history,profile,risk)
+        from core.competency import EvidenceStore
+        portfolio=EvidenceStore(self.path).portfolio(owner)
+        context["chapter_evidence"]={"authority":portfolio["authority"],"chapters":portfolio["chapters"]}
         with self.handbook_connect() as con:
             questions=con.execute("SELECT public,attempts FROM handbook_questions WHERE conversation_id=? ORDER BY rowid DESC LIMIT 3",(id,)).fetchall()
         context["practice_evidence"]=[{"question":json.loads(public),"submitted_attempts":json.loads(attempts)[-3:]} for public,attempts in questions]

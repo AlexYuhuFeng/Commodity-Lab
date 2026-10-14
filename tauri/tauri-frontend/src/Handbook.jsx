@@ -28,14 +28,16 @@ export default function Handbook({ locale="en", productScope="natural_gas", onOp
   const language=locale.startsWith("zh")?"zh":"en", w=labels[language];
   const commodity=productScope==="crude_oil"?"crude_oil":"european_gas";
   const [catalog,setCatalog]=useState([]),[chapterId,setChapterId]=useState(""),[chapter,setChapter]=useState(null),[conversation,setConversation]=useState(null),[attempts,setAttempts]=useState({}),[message,setMessage]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  const [learnerId]=useState(()=>localStorage.getItem("commodity-lab-handbook-learner-v1")||"local");
   const requestId=useRef(0);
-  const key=id=>`commodity-lab-handbook:${commodity}:${id}`;
+  const key=id=>`commodity-lab-handbook:${commodity}:${id}${learnerId==="local"?"":`:${learnerId}`}`;
   useEffect(()=>{let alive=true;backendRequest("GET",`/api/v1/handbook/chapters?commodity=${commodity}`).then(data=>{if(alive){const saved=localStorage.getItem(`commodity-lab-handbook-chapter:${commodity}`);setCatalog(data.chapters);setChapterId(data.chapters.some(c=>c.id===saved)?saved:(data.chapters[0]?.id??""));}}).catch(()=>{if(alive)setError(w.error);});return()=>{alive=false;};},[commodity]);
   useEffect(()=>{
     if(!chapterId)return;const token=++requestId.current;let alive=true;setBusy(true);setError("");setChapter(null);setConversation(null);setAttempts({});setMessage("");
-    (async()=>{try{const data=await backendRequest("GET",`/api/v1/handbook/chapters/${chapterId}`);if(!alive)return;setChapter(data);const saved=localStorage.getItem(key(chapterId));if(saved){try{const state=await backendRequest("GET",`/api/v1/handbook/conversations/${saved}`);if(state.chapter_id!==chapterId||state.version!==data.version)throw Error("mismatch");if(alive){setConversation(state);setAttempts(state.attempts??{});}}catch{if(alive){localStorage.removeItem(key(chapterId));setError(w.missing);}}}}catch{if(alive)setError(w.error);}finally{if(alive&&token===requestId.current)setBusy(false);}})();
+    (async()=>{try{const data=await backendRequest("GET",`/api/v1/handbook/chapters/${chapterId}`);if(!alive)return;setChapter(data);const saved=localStorage.getItem(key(chapterId));if(saved){try{const state=await backendRequest("GET",`/api/v1/handbook/conversations/${saved}`);if(state.chapter_id!==chapterId||state.version!==data.version||(state.learner_id??"local")!==learnerId)throw Error("mismatch");if(alive){setConversation(state);setAttempts(state.attempts??{});}}catch{if(alive){localStorage.removeItem(key(chapterId));setError(w.missing);}}}}catch{if(alive)setError(w.error);}finally{if(alive&&token===requestId.current)setBusy(false);}})();
     return()=>{alive=false;};
   },[chapterId,commodity]);
+  useEffect(()=>{if(!chapter)return;const section=localStorage.getItem("commodity-lab-handbook-remediation");if(section){localStorage.removeItem("commodity-lab-handbook-remediation");document.getElementById(`handbook-${section}`)?.scrollIntoView({block:"start"});}},[chapter]);
   async function send(intent="ask") {
     if(busy||!chapter)return;const token=requestId.current;setBusy(true);setError("");
     let conversationId=conversation?.id;
@@ -44,8 +46,8 @@ export default function Handbook({ locale="en", productScope="natural_gas", onOp
       if(!state){
         // Attach only an actual compatible session; a stale/mismatched local ID does not block chapter study.
         let riskId=null;const saved=localStorage.getItem(commodity==="crude_oil"?"commodity-lab-risk-session-v1:crude_oil":"commodity-lab-risk-session-v1");
-        if(saved&&chapter.scenario_id){try{const view=await backendRequest("GET",`/api/v1/risk-training/sessions/${saved}`);if(view.scenario_version===chapter.scenario_id)riskId=saved;}catch{/* independent reading remains available */}}
-        state=await backendRequest("POST","/api/v1/handbook/conversations",{chapter_id:chapter.id,risk_session_id:riskId});
+        if(learnerId==="local"&&saved&&chapter.scenario_id){try{const view=await backendRequest("GET",`/api/v1/risk-training/sessions/${saved}`);if(view.scenario_version===chapter.scenario_id)riskId=saved;}catch{/* independent reading remains available */}}
+        state=await backendRequest("POST","/api/v1/handbook/conversations",{chapter_id:chapter.id,risk_session_id:riskId,...(learnerId!=="local"?{learner_id:learnerId}:{})});
         if(token!==requestId.current)return;localStorage.setItem(key(chapterId),state.id);setConversation(state);conversationId=state.id;
       }
       const data=await backendRequest("POST",`/api/v1/handbook/conversations/${state.id}/messages`,{revision:state.revision,locale:language,message:intent==="ask"?message:w[intent],intent});

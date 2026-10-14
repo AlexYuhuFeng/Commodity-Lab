@@ -59,6 +59,8 @@ if (-not $SkipInstall) {
 }
 
 $HiddenImports = @(
+    "core.competency",
+    "tauri.backend.competency_api",
     "core.handbook_grounding",
     "core.handbook_content",
     "core.handbook_practice",

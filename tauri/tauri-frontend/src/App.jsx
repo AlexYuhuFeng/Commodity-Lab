@@ -4,6 +4,7 @@ import { normalizeLocale, t } from "./i18n";
 
 import RiskTraining from "./RiskTraining";
 import Handbook from "./Handbook";
+import LearningEvidence from "./LearningEvidence";
 
 const currentVersion = "1.5.3";
 
@@ -4119,7 +4120,7 @@ function KnowledgeMapPage({ locale, onPageChange, onRequestLearningPath, product
   );
 }
 
-function ProgressPage({ learningProgress, locale, onGenerateWeakPoint, onPageChange }) {
+function ProgressPage({ learningProgress, locale, onGenerateWeakPoint, onPageChange, productScope, onOpenChapter }) {
   const hasProgress = learningProgress.hasRecords;
   const weakSummary = learningProgress.weakest.length
     ? learningProgress.weakest.map((item) => labelFor(locale, item, "zh", "en")).join(" / ")
@@ -4135,6 +4136,8 @@ function ProgressPage({ learningProgress, locale, onGenerateWeakPoint, onPageCha
         subtitleEn="Track hedging skill dimensions instead of only completion percentage."
         action={hasProgress ? <button className="cl-primary" onClick={onGenerateWeakPoint} type="button"><Icon name="plus" />{copy(locale, "生成弱项训练", "Generate Weak-Point Drill")}</button> : null}
       />
+      {productWorkspace(productScope).coursesReady && <LearningEvidence locale={locale} productScope={productScope} onOpenChapter={onOpenChapter} />}
+      <h2>{copy(locale,"现有练习进度（全设备）","Existing practice progress (device-wide)")}</h2>
       <div className={`cl-progress-layout${hasProgress ? "" : " is-empty"}`}>
         <section className="cl-panel">
           <div className="cl-panel-heading"><span>{copy(locale, "能力画像", "Capability Profile")}</span><strong>{hasProgress ? `${learningProgress.latestScore}/100` : copy(locale, "暂无记录", "No records")}</strong></div>
@@ -5510,7 +5513,7 @@ export default function App() {
       return <KnowledgeMapPage locale={locale} onPageChange={setActivePage} onRequestLearningPath={requestAiLearningPath} productScope={productScope} runAiAction={runAiAction} />;
     }
     if (activePage === pageIds.progress) {
-      return <ProgressPage learningProgress={learningProgress} locale={locale} onGenerateWeakPoint={generateWeakPointDrill} onPageChange={setActivePage} />;
+      return <ProgressPage productScope={productScope} onOpenChapter={(id,section) => { const commodity=productScope==="crude_oil"?"crude_oil":"european_gas"; localStorage.setItem(`commodity-lab-handbook-chapter:${commodity}`,id); if(section)localStorage.setItem("commodity-lab-handbook-remediation",section); setActivePage("handbook"); }} learningProgress={learningProgress} locale={locale} onGenerateWeakPoint={generateWeakPointDrill} onPageChange={setActivePage} />;
     }
     if (activePage === pageIds.coach) {
       return <AiCoachPage aiReady={aiReady} applyAction={applyAssistantAction} locale={locale} messages={assistantMessages} onSend={sendAssistant} thinking={busyAction === "assistant"} />;

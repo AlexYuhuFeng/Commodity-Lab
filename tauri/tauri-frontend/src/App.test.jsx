@@ -365,6 +365,9 @@ function mockBackend({ aiReady = true, assistantResponse = null, failProviderSet
         }
       };
     }
+    if (path === "/api/v1/competency/learners") return { learners: [{id:"local",display_name:"Local learner"}] };
+    if (path.startsWith("/api/v1/competency/learners/local/portfolio")) return { chapters:[],questions:[],reasoning:[] };
+    if (path === "/api/v1/competency/rubric") return { dimensions:Object.fromEntries(["exposure","hedge","residual","controls"].map(d=>[d,{en:d,zh:d}])) };
     if (path.startsWith("/api/v1/handbook/chapters?")) return { chapters: [{ id: "gas-hub-supply", title: { en: "Hub context", zh: "枢纽背景" } }] };
     if (path === "/api/v1/handbook/chapters/gas-hub-supply") return { id: "gas-hub-supply", version: "handbook-v1", title: { en: "Hub context", zh: "枢纽背景" }, summary: { en: "Commercial model", zh: "商业模型" }, scope: { en: "Synthetic training", zh: "合成训练" }, commodity: "european_gas", content_status: "editorial_training_draft", scenario_id: "gas-trading-company-v1", legacy_template: "gas_local_market_procurement", sections: [{ id: "business", title: { en: "Business", zh: "业务" }, text: { en: "Buy indexed gas for fixed sales.", zh: "为固定销售采购指数天然气。" } }] };
     if (path === "/api/v1/ai/training-case") {
