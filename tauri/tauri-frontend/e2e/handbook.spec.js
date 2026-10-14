@@ -6,7 +6,11 @@ async function open(page,locale="en",scope="natural_gas") {
  await page.route("**/api/v1/handbook/conversations/*/messages",route=>{const data=route.request().postDataJSON();route.continue({postData:JSON.stringify(data.intent==="practice"?{...data,practice_seed:0}:data)});});
  await page.addInitScript(({locale,scope})=>{localStorage.setItem("commodity-lab-locale",locale);localStorage.setItem("commodity-lab-theme",locale==="zh"?"light":"dark");localStorage.setItem("commodity-lab-product-scope",scope);localStorage.setItem("commodity-lab-guide-complete","1");},{locale,scope});
  await page.goto("/");await page.getByRole("button",{name:locale==="zh"?"交易手册":"Handbook",exact:true}).click();await expect(page.locator(".handbook-reading")).toBeVisible();
- await page.addStyleTag({content:fontCss+'\n.cl-app-shell, .cl-app-shell * { font-family:"Noto Sans SC",sans-serif !important; }'});await page.evaluate(async()=>{await document.fonts.ready;});
+ await normalizeFonts(page);
+}
+async function normalizeFonts(page){
+ await page.addStyleTag({content:fontCss+'\n.cl-app-shell, .cl-app-shell * { font-family:"Noto Sans SC",sans-serif !important; }'});
+ await page.evaluate(async()=>{await document.fonts.ready;});
 }
 async function align(page,selector){await page.locator(selector).evaluate(el=>{const c=el.closest(".cl-content-shell");c.scrollTo({top:c.scrollTop+el.getBoundingClientRect().top-c.getBoundingClientRect().top-24,behavior:"instant"});});}
 async function practice(page,zh=false){
@@ -31,7 +35,7 @@ test("gas handbook reading, checked practice, contextual questions, resume and e
  await page.getByLabel("Your answer (EUR)").fill("0");await page.getByRole("button",{name:"Check answer",exact:true}).click();await expect(page.getByText("Review the calculation",{exact:true})).toBeVisible();
  await submit(page,q);await align(page,".handbook-practice");await expect(page).toHaveScreenshot("handbook-gas-practice-en-dark.png");
  await page.getByLabel("Ask about this business").fill("Which risks remain after the benchmark hedge?");await page.getByRole("button",{name:"Send",exact:true}).click();await expect(page.locator(".handbook-reflection")).toBeVisible();
- await page.reload();await page.getByRole("button",{name:"Handbook",exact:true}).click();await expect(page.getByText("Correct within one cent",{exact:true})).toBeVisible();
+ await page.reload();await normalizeFonts(page);await page.getByRole("button",{name:"Handbook",exact:true}).click();await expect(page.getByText("Correct within one cent",{exact:true})).toBeVisible();
  await page.getByRole("button",{name:"Open Risk Lab",exact:true}).click();await expect(page.getByRole("heading",{name:"European gas risk lab"})).toBeVisible();
  await page.getByRole("button",{name:"Handbook",exact:true}).click();await page.getByLabel("Business model").selectOption("gas-beach-hub");await expect(page.getByRole("heading",{name:"Beach-to-hub trading",exact:true})).toBeVisible();
  const beach=await practice(page);await submit(page,beach);await page.getByRole("button",{name:"Open existing AI practice",exact:true}).click();await expect(page.locator(".handbook")).not.toBeVisible();await expect(page.getByText(/Handbook context \(editorial draft\)/)).toBeVisible();await align(page,".cl-studio-composer");await expect(page).toHaveScreenshot("handbook-practice-context-en-dark.png");await page.getByRole("button",{name:"Clear handbook context"}).click();await expect(page.getByText(/Handbook context \(editorial draft\)/)).not.toBeVisible();await noOverflow(page);
