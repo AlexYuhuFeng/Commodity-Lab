@@ -59,6 +59,7 @@ if (-not $SkipInstall) {
 }
 
 $HiddenImports = @(
+    "core.handbook_grounding",
     "core.handbook_content",
     "core.handbook_practice",
     "core.handbook",

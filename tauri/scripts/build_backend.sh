@@ -11,6 +11,7 @@ rm -rf "$out_dir" "$work_dir"
 mkdir -p "$out_dir" "$work_dir"
 
 hidden_imports=(
+  core.handbook_grounding
   core.handbook_content
   core.handbook_practice
   core.handbook

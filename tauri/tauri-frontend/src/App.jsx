@@ -30,7 +30,7 @@ const defaultProviderCatalog = {
     label: "DeepSeek",
     default_model: "deepseek-v4-flash",
     models: [
-      { id: "deepseek-v4-flash", label: "deepseek-v4-flash", resolved_model: "deepseek-v4-flash", base_url: "https://api.deepseek.com" },
+      { id: "deepseek-v4-flash", label: "deepseek-v4-flash", resolved_model: "deepseek-flash", base_url: "https://api.deepseek.com" },
       { id: "deepseek-v4-pro", label: "deepseek-v4-pro", resolved_model: "deepseek-v4-pro", base_url: "https://api.deepseek.com" }
     ]
   }
@@ -3411,7 +3411,7 @@ function HomePage({ aiLessonPlan, aiReady, learningProgress, loadingTemplate, lo
   );
 }
 
-function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, loadingTemplate, onGenerate, productScope, setActiveTemplateId }) {
+function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, loadingTemplate, onGenerate, productScope, setActiveTemplateId, handbookReference, onClearHandbook }) {
   const allTemplates = businessTemplates.templates?.length ? businessTemplates.templates : fallbackTemplates.templates;
   const templates = templatesForProduct(allTemplates, productScope);
   const [request, setRequest] = useState("");
@@ -3449,6 +3449,7 @@ function AiCaseLabPage({ activeTemplateId, aiReady, businessTemplates, locale, l
       />
       <div className="cl-case-studio">
         <section className="cl-panel cl-studio-composer">
+          {handbookReference && <div className="cl-studio-note"><strong>{copy(locale,"手册背景（编辑草稿）","Handbook context (editorial draft)")}: {handbookReference.title?.[locale.startsWith("zh") ? "zh" : "en"]}</strong><p>{copy(locale,"此章节将作为生成案例和后续辅导的参考。","This chapter will ground case generation and follow-up coaching.")}</p><button type="button" className="cl-secondary" onClick={onClearHandbook}>{copy(locale,"清除手册背景","Clear handbook context")}</button></div>}
           <label className="cl-studio-prompt">{copy(locale, "你想练什么？", "What do you want to practise?")}
             <textarea value={request} onChange={(event) => setRequest(event.target.value)} placeholder={productScope === "crude_oil"
               ? copy(locale, "例如：训练 Brent 计价船货在快速下跌中的采购套保。", "Example: practise a Brent-indexed cargo procurement hedge during a sharp selloff.")
@@ -4417,6 +4418,7 @@ export default function App() {
   const [replayDecision, setReplayDecision] = useState(null);
   const [replayHistory, setReplayHistory] = useState([]);
   const [advisorFeedback, setAdvisorFeedback] = useState("");
+  const [handbookPracticeReference, setHandbookPracticeReference] = useState(undefined);
   const [exam, setExam] = useState("");
   const [aiOutput, setAiOutput] = useState(null);
   const [busyAction, setBusyAction] = useState("");
@@ -4494,6 +4496,7 @@ export default function App() {
     replayCoachRequestRef.current += 1;
     localStorage.setItem("commodity-lab-product-scope", nextScope);
     setProductScopeState(nextScope);
+    setHandbookPracticeReference(null);
     const availableTemplates = templatesForProduct(templates.templates ?? fallbackTemplates.templates, nextScope);
     const nextTemplate = availableTemplates.find((item) => item.group === "foundation") ?? availableTemplates[0];
     if (nextTemplate) setActiveTemplateId(nextTemplate.id);
@@ -4694,6 +4697,7 @@ export default function App() {
       return;
     }
     const resolvedTemplateId = selectedTemplate.id;
+    const bookReference = handbookPracticeReference === null ? null : handbookPracticeReference?.template_id === resolvedTemplateId ? handbookPracticeReference : caseData.training_session?.handbook?.template_id === resolvedTemplateId ? caseData.training_session.handbook : null;
     setActiveTemplateId(resolvedTemplateId);
     if (!aiReady) {
       setServiceMessage(t("aiRequiredForCase", locale));
@@ -4732,6 +4736,7 @@ export default function App() {
       let modelBuffer = "";
       await backendStreamRequest("/api/v1/ai/training-case/stream", {
         template_id: resolvedTemplateId,
+        ...(bookReference ? { handbook_chapter_id: bookReference.id, handbook_version: bookReference.version } : {}),
         product_scope: requestProductScope,
         locale,
         user_request: userRequest,
@@ -4986,6 +4991,7 @@ export default function App() {
     const curriculum = curriculumReference(locale, productScope);
     return {
       capability,
+      ...(caseData.training_session?.handbook ? { handbook_chapter_id: caseData.training_session.handbook.id, handbook_version: caseData.training_session.handbook.version } : {}),
       scenario_id: "europe_ttf_nbp_spread",
       locale,
       order: orderFromStrategy(strategyLegs),
@@ -5360,10 +5366,12 @@ export default function App() {
   };
 
   function selectTemplateForPractice(templateId) {
+    if (handbookPracticeReference?.template_id !== templateId) setHandbookPracticeReference(null);
     setActiveTemplateId(templateId);
   }
 
   function reviewLearningRecord(record) {
+    setHandbookPracticeReference(undefined);
     const snapshot = record?.case_snapshot;
     if (!snapshot) return;
     const templateId = record.template_id || activeTemplateId;
@@ -5450,7 +5458,7 @@ export default function App() {
   }
 
   function renderActivePage() {
-    if (activePage === "handbook" && productWorkspace(productScope).coursesReady) return <Handbook key={productScope} locale={locale} productScope={productScope} onOpenRisk={() => setActivePage("risk-lab")} onOpenPractice={templateId => { selectTemplateForPractice(templateId); setActivePage(pageIds.caseLab); }} />;
+    if (activePage === "handbook" && productWorkspace(productScope).coursesReady) return <Handbook key={productScope} locale={locale} productScope={productScope} onOpenRisk={() => setActivePage("risk-lab")} onOpenPractice={(templateId, reference) => { setActiveTemplateId(templateId); setHandbookPracticeReference(reference); setActivePage(pageIds.caseLab); }} />;
     if (activePage === "risk-lab" && productWorkspace(productScope).coursesReady) return <RiskTraining key={productScope} locale={locale} productScope={productScope} />;
     const workspace = productWorkspace(productScope);
     if (!workspace.coursesReady && activePage !== pageIds.settings) {
@@ -5462,6 +5470,8 @@ export default function App() {
           activeTemplateId={activeTemplateId}
           aiReady={aiReady}
           businessTemplates={templates}
+          handbookReference={handbookPracticeReference === undefined && caseData.training_session?.handbook?.template_id === activeTemplateId ? caseData.training_session.handbook : handbookPracticeReference}
+          onClearHandbook={() => setHandbookPracticeReference(null)}
           locale={locale}
           loadingTemplate={loadingTemplate}
           onGenerate={generateTrainingCase}

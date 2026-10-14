@@ -36,7 +36,7 @@ _PROVIDER_MODEL_CATALOG: dict[str, dict[str, Any]] = {
         "default_model": "deepseek-v4-flash",
         "models": {
             "deepseek-v4-flash": {
-                "resolved_model": "deepseek-v4-flash",
+                "resolved_model": "deepseek-flash",
                 "base_url": DEEPSEEK_BASE_URL,
                 "aliases": {"v4-flash", "v4flash", "deepseek-flash", "deepseekv4flash"},
             },

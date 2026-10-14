@@ -365,11 +365,14 @@ function mockBackend({ aiReady = true, assistantResponse = null, failProviderSet
         }
       };
     }
+    if (path.startsWith("/api/v1/handbook/chapters?")) return { chapters: [{ id: "gas-hub-supply", title: { en: "Hub context", zh: "枢纽背景" } }] };
+    if (path === "/api/v1/handbook/chapters/gas-hub-supply") return { id: "gas-hub-supply", version: "handbook-v1", title: { en: "Hub context", zh: "枢纽背景" }, summary: { en: "Commercial model", zh: "商业模型" }, scope: { en: "Synthetic training", zh: "合成训练" }, commodity: "european_gas", content_status: "editorial_training_draft", scenario_id: "gas-trading-company-v1", legacy_template: "gas_local_market_procurement", sections: [{ id: "business", title: { en: "Business", zh: "业务" }, text: { en: "Buy indexed gas for fixed sales.", zh: "为固定销售采购指数天然气。" } }] };
     if (path === "/api/v1/ai/training-case") {
       if (failTrainingCase) throw new Error("AI temporarily unavailable");
       if (trainingCasePromise) return trainingCasePromise;
       const template = businessTemplates.templates.find((item) => item.id === body?.template_id) ?? businessTemplates.templates[0];
-      return { template, case: body?.market_mode === "historical_replay" ? replayGeneratedCase : body?.template_id === "crude_oil_hedging_basics" ? crudeGeneratedCase : generatedCase };
+      const result = body?.market_mode === "historical_replay" ? replayGeneratedCase : body?.template_id === "crude_oil_hedging_basics" ? crudeGeneratedCase : generatedCase;
+      return { template, case: body?.handbook_chapter_id ? { ...result, training_session: { ...result.training_session, template_id: body.template_id, product_scope: body.product_scope, handbook: { id: body.handbook_chapter_id, version: body.handbook_version, template_id: body.template_id, title: { en: "Hub context", zh: "枢纽背景" } } } } : result };
     }
     if (path === "/api/v1/replays/hormuz_2026_disruption/decision") {
       return {
@@ -1291,4 +1294,27 @@ describe("Commodity Lab shell", () => {
     expect(screen.getByText("This lesson now reflects your request")).toBeInTheDocument();
     expect(screen.getAllByText("Scored strategy").length).toBeGreaterThan(0);
   });
+});
+
+
+it("carries handbook identity into existing generation and the live assistant workspace", async () => {
+  localStorage.setItem("commodity-lab-locale", "en");const calls=[];renderShell({aiReady:true,onCall:call=>calls.push(call)});
+  fireEvent.click(await screen.findByRole("button",{name:"Handbook",exact:true}));
+  fireEvent.click(await screen.findByRole("button",{name:"Open existing AI practice",exact:true}));
+  expect(await screen.findByText(/Handbook context \(editorial draft\)/)).toBeInTheDocument();
+  fireEvent.click(screen.getByText("Generate Case"));
+  await waitFor(()=>expect(calls.some(c=>c.path==="/api/v1/ai/training-case")).toBe(true));
+  const request=calls.find(c=>c.path==="/api/v1/ai/training-case").body;
+  expect(request).toMatchObject({handbook_chapter_id:"gas-hub-supply",handbook_version:"handbook-v1",template_id:"gas_local_market_procurement"});
+  await waitFor(()=>expect(screen.getAllByText(generatedCase.scenario.title).length).toBeGreaterThan(0));
+  fireEvent.click(await screen.findByRole("button",{name:"Live assistant"}));fireEvent.click(within(document.querySelector(".assistant-command-bar")).getByRole("button",{name:"Submit strategy"}));
+  await waitFor(()=>expect(calls.some(c=>c.path==="/api/v1/ai/live-assistant")).toBe(true));
+  expect(calls.find(c=>c.path==="/api/v1/ai/live-assistant").body.workspace_state.case.training_session.handbook.id).toBe("gas-hub-supply");
+});
+it("lets learners clear attached handbook context before generating a generic practice case", async () => {
+  localStorage.setItem("commodity-lab-locale", "en");const calls=[];renderShell({aiReady:true,onCall:call=>calls.push(call)});
+  fireEvent.click(await screen.findByRole("button",{name:"Handbook",exact:true}));fireEvent.click(await screen.findByRole("button",{name:"Open existing AI practice",exact:true}));
+  fireEvent.click(await screen.findByRole("button",{name:"Clear handbook context"}));
+  expect(screen.queryByText(/Handbook context \(editorial draft\)/)).not.toBeInTheDocument();fireEvent.click(screen.getByText("Generate Case"));
+  await waitFor(()=>expect(calls.some(c=>c.path==="/api/v1/ai/training-case")).toBe(true));expect(calls.find(c=>c.path==="/api/v1/ai/training-case").body).not.toHaveProperty("handbook_chapter_id");
 });

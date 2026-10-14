@@ -34,7 +34,7 @@ test("gas handbook reading, checked practice, contextual questions, resume and e
  await page.reload();await page.getByRole("button",{name:"Handbook",exact:true}).click();await expect(page.getByText("Correct within one cent",{exact:true})).toBeVisible();
  await page.getByRole("button",{name:"Open Risk Lab",exact:true}).click();await expect(page.getByRole("heading",{name:"European gas risk lab"})).toBeVisible();
  await page.getByRole("button",{name:"Handbook",exact:true}).click();await page.getByLabel("Business model").selectOption("gas-beach-hub");await expect(page.getByRole("heading",{name:"Beach-to-hub trading",exact:true})).toBeVisible();
- const beach=await practice(page);await submit(page,beach);await page.getByRole("button",{name:"Open existing AI practice",exact:true}).click();await expect(page.locator(".handbook")).not.toBeVisible();await noOverflow(page);
+ const beach=await practice(page);await submit(page,beach);await page.getByRole("button",{name:"Open existing AI practice",exact:true}).click();await expect(page.locator(".handbook")).not.toBeVisible();await expect(page.getByText(/Handbook context \(editorial draft\)/)).toBeVisible();await align(page,".cl-studio-composer");await expect(page).toHaveScreenshot("handbook-practice-context-en-dark.png");await page.getByRole("button",{name:"Clear handbook context"}).click();await expect(page.getByText(/Handbook context \(editorial draft\)/)).not.toBeVisible();await noOverflow(page);
 });
 
 test("Chinese mobile regas handbook, fresh practice and financial boundaries",async({page})=>{

@@ -33,7 +33,7 @@ def test_redact_settings_never_returns_api_key() -> None:
     redacted = redact_settings(settings)
     assert redacted["configured"] is True
     assert redacted["provider"] == "deepseek"
-    assert redacted["resolved_model"] == "deepseek-v4-flash"
+    assert redacted["resolved_model"] == "deepseek-flash"
     assert "secret-key" not in str(redacted)
 
 
@@ -300,7 +300,7 @@ def test_deepseek_provider_uses_public_v4_flash_contract(monkeypatch: pytest.Mon
     )
 
     assert client.complete([{"role": "user", "content": "review"}]) == "ok"
-    assert captured_payload["model"] == "deepseek-v4-flash"
+    assert captured_payload["model"] == "deepseek-flash"
     assert captured_payload["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
@@ -362,7 +362,7 @@ def test_stream_complete_yields_provider_text_deltas(monkeypatch: pytest.MonkeyP
         '{"title":"Live"}}',
     ]
     assert captured_payload["stream"] is True
-    assert captured_payload["model"] == "deepseek-v4-flash"
+    assert captured_payload["model"] == "deepseek-flash"
     assert captured_payload["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
