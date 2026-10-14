@@ -37,3 +37,5 @@ Server solutions are withheld until an answer is submitted. Subsequent conversat
 - Windows/full Linux Tauri desktop bundles and interactive packaged UI screenshots; enterprise identity/retention; authoring CMS; handbook import pipeline; repeated mastery assessment; arbitrary AI executable scenarios; streaming dynamic cards.
 
 Existing courses, practice, Workbench, replay, AI settings, learner profiles, Risk Lab and release workflows are preserved. Additional markets require validated conventions; none enabled by this milestone.
+
+Pull request: [#6](https://github.com/AlexYuhuFeng/Commodity-Lab/pull/6), dependent on #5/#4. Implementation `1fab4f7b`. Remote CI evidence/status is recorded on the pull request; local checks above are independently verified.
