@@ -5,6 +5,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
 from core.risk_training import Decision, Policy
 from core.risk_training_store import SessionStore
+from core.training_contracts import CommodityDecision, ScenarioSessionRequest
+from core.training_engine import catalog
 
 router = APIRouter(prefix="/api/v1/risk-training", tags=["risk-training"])
 
@@ -24,6 +26,19 @@ def handle_error(exc):
     return HTTPException(409, detail=str(exc))
 
 
+@router.get("/catalog")
+def scenario_catalog():
+    return catalog()
+
+
+@router.post("/scenario-sessions")
+def create_scenario_session(request: ScenarioSessionRequest):
+    try:
+        return get_store().create_scenario(request)
+    except ValueError as exc:
+        raise handle_error(exc) from exc
+
+
 @router.post("/sessions")
 def create_session(policy: Policy):
     return get_store().create(policy)
@@ -38,7 +53,7 @@ def read_session(session_id: str):
 
 
 @router.post("/sessions/{session_id}/decisions")
-def make_decision(session_id: str, decision: Decision):
+def make_decision(session_id: str, decision: Decision | CommodityDecision):
     try:
         return get_store().decide(session_id, decision)
     except (KeyError, ValueError) as exc:
@@ -65,6 +80,12 @@ def coach(session_id: str, request: CoachRequest):
     fallback = ("为什么采购风险需要多头套保？区域基差为何仍然存在？练习：在价格下跌的情况下解释保证金需求。请说明你的取舍，理由需由讲师审核。"
                 if request.locale == "zh" else
                 "Why does procurement exposure call for a long hedge? Why does regional basis remain? Practice: explain collateral needs when prices fall. Describe your trade-offs; an instructor must review your reasoning.")
+    if view["conventions"]["commodity"] == "crude_oil":
+        inventory = view["hedge_sign"] == -1
+        if request.locale == "zh":
+            fallback = ("为什么自有库存需要空头基准保护？历史采购付款与今天的结算现金有何区别？" if inventory else "为什么炼厂采购委托需要多头基准保护？品级价差与运费为什么仍未套保？") + "练习：解释基准价格反向变化时的抵押资金需求，并说明你的规模取舍。理由需讲师审核。"
+        else:
+            fallback = ("Why does owned inventory call for a short benchmark hedge? How does historical purchase cash differ from today's settlement cash? " if inventory else "Why does a refinery procurement mandate call for a long benchmark hedge? Why do grade differential and freight remain unhedged? ") + "Practice: explain collateral when benchmark prices move against the paper position and defend your sizing. An instructor must review reasoning."
     client = HainengClient()
     if not client.is_configured():
         return {"mode": "offline", "answer": fallback, "graded": False}

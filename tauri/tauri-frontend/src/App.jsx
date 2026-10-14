@@ -5448,7 +5448,7 @@ export default function App() {
   }
 
   function renderActivePage() {
-    if (activePage === "risk-lab") return <RiskTraining locale={locale} />;
+    if (activePage === "risk-lab" && productWorkspace(productScope).coursesReady) return <RiskTraining key={productScope} locale={locale} productScope={productScope} />;
     const workspace = productWorkspace(productScope);
     if (!workspace.coursesReady && activePage !== pageIds.settings) {
       return <ProductScaffoldPage locale={locale} workspace={workspace} />;

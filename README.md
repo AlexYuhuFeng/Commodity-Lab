@@ -233,3 +233,5 @@ No live execution or licensed market data is used. Swap quantities are MWh train
 See [product architecture and roadmap](docs/transformation/PRODUCT.md), [repository audit](docs/transformation/AUDIT.md), [UX constitution](docs/transformation/UI-CONSTITUTION.md), [ADR](docs/adr/0001-training-engine-boundaries.md), [machine-readable backlog](docs/transformation/backlog.json) and [verification evidence](docs/transformation/VERIFICATION.md).
 
 Local sessions persist in `~/.commodity-lab/training.sqlite`, overridable with `COMMODITY_LAB_TRAINING_DB`. The browser stores only the current session ID. Records are device-local and are not an enterprise identity or authorization service.
+
+Crude trading-company milestone: [scope and reference arithmetic](docs/transformation/M2-CRUDE.md), [verification and limitations](docs/transformation/M2-VERIFICATION.md), [reviewed pack architecture](docs/adr/0003-reviewed-commodity-packs.md).
