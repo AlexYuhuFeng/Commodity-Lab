@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "milestone": "HB2 grounding and bounded DeepSeek live qualification",
+  "milestone": "HB3 local evidence portfolio and Cloud handoff",
   "updated": "2026-10-14",
   "items": [
     {
@@ -102,12 +102,14 @@
       "depends_on": [
         "M1-04"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "acceptance_criteria": [
         "Prerequisites enforce diagnostic qualification",
         "Mastery requires multiple independent cases",
         "Remediation follows reviewed risk evidence, not PnL"
-      ]
+      ],
+      "implementation_evidence": "ADR 0006; docs/handbook/EVIDENCE.md; local prerequisite diagnostics and cross-conversation first-pass variant evidence",
+      "remaining": "Independent commercial-case assessments and authenticated, externally calibrated mastery authority; numerical variants alone do not establish competence."
     },
     {
       "id": "M2-04",
@@ -115,12 +117,14 @@
       "depends_on": [
         "M2-03"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "acceptance_criteria": [
         "Reviewed rationale rubric and multiple acceptable solutions",
         "Separate learner records and review authority",
         "Audit export carries scenario/policy/rubric versions"
-      ]
+      ],
+      "implementation_evidence": "Local learner labels, immutable reasoning, separate-label versioned review and audit exports (HB3).",
+      "remaining": "Authenticated instructor/reviewer authority and institution-approved rubric; local labels are not proof of separate people."
     },
     {
       "id": "M3-01",
@@ -340,8 +344,39 @@
         "Associate learner practice with existing competency evidence contracts",
         "Repeated assessments and instructor-reviewed reasoning before mastery"
       ],
-      "implementation_evidence": "ADR 0005; docs/handbook/GROUNDING.md; typed ID/version propagation, case snapshots, server-loaded source grounding, App integration and provider-mocked regressions",
-      "remaining": "Repeated competency evidence and instructor-reviewed reasoning; configured-provider quality/latency qualification."
+      "implementation_evidence": "ADR 0005; docs/handbook/GROUNDING.md; typed ID/version propagation, case snapshots, server-loaded source grounding, App integration and provider-mocked regressions; HB3 adds deduplicated first-pass chapter diagnostics, local reasoning reviews, targeted remediation and versioned export",
+      "remaining": "Independent commercial cases and authenticated instructor-reviewed reasoning before institutional mastery; broader provider/domain qualification."
+    },
+    {
+      "id": "HB-10",
+      "title": "Authenticated assessment authority and independent case evidence",
+      "depends_on": [
+        "HB-09",
+        "M2-01"
+      ],
+      "status": "pending",
+      "acceptance_criteria": [
+        "Learner/session ownership enforced across existing and new workflows",
+        "Reviewer role and authorization tested; own-evidence review blocked by identity, not label",
+        "At least two distinct commercial scenarios per assessed competency with preserved as-of snapshots",
+        "Calibrated reasoning rubric and prerequisite diagnostics cannot be bypassed by duplicate practice or PnL",
+        "Institutional mastery only after reviewed case and reviewer authority qualification"
+      ]
+    },
+    {
+      "id": "HB-11",
+      "title": "External handbook and illustrative policy review pack",
+      "depends_on": [
+        "HB-02",
+        "HB-06"
+      ],
+      "status": "blocked",
+      "acceptance_criteria": [
+        "Actual handbook/source documents supplied with permitted use",
+        "Named domain/editorial reviewer evidence and source revisions recorded",
+        "Any actual policy mapping reconciled with policy owners; no invented approval"
+      ],
+      "remaining": "User-authored handbook and authoritative corporate documents are not available in the repository."
     }
   ]
 }

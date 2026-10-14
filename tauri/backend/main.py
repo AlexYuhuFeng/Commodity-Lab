@@ -1730,6 +1730,9 @@ app.include_router(handbook_router)
 app.dependency_overrides[handbook_profile] = _profile_payload
 
 
+from tauri.backend.competency_api import router as competency_router
+app.include_router(competency_router)
+
 if __name__ == "__main__":
     import uvicorn
     _ensure_stdio_for_windowed_runtime()

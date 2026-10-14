@@ -33,3 +33,6 @@ tmp_pycache_dirs.txt
 tauri/tauri-frontend/test-results/
 tauri/tauri-frontend/playwright-report/
 tauri/bundled/
+
+# Codex Cloud local setup environment
+.venv/

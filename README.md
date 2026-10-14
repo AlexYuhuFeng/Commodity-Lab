@@ -241,3 +241,7 @@ Interactive handbook foundation: use **Handbook / 交易手册** with European N
 Handbook context now follows existing AI practice generation and coaching through server-resolved chapter references; see [grounding contracts and verification](docs/handbook/GROUNDING.md).
 
 [DeepSeek live test evidence and limits](docs/handbook/DEEPSEEK-LIVE.md) includes real online screenshots, provider mapping fixes and bilingual coaching checks.
+
+### Codex Cloud continuation
+
+See [the handoff](docs/CODEX-CLOUD-HANDOFF.md) for the unmerged branch chain and setup, and [local handbook evidence](docs/handbook/EVIDENCE.md) for the new Progress workflow. Verification and its limits are recorded in [HB3 evidence](docs/handbook/EVIDENCE-VERIFICATION.md).
