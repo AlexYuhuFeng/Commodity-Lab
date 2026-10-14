@@ -134,7 +134,7 @@ def test_provider_settings_persists_to_local_user_config(monkeypatch, tmp_path) 
 
     assert status["ok"] is True
     assert status["provider"] == "deepseek"
-    assert status["resolved_model"] == "deepseek-v4-flash"
+    assert status["resolved_model"] == "deepseek-flash"
     assert "persisted-secret-key" not in str(status)
     _clear_haineng_env(monkeypatch)
 
@@ -172,7 +172,7 @@ def test_provider_settings_endpoint_accepts_deepseek_contract(monkeypatch) -> No
     payload = response.json()
     assert payload["haineng"]["provider"] == "deepseek"
     assert payload["haineng"]["base_url"] == "https://api.deepseek.com"
-    assert payload["haineng"]["resolved_model"] == "deepseek-v4-flash"
+    assert payload["haineng"]["resolved_model"] == "deepseek-flash"
     assert "user-secret-key" not in str(payload)
     _clear_haineng_env(monkeypatch)
 

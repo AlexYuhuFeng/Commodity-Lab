@@ -82,6 +82,8 @@ class ExamRequest(BaseModel):
 
 
 class AITrainingRequest(BaseModel):
+    handbook_chapter_id: str | None = Field(default=None,max_length=80)
+    handbook_version: str | None = Field(default=None,max_length=40)
     capability: str
     locale: str = "en"
     scenario_id: str | None = None
@@ -101,6 +103,8 @@ class AITrainingRequest(BaseModel):
 
 
 class TrainingCaseGenerateRequest(BaseModel):
+    handbook_chapter_id: str | None = Field(default=None,max_length=80)
+    handbook_version: str | None = Field(default=None,max_length=40)
     template_id: str
     product_scope: str = "natural_gas"
     locale: str = "en"
@@ -1013,7 +1017,7 @@ def _build_training_session(
     checkpoint = replay.get("current_checkpoint") or {}
     requested_mode = (payload.market_mode or "ai_simulated").strip().lower()
     effective_mode = str(provenance.get("mode") or requested_mode)
-    return {
+    session = {
         "id": f"session-{uuid4().hex}",
         "schema_version": "1.0",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -1044,6 +1048,11 @@ def _build_training_session(
             "workspace_control_enabled": True,
         },
     }
+
+    from core.handbook_grounding import reference
+    handbook = _training_handbook(payload)
+    if handbook:session["handbook"] = reference(handbook)
+    return session
 
 
 def _attach_market_context(
@@ -1298,6 +1307,23 @@ def _strategy_leg_metrics(strategy_legs: list[dict[str, Any]]) -> dict[str, Any]
     }
 
 
+def _training_handbook(payload):
+    from core.handbook_grounding import chapter_context
+    try:return chapter_context(payload.handbook_chapter_id,payload.handbook_version,payload.template_id,payload.product_scope)
+    except ValueError as exc:raise HTTPException(409,detail=str(exc)) from exc
+
+
+def _case_handbook(case, payload=None):
+    from core.handbook_grounding import case_context
+    try:return case_context(case,getattr(payload,"handbook_chapter_id",None),getattr(payload,"handbook_version",None))
+    except ValueError as exc:raise HTTPException(409,detail=str(exc)) from exc
+
+
+def _ground_messages(messages,context):
+    from core.handbook_grounding import grounded_messages
+    return grounded_messages(messages,context)
+
+
 @app.post("/api/v1/ai/generate")
 def v1_ai_generate(payload: AITrainingRequest):
     from core.haineng_client import (
@@ -1310,8 +1336,14 @@ def v1_ai_generate(payload: AITrainingRequest):
         build_trade_playbook_messages,
     )
 
+    handbook = _case_handbook((payload.market_context or {}).get("case"),payload)
     client = _require_haineng_client()
     scenario, context = _scenario_bundle(payload.scenario_id, payload.locale, payload.source, payload.market_context)
+    if handbook and isinstance((payload.market_context or {}).get("case",{}).get("scenario"),dict):
+        from core.handbook_grounding import coaching_workspace
+        safe_workspace = coaching_workspace(payload.market_context)
+        scenario = safe_workspace["case"]["scenario"]
+        context = {"market": safe_workspace}
     capability = payload.capability.strip().lower()
 
     if capability == "advisor_review":
@@ -1339,23 +1371,37 @@ def v1_ai_generate(payload: AITrainingRequest):
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported AI capability: {payload.capability}")
 
+    messages = _ground_messages(messages,handbook)
+    if handbook:
+        from core.handbook_grounding import strict_coaching_messages
+        messages = strict_coaching_messages(messages,handbook)
     try:
         answer = client.complete(messages)
     except Exception as exc:
         raise _haineng_failure(exc) from exc
-    return {"capability": capability, "scenario": scenario, "answer": answer}
+    references = None
+    if handbook:
+        from core.handbook_grounding import validated_coaching_answer
+        try:answer,references = validated_coaching_answer(answer,handbook)
+        except (ValueError,TypeError) as exc:
+            raise HTTPException(502,detail={"code":"handbook_reference_validation_failed","message":"AI guidance failed chapter-reference validation; retry or use the reference chapter."}) from exc
+    return {"capability": capability, "scenario": scenario, "answer": answer, **({"handbook_references":references} if references else {})}
 
 
 @app.post("/api/v1/ai/advisor-review/stream")
 def v1_ai_advisor_review_stream(payload: AITrainingRequest):
+    handbook = _case_handbook((payload.market_context or {}).get("case"),payload)
     def stream():
         try:
             from core.haineng_client import build_advisor_messages
 
             client = _require_haineng_client()
             scenario, context = _scenario_bundle(payload.scenario_id, payload.locale, payload.source, payload.market_context)
+            if handbook:
+                from core.handbook_grounding import coaching_workspace
+                context = {"market": coaching_workspace(payload.market_context or {})}
             review_scenario = _advisor_workspace_context(scenario, context)
-            messages = build_advisor_messages(payload.locale, review_scenario, payload.evaluation or {}, payload.rationale)
+            messages = _ground_messages(build_advisor_messages(payload.locale, review_scenario, payload.evaluation or {}, payload.rationale),handbook)
             yield _sse_event("stage", {"id": "review_decision", "label": "Reviewing the scored decision"})
             chunks: list[str] = []
             received = 0
@@ -1383,6 +1429,7 @@ def v1_ai_advisor_review_stream(payload: AITrainingRequest):
 
 @app.post("/api/v1/ai/training-case")
 def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
+    handbook = _training_handbook(payload)
     from core.haineng_client import build_training_case_messages
     from core.training_templates import get_template
 
@@ -1401,6 +1448,7 @@ def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
         gas_trading_models=payload.gas_trading_models[:6],
         market_context=_market_prompt_context(market_context),
     )
+    messages = _ground_messages(messages,handbook)
     try:
         answer = client.complete(messages)
         case = _attach_market_context(
@@ -1420,6 +1468,7 @@ def v1_ai_training_case(payload: TrainingCaseGenerateRequest):
 
 @app.post("/api/v1/ai/training-case/stream")
 def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
+    handbook = _training_handbook(payload)
     def stream():
         yield _sse_event("stage", {"id": "read_template", "label": "Reading business template"})
         try:
@@ -1443,6 +1492,7 @@ def v1_ai_training_case_stream(payload: TrainingCaseGenerateRequest):
                 gas_trading_models=payload.gas_trading_models[:6],
                 market_context=_market_prompt_context(market_context),
             )
+            messages = _ground_messages(messages,handbook)
             chunks: list[str] = []
             received = 0
             stream_complete = getattr(client, "stream_complete", None)
@@ -1533,13 +1583,18 @@ def _live_assistant_action_schema() -> dict[str, Any]:
 def _live_assistant_messages(payload: LiveAssistantRequest) -> list[dict[str, str]]:
     from core.haineng_client import build_live_assistant_messages
 
-    return build_live_assistant_messages(
+    handbook = _case_handbook(payload.workspace_state.get("case"))
+    from core.handbook_grounding import coaching_workspace
+    workspace = coaching_workspace(payload.workspace_state) if handbook else payload.workspace_state
+    messages = build_live_assistant_messages(
         payload.locale,
         payload.message,
-        _compact_live_workspace_context(payload.workspace_state),
+        _compact_live_workspace_context(workspace),
         _live_assistant_action_schema(),
     )
 
+
+    return _ground_messages(messages,handbook)
 
 def _normalize_live_assistant_result(parsed: dict[str, Any]) -> dict[str, Any]:
     allowed = set(_live_assistant_action_schema())

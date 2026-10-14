@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "milestone": "HB1 Interactive business-model handbook",
+  "milestone": "HB2 grounding and bounded DeepSeek live qualification",
   "updated": "2026-10-14",
   "items": [
     {
@@ -291,12 +291,14 @@
         "HB-02",
         "HB-05"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "acceptance_criteria": [
         "Real configured-provider grounded conversation quality/latency evaluated",
         "External review of business contracts, terminology and numeric scope",
         "Document sources and reviewer evidence without invented citations"
-      ]
+      ],
+      "implementation_evidence": "docs/handbook/DEEPSEEK-LIVE.md: authenticated public Flash model and seven live completions, including rejected interim results and validated fixes",
+      "remaining": "Broader evaluation, long sessions, Pro/provider availability, external editorial/domain review; no general model certification claimed."
     },
     {
       "id": "HB-07",
@@ -332,12 +334,14 @@
         "HB-05",
         "HB-07"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "acceptance_criteria": [
         "Carry reviewed passages into legacy AI generation and counterfactual tools",
         "Associate learner practice with existing competency evidence contracts",
         "Repeated assessments and instructor-reviewed reasoning before mastery"
-      ]
+      ],
+      "implementation_evidence": "ADR 0005; docs/handbook/GROUNDING.md; typed ID/version propagation, case snapshots, server-loaded source grounding, App integration and provider-mocked regressions",
+      "remaining": "Repeated competency evidence and instructor-reviewed reasoning; configured-provider quality/latency qualification."
     }
   ]
 }

@@ -39,3 +39,5 @@ Server solutions are withheld until an answer is submitted. Subsequent conversat
 Existing courses, practice, Workbench, replay, AI settings, learner profiles, Risk Lab and release workflows are preserved. Additional markets require validated conventions; none enabled by this milestone.
 
 Pull request: [#6](https://github.com/AlexYuhuFeng/Commodity-Lab/pull/6), dependent on #5/#4. Implementation `1fab4f7b`. Remote CI evidence/status is recorded on the pull request; local checks above are independently verified.
+
+Live follow-up: [DeepSeek qualification](DEEPSEEK-LIVE.md) now records real authentication and seven completions for selected handbook/generation/tutor workflows. The original delivery-time unverified-provider note above is historical; Haineng, Pro, broad quality/availability and other untested workflows remain unqualified.

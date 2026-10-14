@@ -18,7 +18,7 @@ it("reads chapter context and opens existing tools without calling AI",async()=>
  expect(screen.getByText(/Editorial training draft/)).toBeInTheDocument();
  expect(backendRequest).toHaveBeenCalledTimes(2);
  fireEvent.click(screen.getByRole("button",{name:"Open Risk Lab"}));expect(risk).toHaveBeenCalled();
- fireEvent.click(screen.getByRole("button",{name:"Open existing AI practice"}));expect(practice).toHaveBeenCalledWith("gas_local_market_procurement");
+ fireEvent.click(screen.getByRole("button",{name:"Open existing AI practice"}));expect(practice).toHaveBeenCalledWith("gas_local_market_procurement",expect.objectContaining({id:chapter.id,version:chapter.version}));
 });
 it("requests checked practice, withholds solution until grading and saves conversation",async()=>{
  catalog();backendRequest.mockResolvedValueOnce(initial).mockResolvedValueOnce(replied).mockResolvedValueOnce({correct:true,expected_answer:"20500.00",working:{en:"Sales minus procurement plus paper",zh:"销售减采购加纸货"},remediation_section:"economics"});
